@@ -1,0 +1,61 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*~
+
+# Java and Maven
+**/target/
+*.class
+.mvn/timing.properties
+
+# Node and frontend
+**/node_modules/
+**/dist/
+**/.vite/
+**/coverage/
+*.tsbuildinfo
+
+# Python
+**/__pycache__/
+*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/venv/
+**/.coverage
+**/htmlcov/
+*.egg-info/
+
+# ML data and generated artifacts
+ml/training/data/*
+!ml/training/data/.gitkeep
+ml/training/artifacts/
+ml/training/mlruns/
+ml/serving/models/
+*.joblib
+*.pkl
+*.onnx
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# Infrastructure tooling
+**/.terraform/
+*.tfstate
+*.tfstate.*
+**/charts/*.tgz
