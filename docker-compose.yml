@@ -1,0 +1,48 @@
+name: vigilia
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/observability/rules:/etc/prometheus/rules
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infrastructure/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+
+  ml-serving:
+    build:
+      context: ./ml/serving
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8087:8080" # Exposed on 8087 locally
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    ports:
+      - "8080:8080"

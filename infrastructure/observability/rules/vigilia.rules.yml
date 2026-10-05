@@ -57,3 +57,48 @@ groups:
         annotations:
           summary: "ML model uncertainty is high"
           description: "Average prediction uncertainty has exceeded 0.4 for 5 minutes — review model performance."
+
+      - alert: HighReviewVolume
+        expr: >
+          rate(fintech_risk_decisions_total{decision="PENDING_REVIEW"}[10m])
+          /
+          rate(fintech_risk_decisions_total[10m]) > 0.30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High volume of transactions routed to human review"
+          description: "More than 30%% of risk decisions are PENDING_REVIEW. Check ML model performance or uncertainty thresholds."
+
+  - name: infrastructure
+    rules:
+      - alert: HighCPU
+        expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.job }}"
+          description: "CPU usage on {{ $labels.job }} has exceeded 80%% for more than 5 minutes."
+
+  # Kubernetes alerts — requires kube-state-metrics.
+  # Rules are defined now but will only fire once deployed to Kubernetes.
+  - name: kubernetes
+    rules:
+      - alert: PodNotReady
+        expr: kube_pod_status_ready{condition="false", namespace="vigilia"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} is not ready"
+          description: "Pod {{ $labels.pod }} has been in a non-ready state for more than 2 minutes."
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{namespace="vigilia"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+          description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is restarting frequently."
