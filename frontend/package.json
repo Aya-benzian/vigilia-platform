@@ -1,0 +1,8 @@
+{
+  "name": "vigilia-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "echo 'Vite starts here'",
+    "build": "mkdir -p dist && echo '<h1>Vigilia Dashboard</h1>' > dist/index.html"
+  }
+}
