@@ -1,8 +1,8 @@
 # Runtime and Observability Contract
 
-**Status:** Draft v0.1 for team review  
+**Status:** Accepted v1.0 — 2026-10-05  
 **Owner:** Member 5  
-**Reviewers:** Component owners
+**Decision authority:** Team lead (Aya-benzian)
 
 ## Services
 

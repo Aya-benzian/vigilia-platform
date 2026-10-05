@@ -1,0 +1,59 @@
+groups:
+  - name: availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 1 minute."
+
+      - alert: MLServiceDown
+        expr: up{job="ml-serving"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "ML serving is down — fallback to PENDING_REVIEW active"
+          description: "Risk management will route all transactions to human review until ML recovers."
+
+  - name: latency
+    rules:
+      - alert: HighLatency
+        expr: >
+          histogram_quantile(0.95,
+            rate(fintech_http_request_duration_seconds_bucket[5m])
+          ) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.service }}"
+          description: "P95 latency exceeds 1s on {{ $labels.service }} / {{ $labels.route }}."
+
+  - name: errors
+    rules:
+      - alert: HighErrorRate
+        expr: >
+          rate(fintech_http_requests_total{status_code=~"5.."}[5m])
+          /
+          rate(fintech_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+          description: "Error rate above 5%% on {{ $labels.service }}."
+
+  - name: ml
+    rules:
+      - alert: HighMLUncertainty
+        expr: avg(fintech_ml_prediction_uncertainty) > 0.4
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML model uncertainty is high"
+          description: "Average prediction uncertainty has exceeded 0.4 for 5 minutes — review model performance."
