@@ -20,4 +20,5 @@ RUN chmod +x /docker-entrypoint.d/99-envsubst.sh
 # nginx-unprivileged uses port 8080 by default (non-root cannot bind to 80)
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3   CMD curl -f http://localhost:8080/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget -q --spider http://localhost:8080/ || curl -f http://localhost:8080/ || exit 1
