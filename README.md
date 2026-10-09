@@ -43,6 +43,32 @@ Components integrate through contracts, not shared source code or database table
 - Never merge the two datasets or claim real-bank generalization.
 - Never commit datasets, generated models, MLflow runs, or secrets.
 
+## Running the Platform Locally
+
+All platform infrastructure (8 application microservices, PostgreSQL, Prometheus, Grafana, and Alertmanager) can be started with Docker Compose.
+
+> [!IMPORTANT]
+> **Do not forget to create your `.env` file locally before starting!**  
+> Actual secrets and environment configurations are strictly gitignored and never committed. You **must** create `.env` from the provided template:
+> ```bash
+> cp .env.example .env
+> ```
+
+Once `.env` is created, run:
+
+```bash
+# Build and launch all 13 containers in detached mode
+docker compose up -d --build
+
+# Verify that all containers are healthy and running
+docker compose ps
+```
+
+To shut down the platform:
+```bash
+docker compose down
+```
+
 ## Start Here
 
 1. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and your ownership area.

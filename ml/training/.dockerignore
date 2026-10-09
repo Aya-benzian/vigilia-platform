@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+.env
+.venv
+venv/
+.git
+.gitignore
+.dockerignore
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Exclude local training datasets and generated model artifacts from image builds
+data/*
+!data/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+mlruns/

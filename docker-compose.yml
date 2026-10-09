@@ -1,0 +1,111 @@
+name: vigilia
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vigilia-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vigilia}
+      POSTGRES_USER: ${POSTGRES_USER:-vigilia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vigilia} -d ${POSTGRES_DB:-vigilia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/observability/rules:/etc/prometheus/rules
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infrastructure/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+
+
+  ml-serving:
+    build:
+      context: ./ml/serving
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8087:8080" # Exposed on 8087 locally
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    ports:
+      - "8080:8080"
+
+  auth-service:
+    build:
+      context: ./backend/auth-service
+    ports:
+      - "8081:8081"
+
+  customer-service:
+    build:
+      context: ./backend/customer-service
+    ports:
+      - "8082:8082"
+
+  transaction-service:
+    build:
+      context: ./backend/transaction-service
+    ports:
+      - "8083:8083"
+
+  risk-management-service:
+    build:
+      context: ./backend/risk-management-service
+    ports:
+      - "8084:8084"
+
+  notification-service:
+    build:
+      context: ./backend/notification-service
+    ports:
+      - "8085:8085"
+
+  audit-service:
+    build:
+      context: ./backend/audit-service
+    ports:
+      - "8086:8086"
+
+volumes:
+  postgres_data:
+

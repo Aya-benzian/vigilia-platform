@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'Vigilia Dashboards'
+    orgId: 1
+    folder: 'Vigilia'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

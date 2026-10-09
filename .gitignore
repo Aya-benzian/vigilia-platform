@@ -1,7 +1,11 @@
 # Local configuration and secrets
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
+
 *.pem
 *.key
 *.p12
@@ -42,7 +46,8 @@ Thumbs.db
 # ML data and generated artifacts
 ml/training/data/*
 !ml/training/data/.gitkeep
-ml/training/artifacts/
+ml/training/artifacts/*
+!ml/training/artifacts/.gitkeep
 ml/training/mlruns/
 ml/serving/models/
 *.joblib
@@ -59,3 +64,8 @@ temp/
 *.tfstate
 *.tfstate.*
 **/charts/*.tgz
+
+# Personal work logs
+docs/M5-days-work.md
+M5-days-work.md
+
