@@ -7,12 +7,15 @@
 
 ## CVE Severity Policy
 
+
+> **Note on Upstream Fixes (`ignore-unfixed: true`):** Scanners only evaluate vulnerabilities for which a vendor fix/patch currently exists. Unfixed upstream CVEs with no patch available are tracked for monitoring but do not block daily builds.
+
 | Severity | Pipeline behaviour | Resolution deadline |
 |----------|--------------------|---------------------|
-| **CRITICAL** | ❌ Blocks merge immediately | Before merge — no exceptions |
-| **HIGH** | ❌ Blocks merge | Within 1 sprint (1 week max) |
-| **MEDIUM** | ⚠️ Warning only — does not block | Tracked, fix in next available sprint |
-| **LOW / NEGLIGIBLE** | ✅ Ignored | Not actioned |
+| **CRITICAL** | ❌ Blocks merge immediately | Must be fixed before merge. No ignore allowed. |
+| **HIGH** | ❌ Blocks merge by default | Must be fixed, or temporarily accepted with documented rationale in `.trivyignore` (max 1 sprint / 1 week). |
+| **MEDIUM** | ⚠️ Warning / Logged only | Tracked in audit logs; remediated in next regular maintenance sprint. |
+| **LOW / NEGLIGIBLE** | ✅ Ignored | Not actioned. |
 
 ---
 
