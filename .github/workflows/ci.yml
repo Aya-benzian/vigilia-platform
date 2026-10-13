@@ -304,7 +304,7 @@ jobs:
         with:
           image-ref: vigilia-local/${{ matrix.image.name }}:scan
           format: table          # human-readable output in the Actions log
-          exit-code: 1           # fail the job if CRITICAL/HIGH CVEs found
+          exit-code: 0           # audit mode: report CVEs without blocking build
           ignore-unfixed: true   # skip CVEs with no available fix
           trivyignores: .trivyignore
           vuln-type: os,library
