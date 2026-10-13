@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Vigilia Platform — Security Scanning (Trivy)
+#
+# Jobs:
+#   trivy-fs      → scan repo filesystem & dependencies for CVEs
+#   trivy-config  → scan IaC files for misconfigurations
+#                   (Dockerfiles, docker-compose.yml, K8s manifests)
+#
+# Results are uploaded to the GitHub Security tab as SARIF reports.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Security Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - "workspace/**"
+  push:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: security-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 0 — Gitleaks secret scan
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  gitleaks:
+    name: "Gitleaks — secret scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # uncomment for private repos
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Filesystem & dependency CVE scan
+# Scans requirements.txt, package.json, pom.xml for known vulnerabilities
+# ─────────────────────────────────────────────────────────────────────────────
+  trivy-fs:
+    name: "Trivy — dependency & filesystem CVE scan"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write   # required to upload SARIF to Security tab
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true   # skip CVEs with no fix available yet
+          trivyignores: .trivyignore
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        # Run even if Trivy found issues so the report always lands in Security tab
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-filesystem
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — IaC & configuration misconfiguration scan
+# Scans: Dockerfiles, docker-compose.yml, and K8s/Helm manifests (when added)
+# ─────────────────────────────────────────────────────────────────────────────
+  trivy-config:
+    name: "Trivy — IaC & Dockerfile misconfiguration scan"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
+          # Paths scanned automatically: all Dockerfiles, docker-compose.yml
+          # K8s manifests under infrastructure/k8s/** will be picked up once added
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-iac

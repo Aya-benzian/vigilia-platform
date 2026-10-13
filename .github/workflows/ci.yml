@@ -2,12 +2,14 @@
 # Vigilia Platform — CI Pipeline
 # Triggered on every Pull Request against: main, develop, workspace/*
 #
-# Jobs (all parallel, then docker-build fans in):
+# Pipeline (sequential gates):
+#   gitleaks      → secret scan (blocks everything if secrets found)
 #   backend       → Maven test + package (7 Spring Boot services)
 #   ml-serving    → pip install + pytest (FastAPI serving)
 #   ml-training   → pip install + pytest (ML training workspace)
 #   frontend      → npm install + build
-#   docker-build  → Build all Docker images (matrix, cached via GHCR)
+#   sonar         → SonarCloud quality gate
+#   docker-build  → Build + Trivy image scan (matrix, cached via GHCR)
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: CI
@@ -30,10 +32,33 @@ env:
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 1 — Backend (7 Spring Boot services via Maven)
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 0 — Gitleaks secret scan (first gate — blocks all other jobs)
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
+  gitleaks:
+    name: "Gitleaks — secret scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history to catch secrets in all commits)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # uncomment for private repos
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Backend (7 Spring Boot services via Maven)
+# ─────────────────────────────────────────────────────────────────────────────
   backend:
     name: "Backend — Maven test & package"
     runs-on: ubuntu-latest
+    needs: [gitleaks]
 
     strategy:
       fail-fast: false
@@ -79,6 +104,7 @@ jobs:
   ml-serving:
     name: "ML Serving — pip install & test"
     runs-on: ubuntu-latest
+    needs: [gitleaks]
 
     steps:
       - name: Checkout
@@ -111,6 +137,7 @@ jobs:
   ml-training:
     name: "ML Training — pip install & test"
     runs-on: ubuntu-latest
+    needs: [gitleaks]
 
     steps:
       - name: Checkout
@@ -142,6 +169,7 @@ jobs:
   frontend:
     name: "Frontend — npm install & build"
     runs-on: ubuntu-latest
+    needs: [gitleaks]
 
     steps:
       - name: Checkout
@@ -167,12 +195,41 @@ jobs:
         run: npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 5 — Docker image builds (matrix, fans in after all jobs above pass)
+# JOB 5 — SonarCloud analysis + Quality Gate
+# Fans in after all test jobs; blocks docker-build if gate fails
+# ─────────────────────────────────────────────────────────────────────────────
+  sonar:
+    name: "SonarCloud — Quality Gate"
+    runs-on: ubuntu-latest
+    needs: [backend, ml-serving, ml-training, frontend]
+
+    steps:
+      - name: Checkout (full history for blame & SCM info)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all backend JAR artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Pattern matches all <service>-jar artifacts uploaded by the backend job
+          pattern: "*-jar"
+          path: sonar-binaries
+          merge-multiple: true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # PR decoration & status checks
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}      # Add in repo Settings → Secrets
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 6 — Docker image builds (matrix, fans in after quality gate passes)
 # ─────────────────────────────────────────────────────────────────────────────
   docker-build:
     name: "Docker — build ${{ matrix.image.name }}"
     runs-on: ubuntu-latest
-    needs: [backend, ml-serving, ml-training, frontend]
+    needs: [sonar]
 
     permissions:
       contents: read
@@ -212,7 +269,7 @@ jobs:
 
       - name: Set lowercase image prefix
         id: image_prefix
-        run: echo "value=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/vigilia" >> $GITHUB_OUTPUT
+        run: echo "value=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/vigilia" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -234,7 +291,21 @@ jobs:
         with:
           context: ${{ matrix.image.context }}
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
+          load: true          # load into local daemon so Trivy can scan it
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            vigilia-local/${{ matrix.image.name }}:scan
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}:cache
           cache-to: type=registry,ref=${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}:cache,mode=max
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: vigilia-local/${{ matrix.image.name }}:scan
+          format: table          # human-readable output in the Actions log
+          exit-code: 1           # fail the job if CRITICAL/HIGH CVEs found
+          ignore-unfixed: true   # skip CVEs with no available fix
+          trivyignores: .trivyignore
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
