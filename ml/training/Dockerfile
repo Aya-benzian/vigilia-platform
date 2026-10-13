@@ -25,6 +25,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    GIT_PYTHON_REFRESH=quiet \
     PYTHONPATH="/workspace:/workspace/src"
 
 # Copy training workspace files and configure ownership
