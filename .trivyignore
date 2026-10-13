@@ -1,0 +1,20 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Vigilia Platform — Trivy CVE Ignore List
+#
+# Purpose: Document CVEs that have been consciously accepted.
+#          Every entry MUST include a reason and a review date.
+#          This file is auditable — do not add entries without team discussion.
+#
+# Format:
+#   CVE-YYYY-XXXXX  # reason | review date
+#
+# Policy:
+#   CRITICAL → must be resolved before merge (no ignore allowed)
+#   HIGH     → must be resolved within 1 sprint (can be ignored with justification)
+#   MEDIUM   → tracked but does not block pipeline
+#   LOW      → ignored by default (not in Trivy severity filter)
+#
+# Note: prefer fixing via Dependabot PR over ignoring here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# No entries yet. Add only after team review and documented justification.
