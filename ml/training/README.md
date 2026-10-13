@@ -82,3 +82,69 @@ The baseline environment includes:
    ```bash
    docker build -t vigilia-ml-training ml/training
    ```
+
+---
+
+## MLflow Tracking & Model Registry Integration
+
+The Vigilia platform provides an MLflow Tracking Server backed by PostgreSQL metadata storage and persistent artifact proxying.
+
+### Tracking URIs
+* **From inside Docker containers (`vigilia_default` network)**:
+  ```bash
+  export MLFLOW_TRACKING_URI="http://mlflow:5000"
+  ```
+* **From the host machine / local terminal**:
+  ```bash
+  export MLFLOW_TRACKING_URI="http://localhost:5000"
+  ```
+* **Web UI**: Open `http://localhost:5000` in your browser.
+
+### Verifying Connection (Smoke Test)
+A self-contained smoke test (`smoke_test_mlflow.py`) validates experiment creation, metric/parameter logging, artifact proxying, and registering models with the `@champion` alias:
+
+```bash
+# Run from inside Docker connected to Compose network:
+docker run --rm \
+  --network vigilia_default \
+  -e MLFLOW_TRACKING_URI=http://mlflow:5000 \
+  vigilia-ml-training python smoke_test_mlflow.py
+
+# Or run from your host machine (if virtual environment is active):
+export MLFLOW_TRACKING_URI=http://localhost:5000
+python ml/training/smoke_test_mlflow.py
+```
+
+### Logging & Registering the Champion Model in Python
+In your training scripts (`ml/training/src/`), use the following pattern:
+
+```python
+import os
+import mlflow
+from mlflow.tracking import MlflowClient
+
+# 1. Connect to tracking server
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"))
+mlflow.set_experiment("vigilia-fraud-detection")
+
+with mlflow.start_run(run_name="model_run_1"):
+    # Log hyperparameters and metrics
+    mlflow.log_params({"model_type": "xgboost", "max_depth": 6})
+    mlflow.log_metrics({"f1_score": 0.942, "auc_roc": 0.985})
+    
+    # Log model artifacts to Model Registry
+    model_name = "vigilia_fraud_detector"
+    mlflow.sklearn.log_model(
+        sk_model=fitted_pipeline,
+        artifact_path="model",
+        registered_model_name=model_name
+    )
+
+# 2. Promote model version to 'champion' alias
+client = MlflowClient()
+registered_model = client.get_registered_model(model_name)
+latest_version = registered_model.latest_versions[-1].version
+client.set_registered_model_alias(name=model_name, alias="champion", version=latest_version)
+print(f"Version {latest_version} promoted to @champion")
+```
+
