@@ -1,0 +1,8 @@
+# reports/figures/ — generated matplotlib/seaborn figures
+# All files here are gitignored (generated output, never committed).
+# Figures produced by the pipeline:
+#   cv_boxplot.png          — PR-AUC distribution per model (demo figure 1)
+#   ranking_plot.png        — Model ranking with CI error bars (demo figure 1)
+#   pvalue_heatmap.png      — Holm-corrected p-value heatmap
+#   reliability_*.png       — Calibration curves before/after (demo figure 2)
+#   review_budget_curve.png — Review-budget curve (demo figure 3)

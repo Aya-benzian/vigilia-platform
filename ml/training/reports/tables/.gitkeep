@@ -1,0 +1,10 @@
+# reports/tables/ — generated CSV and parquet tables
+# All files here are gitignored (generated output, never committed).
+# Tables produced by the pipeline:
+#   cv_scores_stratified.parquet — fold scores from RepeatedStratifiedKFold
+#   cv_scores_grouped.parquet    — fold scores from StratifiedGroupKFold
+#   cv_scores_long.parquet       — merged long format (input to stats_tests.py)
+#   friedman.csv                 — Friedman test result
+#   wilcoxon_holm.csv            — Pairwise Wilcoxon + Holm correction
+#   test_metrics.csv             — Per-model final test metrics
+#   review_budget.csv            — Review-budget curve data

@@ -54,6 +54,17 @@ ml/serving/models/
 *.pkl
 *.onnx
 
+# ML training generated outputs (never committed)
+ml/training/reports/figures/*
+!ml/training/reports/figures/.gitkeep
+ml/training/reports/tables/*
+!ml/training/reports/tables/.gitkeep
+*.parquet
+*.csv
+requirements.lock.txt
+ml/training/data/interim/*
+!ml/training/data/interim/.gitkeep
+
 # Logs and temporary files
 *.log
 tmp/
