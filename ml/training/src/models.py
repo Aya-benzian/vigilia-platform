@@ -1,24 +1,9 @@
 """
 models.py — Model factory for the five required classifiers (Member 1).
 
-This module defines one factory function per model. Each function returns an
-unfitted sklearn-compatible estimator with hyperparameters frozen after tuning.
-
-Rules:
-- Hyperparameters start as defaults here. After Optuna tuning (tune.py), the
-  best hyperparameters are passed back here via the `params` argument.
-- Models are always wrapped in a Pipeline by preprocess.py (build_pipeline()).
-- SVM has no usable predict_proba — uses decision_function during CV scoring;
-  calibrate.py wraps it with CalibratedClassifierCV on part B.
-- XGBoost uses tree_method="hist" for speed on large data.
-- Seed 42 is applied to all models that accept random_state.
-
-Imbalance handling per model (§5 of design v5):
-    LogReg   → class_weight="balanced"
-    RF       → class_weight="balanced_subsample"
-    XGBoost  → scale_pos_weight=negatives/positives (passed at fit time)
-    SVM      → class_weight="balanced"
-    MLP      → early_stopping=True with a validation fraction
+Each function returns an unfitted sklearn-compatible estimator.
+After Optuna tuning (tune.py), best params are passed via the `params` argument.
+All models are wrapped in a Pipeline by preprocess.build_pipeline().
 """
 
 import logging
@@ -37,42 +22,51 @@ logger = logging.getLogger(__name__)
 
 def make_logreg(params: Optional[Dict[str, Any]] = None) -> LogisticRegression:
     """
-    Logistic Regression classifier.
+    Logistic Regression with class_weight='balanced'.
 
-    Default hyperparameters (overridden by Optuna in tune.py):
-        C=1.0, penalty="l2", solver="lbfgs", max_iter=1000
-
-    Tunable hyperparameters (§6 of design v5):
-        C       : regularization inverse strength
-        penalty : "l1" or "l2" (solver must match)
-        solver  : "lbfgs", "saga" (required for l1)
-
-    Args:
-        params: Dict of hyperparameters to override defaults. Pass None for defaults.
-
-    Returns:
-        Unfitted LogisticRegression with class_weight="balanced".
+    Tunable: C, penalty, solver.
     """
-    raise NotImplementedError
+    defaults = dict(
+        C=1.0,
+        penalty="l2",
+        solver="lbfgs",
+        max_iter=1000,
+        class_weight="balanced",
+        random_state=SEED,
+        n_jobs=-1,
+    )
+    if params:
+        # solver must be "saga" when penalty="l1"
+        if params.get("penalty") == "l1":
+            params.setdefault("solver", "saga")
+        else:
+            params.setdefault("solver", "lbfgs")
+        defaults.update(params)
+
+    logger.debug(f"make_logreg: {defaults}")
+    return LogisticRegression(**defaults)
 
 
 def make_random_forest(params: Optional[Dict[str, Any]] = None) -> RandomForestClassifier:
     """
-    Random Forest classifier.
+    Random Forest with class_weight='balanced_subsample'.
 
-    Default hyperparameters:
-        n_estimators=300, max_depth=None, min_samples_leaf=1, max_features="sqrt"
-
-    Tunable hyperparameters:
-        n_estimators, max_depth, min_samples_leaf, max_features
-
-    Args:
-        params: Dict of hyperparameters to override defaults.
-
-    Returns:
-        Unfitted RandomForestClassifier with class_weight="balanced_subsample".
+    Tunable: n_estimators, max_depth, min_samples_leaf, max_features.
     """
-    raise NotImplementedError
+    defaults = dict(
+        n_estimators=300,
+        max_depth=None,
+        min_samples_leaf=1,
+        max_features="sqrt",
+        class_weight="balanced_subsample",
+        random_state=SEED,
+        n_jobs=-1,
+    )
+    if params:
+        defaults.update(params)
+
+    logger.debug(f"make_random_forest: {defaults}")
+    return RandomForestClassifier(**defaults)
 
 
 def make_xgboost(
@@ -80,26 +74,31 @@ def make_xgboost(
     scale_pos_weight: float = 1.0,
 ) -> XGBClassifier:
     """
-    XGBoost gradient-boosted tree classifier.
+    XGBoost with tree_method='hist' for speed on large tabular data.
 
-    Uses tree_method="hist" for speed on large tabular data (required on Sparkov ~1.3M rows).
-
-    Default hyperparameters:
-        learning_rate=0.1, max_depth=6, n_estimators=300,
-        subsample=0.8, colsample_bytree=0.8, reg_lambda=1.0
-
-    Tunable hyperparameters:
-        learning_rate, max_depth, n_estimators, subsample,
-        colsample_bytree, reg_lambda, scale_pos_weight
-
-    Args:
-        params: Dict of hyperparameters to override defaults.
-        scale_pos_weight: Ratio negatives/positives. Computed from part A and passed here.
-
-    Returns:
-        Unfitted XGBClassifier.
+    scale_pos_weight is computed from part A (negatives/positives ratio).
+    Tunable: learning_rate, max_depth, n_estimators, subsample,
+             colsample_bytree, reg_lambda.
     """
-    raise NotImplementedError
+    defaults = dict(
+        learning_rate=0.1,
+        max_depth=6,
+        n_estimators=300,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_lambda=1.0,
+        scale_pos_weight=scale_pos_weight,
+        tree_method="hist",
+        random_state=SEED,
+        n_jobs=-1,
+        eval_metric="aucpr",   # PR-AUC aligned with our primary metric
+        verbosity=0,
+    )
+    if params:
+        defaults.update(params)
+
+    logger.debug(f"make_xgboost: scale_pos_weight={scale_pos_weight}")
+    return XGBClassifier(**defaults)
 
 
 def make_svm(
@@ -107,64 +106,69 @@ def make_svm(
     use_linear: bool = False,
 ) -> SVC | LinearSVC:
     """
-    Support Vector Machine classifier.
+    Support Vector Machine.
 
-    Two variants (§4 of design v5 — compute reality):
-        use_linear=False : RBF SVC on a small subsample (SVM_SUBSAMPLE_N = 30k rows).
-                           Has predict_proba=False — uses decision_function for scoring.
-                           Calibrator (calibrate.py) will wrap it to get probabilities.
-        use_linear=True  : LinearSVC on the full comparison subsample.
-                           Faster, but still has no predict_proba — same calibration path.
+    use_linear=False: RBF SVC on SVM_SUBSAMPLE_N rows (~30k).
+                      No predict_proba — calibrate.py wraps it.
+    use_linear=True:  LinearSVC, faster, same calibration path.
 
-    IMPORTANT: Document which variant you used and confirm with the professor
-    if the spec expects RBF specifically.
-
-    Default hyperparameters (RBF):
-        C=1.0, gamma="scale"
-
-    Tunable hyperparameters:
-        C, gamma (RBF) or C (LinearSVC)
-
-    Args:
-        params: Dict of hyperparameters to override defaults.
-        use_linear: If True, return LinearSVC instead of RBF SVC.
-
-    Returns:
-        Unfitted SVC or LinearSVC with class_weight="balanced".
+    Tunable: C, gamma (RBF) or C (LinearSVC).
     """
-    raise NotImplementedError
+    if use_linear:
+        defaults = dict(
+            C=1.0,
+            class_weight="balanced",
+            max_iter=2000,
+            random_state=SEED,
+        )
+        if params:
+            defaults.update(params)
+        logger.debug(f"make_svm (LinearSVC): {defaults}")
+        return LinearSVC(**defaults)
+    else:
+        defaults = dict(
+            C=1.0,
+            kernel="rbf",
+            gamma="scale",
+            class_weight="balanced",
+            probability=False,  # CalibratedClassifierCV will add probabilities
+            random_state=SEED,
+        )
+        if params:
+            defaults.update(params)
+        logger.debug(f"make_svm (RBF SVC): {defaults}")
+        return SVC(**defaults)
 
 
 def make_mlp(params: Optional[Dict[str, Any]] = None) -> MLPClassifier:
     """
-    Multi-Layer Perceptron classifier.
+    Multi-Layer Perceptron with early stopping.
 
-    Uses early_stopping=True with a 10% validation fraction to prevent overfitting
-    without needing a separate validation set.
-
-    Default hyperparameters:
-        hidden_layer_sizes=(128, 64), alpha=1e-4, learning_rate_init=1e-3,
-        max_iter=200, early_stopping=True, validation_fraction=0.1
-
-    Tunable hyperparameters:
-        hidden_layer_sizes (n layers, n units), alpha, learning_rate_init
-
-    Args:
-        params: Dict of hyperparameters to override defaults.
-
-    Returns:
-        Unfitted MLPClassifier.
+    Tunable: hidden_layer_sizes, alpha, learning_rate_init.
     """
-    raise NotImplementedError
+    defaults = dict(
+        hidden_layer_sizes=(128, 64),
+        alpha=1e-4,
+        learning_rate_init=1e-3,
+        max_iter=200,
+        early_stopping=True,
+        validation_fraction=0.1,
+        random_state=SEED,
+    )
+    if params:
+        defaults.update(params)
+
+    logger.debug(f"make_mlp: {defaults}")
+    return MLPClassifier(**defaults)
 
 
 # ==============================================================================
-# Model registry — maps name → factory function
+# Model registry
 # ==============================================================================
 MODEL_FACTORIES = {
-    "logreg":   make_logreg,
-    "rf":        make_random_forest,
-    "xgboost":   make_xgboost,
-    "svm":       make_svm,
-    "mlp":       make_mlp,
+    "logreg":  make_logreg,
+    "rf":      make_random_forest,
+    "xgboost": make_xgboost,
+    "svm":     make_svm,
+    "mlp":     make_mlp,
 }

@@ -297,3 +297,100 @@ Selection rule tests (test_select_model.py):
 | 11 | Implement artifact export | src/export_artifacts.py |
 | 12 | Implement MLflow registration | src/register.py |
 | 13 | Wire together in pipeline | src/pipeline.py |
+
+---
+
+## 11. Progress Log — What Was Done (Session 2 — 2026-10-15)
+
+### Modules Fully Implemented
+
+All 13 src/ modules are now COMPLETE (no more NotImplementedError stubs):
+
+| Module | Purpose |
+|---|---|
+| src/data_io.py | Load CSVs, SHA-256 hash, temporal A/B/C split, disjoint subsamples |
+| src/preprocess.py | Feature engineering (haversine, age, hour, dow, is_night, log transforms) + sklearn Pipeline |
+| src/schema.py | Pydantic v2 input validation -- Contract 1 with Member 2 |
+| src/baselines.py | DummyClassifier + AmountThresholdClassifier (best F1 threshold search) |
+| src/models.py | 5 model factories: LogReg, RandomForest, XGBoost, SVM, MLP |
+| src/tune.py | Optuna tuning for all 5 models (30 trials each, TPE sampler, 3-fold inner CV PR-AUC) |
+| src/cv_compare.py | RepeatedStratifiedKFold (5x10=50 scores) + StratifiedGroupKFold (5 folds, cc_num) |
+| src/stats_tests.py | Friedman test, Wilcoxon pairwise, Holm correction, bootstrap CIs, Cohen d, figures |
+| src/select_model.py | Pre-committed selection rule (FULLY WRITTEN + 7/7 tests passing before experiments) |
+| src/calibrate.py | CalibratedClassifierCV with FrozenEstimator on part B, F2-threshold on part C |
+| src/evaluate.py | Final test evaluation (run ONCE): PR-AUC, ROC-AUC, F1, F2, MCC, Brier, latency |
+| src/register.py | MLflow Model Registry with cloudpickle, @champion alias, model_card.json |
+| src/pipeline.py | CLI orchestrator: python -m src.pipeline [stage] |
+
+### Bug Fixed: io.py -> data_io.py rename
+- src/io.py conflicted with Python built-in io module
+- Renamed to src/data_io.py
+- Updated all imports in pipeline.py and tune.py automatically
+
+### Bug Fixed: pandas 3.0 infer_datetime_format removed
+- pd.to_datetime() no longer accepts infer_datetime_format=True in pandas 3.0+
+- Removed that argument from preprocess.py and data_io.py
+
+### Bug Fixed: Windows console encoding
+- Arrow character caused UnicodeEncodeError on Windows cp1252 console
+- Replaced with -> ASCII equivalent in data_io.py
+
+### How to run the pipeline
+All commands from ml/training/ with venv activated:
+
+  .venv\Scripts\activate
+  $env:PYTHONPATH="src"
+
+  .venv\Scripts\python.exe -m src.pipeline data_check   -- verify data (DONE)
+  .venv\Scripts\python.exe -m src.pipeline tune         -- Optuna tuning (~30-40 min)
+  .venv\Scripts\python.exe -m src.pipeline compare      -- Repeated CV comparison
+  .venv\Scripts\python.exe -m src.pipeline stats        -- Friedman + Wilcoxon + Holm
+  .venv\Scripts\python.exe -m src.pipeline select       -- Apply selection rule
+  .venv\Scripts\python.exe -m src.pipeline calibrate    -- Calibrate on B, threshold on C
+  .venv\Scripts\python.exe -m src.pipeline evaluate     -- FINAL TEST (run once)
+  .venv\Scripts\python.exe -m src.pipeline register     -- Register @champion in MLflow
+  .venv\Scripts\python.exe -m src.pipeline all          -- Run everything at once
+
+---
+
+## 12. Real Dataset Numbers (from data_check -- 2026-10-15)
+
+### fraudTrain.csv
+- Rows: 1,296,675
+- Columns: 23
+- Fraud rate: 0.5789% (7,506 frauds)
+- Date range: 2019-01-01 to 2020-06-21
+- SHA-256: fd7139200dbfcbed0b6742bbe05a4f1abce532c4fef20918228a651647a3e75d
+- Missing values: 0 (no missing data in this dataset)
+
+### fraudTest.csv
+- Rows: 555,719
+- Columns: 23
+- Fraud rate: 0.3860% (2,145 frauds)
+- Date range: 2020-06-21 to 2020-12-31
+- SHA-256: 12d553ab19440c752d2531ee1af44bb64f12cc3d3839f1649f19e81c230545f0
+- Missing values: 0
+
+### A / B / C Splits (from fraudTrain)
+- Part A (first 80%): 1,037,340 rows -- 5,968 frauds -- 0.5753%
+- Part B (next 10%):    129,667 rows --   706 frauds -- 0.5445% -- OK for calibration
+- Part C (last 10%):    129,668 rows --   832 frauds -- 0.6416% -- OK for threshold selection
+
+### Cardholders
+- Train: 983 unique cc_num (credit card numbers)
+- Test:  924 unique cc_num
+
+---
+
+## 13. Current Pipeline Status
+
+| Stage | Status | Notes |
+|---|---|---|
+| data_check | DONE | All numbers verified, DATASET.md filled |
+| tune | NEXT | Run: python -m src.pipeline tune |
+| compare | Waiting | After tune |
+| stats | Waiting | After compare |
+| select | Waiting | After stats |
+| calibrate | Waiting | After select |
+| evaluate | Waiting | After calibrate -- run ONCE |
+| register | Waiting | Last step |

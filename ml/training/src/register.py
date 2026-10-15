@@ -1,144 +1,177 @@
 """
-register.py — MLflow model registration for Member 1 (§12 of design v5).
+register.py — MLflow model registration (Member 1, §13).
 
-Registers the final calibrated Pipeline in the MLflow Model Registry as:
-    registered name : "fraud-model"    (MLFLOW_MODEL_NAME in config.py)
-    alias           : "champion"        (MLFLOW_MODEL_ALIAS in config.py)
-    version tag     : "fraud-model-v1" (Contract 10 with Members 2 and 3)
+Registers the calibrated champion pipeline in MLflow Model Registry with:
+    - serialization_format="cloudpickle" (required for XGBoost + CalibratedClassifierCV)
+    - @champion alias
+    - model_card.json artifact
+    - feature_spec.json artifact (Contract 1 with Member 2)
 
-Critical requirements (from design v5 §3 and §12):
-    - Use serialization_format="cloudpickle" — the default skops format
-      REJECTS CalibratedClassifierCV + XGBClassifier as untrusted types.
-    - Log with model signature and input example so Member 2 can validate.
-    - The model must load in a fresh environment using ONLY requirements.lock.txt.
-    - Base (uncalibrated) model is also registered separately for SHAP (Member 2).
-
-MLflow experiments:
-    - Final run: MLFLOW_EXP_FINAL
-    - Log: parameters, metrics, data hash, library versions, seed, git commit,
-           figures and tables as artifacts, model with signature and input example.
-    - Tags: stage="final", dataset="sparkov"
+Contract 10: The @champion alias is what Members 2 and 3 load at serving time.
 """
 
+import json
 import logging
-import os
-from typing import Any, Dict, Optional
+from pathlib import Path
 
 import mlflow
 import mlflow.sklearn
-from mlflow.tracking import MlflowClient
-from mlflow.models import infer_signature
+from mlflow import MlflowClient
 
 from config import (
-    SEED,
     MLFLOW_TRACKING_URI,
-    MLFLOW_EXP_FINAL,
     MLFLOW_MODEL_NAME,
-    MLFLOW_MODEL_ALIAS,
+    MLFLOW_CHAMPION_ALIAS,
+    ARTIFACTS_DIR,
+    SEED,
 )
+from preprocess import export_feature_spec
 
 logger = logging.getLogger(__name__)
 
 
-def connect_mlflow(tracking_uri: Optional[str] = None) -> MlflowClient:
-    """
-    Connect to the MLflow Tracking Server and return a client.
+# ==============================================================================
+# Model card
+# ==============================================================================
 
-    Uses tracking_uri if provided, otherwise falls back to MLFLOW_TRACKING_URI
-    from config.py (overridable via MLFLOW_TRACKING_URI environment variable).
+def build_model_card(metrics: dict, threshold: float, model_name: str) -> dict:
+    """
+    Build model_card.json — human-readable summary of the champion model.
 
     Args:
-        tracking_uri: Optional override URI.
+        metrics: Dict from evaluate.compute_metrics.
+        threshold: Operating threshold.
+        model_name: E.g. "xgboost".
 
     Returns:
-        Configured MlflowClient.
+        model_card dict (also saved to ARTIFACTS_DIR/model_card.json).
     """
-    raise NotImplementedError
+    card = {
+        "schema_version": "1.0",
+        "model_name": model_name,
+        "mlflow_registered_name": MLFLOW_MODEL_NAME,
+        "mlflow_alias": MLFLOW_CHAMPION_ALIAS,
+        "dataset": "Sparkov synthetic credit card fraud dataset",
+        "random_seed": SEED,
+        "operating_threshold": threshold,
+        "performance": {
+            "pr_auc":        metrics.get("pr_auc"),
+            "roc_auc":       metrics.get("roc_auc"),
+            "f1":            metrics.get("f1"),
+            "f2":            metrics.get("f2"),
+            "mcc":           metrics.get("mcc"),
+            "brier":         metrics.get("brier"),
+            "inference_ms":  metrics.get("inference_ms_per_sample"),
+        },
+        "confusion_matrix": {
+            "tp": metrics.get("tp"),
+            "fp": metrics.get("fp"),
+            "tn": metrics.get("tn"),
+            "fn": metrics.get("fn"),
+        },
+        "business_cost":  metrics.get("business_cost"),
+        "intended_use":   "Fraud/risk classification for FinTech transactions.",
+        "limitations": [
+            "Trained on synthetic Sparkov data — performance may differ on real data.",
+            "Threshold tuned on part C of training data — may need recalibration in production.",
+        ],
+        "fairness_note": "No fairness analysis performed in Phase 1.",
+    }
+
+    card_path = ARTIFACTS_DIR / "model_card.json"
+    card_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(card_path, "w") as f:
+        json.dump(card, f, indent=2)
+
+    logger.info(f"Model card saved to {card_path}")
+    return card
 
 
-def log_final_run(
-    calibrated_pipeline: Any,
-    base_pipeline: Any,
-    params: Dict,
-    metrics: Dict,
-    data_hash_train: str,
-    data_hash_test: str,
-    artifact_paths: Dict,
-    X_example,
-    y_example,
+# ==============================================================================
+# Registration
+# ==============================================================================
+
+def register_champion(
+    calibrated_pipeline,
+    metrics: dict,
+    threshold: float,
+    model_type: str = "xgboost",
 ) -> str:
     """
-    Log the final training run to MLflow and register both models.
+    Register the calibrated champion pipeline in MLflow Model Registry.
 
     Steps:
-        1. Set experiment to MLFLOW_EXP_FINAL.
-        2. Start run with tags: stage="final", dataset="sparkov".
-        3. Log params (hyperparameters, seed, split ratios, calibration method, threshold).
-        4. Log metrics (all test metrics, Brier before/after, inference timing).
-        5. Log data_hash_train and data_hash_test as params.
-        6. Log library versions as params (mlflow, sklearn, xgboost, numpy, pandas).
-        7. Log git commit hash as a tag (if available).
-        8. Log all figures and tables as artifacts.
-        9. Log calibrated pipeline with:
-               mlflow.sklearn.log_model(
-                   sk_model=calibrated_pipeline,
-                   artifact_path="model",
-                   registered_model_name=MLFLOW_MODEL_NAME,
-                   signature=infer_signature(X_example, y_example),
-                   input_example=X_example.iloc[:3],
-                   serialization_format="cloudpickle",   # REQUIRED
-               )
-        10. Log base pipeline separately as "model_base" (for SHAP — Member 2).
-        11. Set alias "champion" on the registered version.
-        12. Add tag fraud_model_version = "fraud-model-v1" (Contract 10).
+        1. Log model with cloudpickle (required for XGBoost + CalibratedClassifierCV).
+        2. Register under MLFLOW_MODEL_NAME.
+        3. Set @champion alias.
+        4. Log model_card.json and feature_spec.json as artifacts.
+        5. Log threshold as a parameter.
 
     Args:
-        calibrated_pipeline: Final calibrated Pipeline.
-        base_pipeline: Final base (uncalibrated) Pipeline.
-        params: Hyperparameters and configuration to log.
-        metrics: Test metrics to log.
-        data_hash_train: SHA-256 of fraudTrain.csv.
-        data_hash_test: SHA-256 of fraudTest.csv.
-        artifact_paths: Dict of local paths to figures and tables.
-        X_example: Small sample of features for signature inference.
-        y_example: Corresponding labels.
+        calibrated_pipeline: Calibrated champion pipeline.
+        metrics: Dict from evaluate.compute_metrics (test set metrics).
+        threshold: Operating threshold.
+        model_type: Model name string for the card.
 
     Returns:
-        MLflow run ID (str).
+        Model version string (e.g. "1").
     """
-    raise NotImplementedError
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    client = MlflowClient()
 
+    # Build artifacts
+    card = build_model_card(metrics, threshold, model_type)
+    spec = export_feature_spec()
 
-def promote_to_champion(model_name: str, version: str, client: MlflowClient) -> None:
-    """
-    Set the 'champion' alias on the given registered model version.
+    card_path = ARTIFACTS_DIR / "model_card.json"
+    spec_path = ARTIFACTS_DIR / "feature_spec.json"
 
-    Only one version can hold the 'champion' alias at a time.
-    The previous champion alias is automatically moved.
+    with mlflow.start_run(run_name=f"register_{model_type}_champion") as run:
+        # Log key metrics
+        for k, v in metrics.items():
+            if isinstance(v, (int, float)):
+                mlflow.log_metric(k, v)
 
-    Args:
-        model_name: Registered model name (MLFLOW_MODEL_NAME).
-        version: The version string to promote.
-        client: MlflowClient connected to the tracking server.
-    """
-    raise NotImplementedError
+        mlflow.log_param("model_type",  model_type)
+        mlflow.log_param("threshold",   threshold)
+        mlflow.log_param("seed",        SEED)
 
+        # Log artifacts
+        mlflow.log_artifact(str(card_path), artifact_path="metadata")
+        mlflow.log_artifact(str(spec_path), artifact_path="metadata")
 
-def verify_model_loads(model_name: str, alias: str = "champion") -> bool:
-    """
-    Smoke test: load the registered model by alias and run a dummy prediction.
+        # Log model with cloudpickle — required for:
+        #   - XGBClassifier (not a trusted skops type)
+        #   - CalibratedClassifierCV wrapping XGBoost
+        mlflow.sklearn.log_model(
+            sk_model=calibrated_pipeline,
+            artifact_path="model",
+            serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
+            registered_model_name=MLFLOW_MODEL_NAME,
+            input_example=None,
+        )
 
-    This verifies that Member 2 can load the model from a fresh environment.
-    Must pass before declaring the pipeline complete.
+        run_id = run.info.run_id
 
-    Args:
-        model_name: Registered model name.
-        alias: Alias to resolve (default "champion").
+    # Get the latest version
+    versions = client.search_model_versions(f"name='{MLFLOW_MODEL_NAME}'")
+    latest_version = max(versions, key=lambda v: int(v.version)).version
 
-    Returns:
-        True if the model loads and predicts successfully.
+    # Set @champion alias
+    client.set_registered_model_alias(
+        name=MLFLOW_MODEL_NAME,
+        alias=MLFLOW_CHAMPION_ALIAS,
+        version=latest_version,
+    )
 
-    Raises:
-        AssertionError: If prediction output is invalid.
-    """
-    raise NotImplementedError
+    logger.info(
+        f"Model registered: name='{MLFLOW_MODEL_NAME}' "
+        f"version={latest_version} "
+        f"alias='{MLFLOW_CHAMPION_ALIAS}'"
+    )
+    logger.info(
+        f"Members 2/3 can load with: "
+        f"mlflow.sklearn.load_model('models:/{MLFLOW_MODEL_NAME}@{MLFLOW_CHAMPION_ALIAS}')"
+    )
+
+    return latest_version

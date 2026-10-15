@@ -1,199 +1,303 @@
 """
-calibrate.py — Model calibration for Member 1 (§10 of design v5).
+calibrate.py — Probability calibration and threshold selection (Member 1, §10-11).
 
-Calibrates ALL five models (not just the winner) using part B of fraudTrain.
-Compares sigmoid vs. isotonic calibration using Brier score and reliability
-curves on fraudTest (never on part B).
+Two steps:
+1. Calibrate the champion pipeline on part B using CalibratedClassifierCV
+   with FrozenEstimator (sklearn 1.6+) so the pipeline weights are not retrained.
+2. Choose the operating threshold on part C by maximizing F2 score
+   (weighs recall 2x over precision — catching fraud matters more than false positives).
 
-Why calibration matters:
-    Class-weight adjustments distort raw probabilities. A calibrated model's
-    probability output should match actual fraud frequencies (e.g., if the model
-    outputs 0.8, about 80% of such cases should truly be fraud).
-    This is essential because the system uses probabilities to decide whether
-    to route to human review.
-
-Key implementation detail (design v5 §3):
-    Use FrozenEstimator to prevent the base model from being retrained on part B.
-    The base model is fitted on part A ONLY and is never touched again.
-
-    from sklearn.frozen import FrozenEstimator
-    from sklearn.calibration import CalibratedClassifierCV
-    cal = CalibratedClassifierCV(FrozenEstimator(fitted_model), method="isotonic")
-    cal.fit(X_B, y_B)
-
-    For SVM (no predict_proba): wrap the LinearSVC/SVC the same way — the
-    calibrator will use decision_function internally.
-
-Handoff to Member 2 (Contract 3):
-    - The calibrated pipeline is what Member 2 serves.
-    - The BASE (uncalibrated) model is exported separately so Member 2 can
-      run SHAP on it (explanations use the base model, not the calibrator).
-    - Member 2 is told that calibration slice = part B.
+Outputs:
+    - calibrated_pipeline: the calibrated pipeline object (logged to MLflow)
+    - threshold_: the operating threshold (logged to MLflow)
+    - Reliability curve figure (reports/figures/reliability_curve.png)
 """
 
 import logging
 from pathlib import Path
-from typing import Dict, Literal, Tuple, Any
+from typing import Optional
 
+import mlflow
 import numpy as np
 import pandas as pd
-from sklearn.calibration import CalibratedClassifierCV, calibration_curve
+import matplotlib.pyplot as plt
+from sklearn.calibration import CalibratedClassifierCV, CalibrationDisplay
 from sklearn.frozen import FrozenEstimator
-from sklearn.metrics import brier_score_loss
+from sklearn.metrics import (
+    brier_score_loss,
+    f1_score,
+    fbeta_score,
+    precision_recall_curve,
+)
+from sklearn.pipeline import Pipeline
 
-from config import SEED, ARTIFACTS_DIR, FIGURES_DIR, TABLES_DIR, TARGET_COL
+from config import SEED, ARTIFACTS_DIR, REPORTS_DIR
 
 logger = logging.getLogger(__name__)
 
-CalibrationMethod = Literal["isotonic", "sigmoid"]
+FIGURES_DIR = REPORTS_DIR / "figures"
+FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def calibrate_model(
-    fitted_pipeline: Any,
-    X_B: pd.DataFrame,
-    y_B: pd.Series,
-    method: CalibrationMethod = "isotonic",
-) -> CalibratedClassifierCV:
+# ==============================================================================
+# Calibration
+# ==============================================================================
+
+def calibrate_pipeline(
+    fitted_pipeline: Pipeline,
+    X_b: pd.DataFrame,
+    y_b: pd.Series,
+    method: str = "isotonic",
+    cv: str = "prefit",
+) -> Pipeline:
     """
-    Fit a calibrator on part B without retraining the base model.
+    Wrap the champion pipeline with CalibratedClassifierCV on part B.
 
-    Uses FrozenEstimator to guarantee the base model is unchanged.
-    For SVM (no predict_proba), the calibrator uses decision_function.
+    Uses FrozenEstimator (sklearn 1.6+) so that the pipeline weights are
+    NOT retrained — only the calibrator layer is fitted on part B.
 
     Args:
-        fitted_pipeline: A Pipeline already fitted on part A.
-        X_B: Features from part B (calibration set).
-        y_B: Target from part B.
-        method: "isotonic" or "sigmoid". Compare both — see compare_calibration_methods().
+        fitted_pipeline: Champion pipeline already fitted on part A.
+        X_b: Part B features (never seen by the pipeline during training).
+        y_b: Part B target.
+        method: "isotonic" (default) or "sigmoid" (Platt scaling).
+        cv: "prefit" — the pipeline is already fitted, only the calibrator is fit.
 
     Returns:
-        Fitted CalibratedClassifierCV wrapping the frozen base pipeline.
+        A new sklearn Pipeline with calibration applied.
     """
-    raise NotImplementedError
+    logger.info(f"Calibrating with method='{method}' on part B ({len(X_b):,} rows)...")
+
+    # FrozenEstimator prevents refitting the inner pipeline
+    frozen = FrozenEstimator(fitted_pipeline)
+
+    calibrator = CalibratedClassifierCV(
+        estimator=frozen,
+        method=method,
+        cv=cv,
+    )
+    calibrator.fit(X_b, y_b)
+
+    # Brier score on B (lower = better)
+    probs = calibrator.predict_proba(X_b)[:, 1]
+    brier = brier_score_loss(y_b, probs)
+    logger.info(f"Calibration Brier score on part B: {brier:.4f}")
+
+    return calibrator
 
 
-def compare_calibration_methods(
-    fitted_pipeline: Any,
-    X_B: pd.DataFrame,
-    y_B: pd.Series,
-    X_test: pd.DataFrame,
-    y_test: pd.Series,
-) -> pd.DataFrame:
+# ==============================================================================
+# Reliability curve figure
+# ==============================================================================
+
+def plot_reliability_curve(
+    y_true: np.ndarray,
+    y_prob_uncal: np.ndarray,
+    y_prob_cal: np.ndarray,
+    filename: str = "reliability_curve.png",
+) -> Path:
     """
-    Compare isotonic vs. sigmoid calibration using Brier score on fraudTest.
-
-    Design v5 §10: "With very few frauds, sigmoid is safer."
-    This function runs both and returns the comparison so the decision is
-    empirically justified (not assumed).
-
-    NEVER uses part B to evaluate — always evaluates on fraudTest.
-
-    Args:
-        fitted_pipeline: Base pipeline fitted on part A.
-        X_B, y_B: Calibration data (part B).
-        X_test, y_test: Final test data (fraudTest). Used for evaluation only.
-
-    Returns:
-        DataFrame with columns: method, brier_before, brier_after.
-    """
-    raise NotImplementedError
-
-
-def brier_score(y_true: pd.Series, y_prob: np.ndarray) -> float:
-    """
-    Compute Brier score (lower is better, 0 = perfect).
+    Plot reliability (calibration) curves before and after calibration.
 
     Args:
         y_true: True binary labels.
-        y_prob: Predicted probabilities for the positive class.
+        y_prob_uncal: Uncalibrated predicted probabilities.
+        y_prob_cal: Calibrated predicted probabilities.
+        filename: Output filename.
 
     Returns:
-        Brier score.
+        Path to saved figure.
     """
-    raise NotImplementedError
+    fig, ax = plt.subplots(figsize=(7, 6))
+
+    CalibrationDisplay.from_predictions(
+        y_true, y_prob_uncal,
+        n_bins=10, ax=ax, name="Before calibration",
+        color="#e74c3c",
+    )
+    CalibrationDisplay.from_predictions(
+        y_true, y_prob_cal,
+        n_bins=10, ax=ax, name="After calibration",
+        color="#2ecc71",
+    )
+
+    ax.plot([0, 1], [0, 1], "k--", label="Perfect calibration")
+    ax.set_title("Reliability Curve (part B)", fontsize=13, fontweight="bold")
+    ax.legend(loc="lower right")
+    plt.tight_layout()
+
+    out = FIGURES_DIR / filename
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    logger.info(f"Reliability curve saved to {out}")
+    return out
 
 
-def plot_reliability_curve(
-    y_true: pd.Series,
-    y_prob_before: np.ndarray,
-    y_prob_after: np.ndarray,
-    model_name: str,
-) -> Path:
-    """
-    Plot reliability curves (calibration curves) before and after calibration.
+# ==============================================================================
+# Threshold selection on part C
+# ==============================================================================
 
-    Uses quantile-based binning because fraud is rare (frequency-based bins
-    would be nearly empty for fraud cases).
-
-    This is Figure 2 of the 3-figure demo (§17 of design v5).
-    Saved to FIGURES_DIR / f"reliability_{model_name}.png".
-
-    Args:
-        y_true: True binary labels (from fraudTest).
-        y_prob_before: Uncalibrated probabilities.
-        y_prob_after: Calibrated probabilities.
-        model_name: Used in filename and plot title.
-
-    Returns:
-        Path to the saved figure.
-    """
-    raise NotImplementedError
-
-
-def calibrate_all_models(
-    fitted_pipelines: Dict[str, Any],
-    X_B: pd.DataFrame,
-    y_B: pd.Series,
-    X_test: pd.DataFrame,
-    y_test: pd.Series,
-) -> Tuple[Dict[str, Any], pd.DataFrame]:
-    """
-    Calibrate all five models and return calibrated pipelines + Brier comparison.
-
-    Steps per model:
-        1. Choose calibration method (compare isotonic vs. sigmoid).
-        2. Fit chosen calibrator on part B.
-        3. Evaluate Brier before/after on fraudTest.
-        4. Plot reliability curve.
-        5. Check that PR-AUC does not drop noticeably after calibration.
-        6. Save calibrated pipeline to ARTIFACTS_DIR.
-
-    Args:
-        fitted_pipelines: Dict model_name → pipeline fitted on part A.
-        X_B, y_B: Calibration data (part B).
-        X_test, y_test: Final test set. Only used for evaluation metrics here.
-
-    Returns:
-        Tuple:
-            calibrated_pipelines : Dict model_name → calibrated pipeline.
-            brier_df             : DataFrame with before/after Brier scores per model.
-    """
-    raise NotImplementedError
-
-
-def choose_threshold_on_part_c(
-    calibrated_pipeline: Any,
-    X_C: pd.DataFrame,
-    y_C: pd.Series,
-    strategy: str = "maximize_f1",
+def select_threshold(
+    calibrated_pipeline,
+    X_c: pd.DataFrame,
+    y_c: pd.Series,
+    beta: float = 2.0,
 ) -> float:
     """
-    Choose the decision threshold on part C using calibrated probabilities.
+    Select the operating threshold on part C by maximising F-beta score.
 
-    Strategies:
-        "maximize_f1"   : threshold that maximizes F1 on part C (default).
-        "fix_precision" : threshold that achieves a target precision (set in config.py).
-
-    The threshold is saved in model_card.json and NEVER re-tuned on fraudTest.
-    The final business threshold is Member 3's responsibility — this threshold
-    is only used for reporting precision, recall, F1, and MCC.
+    Default beta=2.0: recall is weighted 2× more than precision.
+    This reflects the business cost of a missed fraud (FN) being higher
+    than a false alarm (FP → human review).
 
     Args:
-        calibrated_pipeline: Calibrated pipeline for the finalist model.
-        X_C, y_C: Part C features and labels.
-        strategy: Threshold selection strategy.
+        calibrated_pipeline: Calibrated pipeline fitted on part B.
+        X_c: Part C features.
+        y_c: Part C target.
+        beta: F-beta parameter. Default 2.0.
 
     Returns:
-        Chosen threshold (float between 0 and 1).
+        Optimal threshold float in [0, 1].
     """
-    raise NotImplementedError
+    logger.info(f"Selecting threshold on part C ({len(X_c):,} rows, beta={beta})...")
+
+    probs = calibrated_pipeline.predict_proba(X_c)[:, 1]
+    precisions, recalls, thresholds = precision_recall_curve(y_c, probs)
+
+    # precision_recall_curve returns one fewer threshold than metric values
+    # last element is always precision=1.0, recall=0.0 at threshold=max
+    fbeta_scores = (
+        (1 + beta ** 2)
+        * precisions[:-1]
+        * recalls[:-1]
+        / (beta ** 2 * precisions[:-1] + recalls[:-1] + 1e-9)
+    )
+
+    best_idx       = int(np.argmax(fbeta_scores))
+    best_threshold = float(thresholds[best_idx])
+    best_fbeta     = float(fbeta_scores[best_idx])
+
+    # Compute F1 and F2 at chosen threshold for logging
+    preds = (probs >= best_threshold).astype(int)
+    f1    = f1_score(y_c, preds, zero_division=0)
+    f2    = fbeta_score(y_c, preds, beta=beta, zero_division=0)
+
+    logger.info(
+        f"Threshold selected: {best_threshold:.4f} | "
+        f"F{beta:.0f}={best_fbeta:.4f} | F1={f1:.4f} | F2={f2:.4f}"
+    )
+    return best_threshold
+
+
+# ==============================================================================
+# PR curve figure
+# ==============================================================================
+
+def plot_pr_curve(
+    calibrated_pipeline,
+    X_c: pd.DataFrame,
+    y_c: pd.Series,
+    threshold: float,
+    filename: str = "pr_curve_part_c.png",
+) -> Path:
+    """
+    Precision-Recall curve on part C with threshold marked.
+
+    Args:
+        calibrated_pipeline: Calibrated pipeline.
+        X_c, y_c: Part C data.
+        threshold: Operating threshold chosen by select_threshold.
+        filename: Output filename.
+
+    Returns:
+        Path to saved figure.
+    """
+    probs = calibrated_pipeline.predict_proba(X_c)[:, 1]
+    precisions, recalls, thresholds = precision_recall_curve(y_c, probs)
+
+    # Find point on curve closest to chosen threshold
+    idx    = np.searchsorted(thresholds, threshold, side="right")
+    idx    = min(idx, len(recalls) - 2)
+    op_rec = recalls[idx]
+    op_pre = precisions[idx]
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    ax.plot(recalls, precisions, color="#3498db", linewidth=2, label="PR curve (part C)")
+    ax.scatter([op_rec], [op_pre], color="#e74c3c", s=120, zorder=5,
+               label=f"Operating point (thr={threshold:.3f})")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title("Precision-Recall Curve — Part C", fontsize=13, fontweight="bold")
+    ax.legend()
+    ax.grid(linestyle="--", alpha=0.5)
+    plt.tight_layout()
+
+    out = FIGURES_DIR / filename
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    logger.info(f"PR curve saved to {out}")
+    return out
+
+
+# ==============================================================================
+# Full calibration pipeline
+# ==============================================================================
+
+def run_calibration(
+    fitted_pipeline: Pipeline,
+    X_b: pd.DataFrame,
+    y_b: pd.Series,
+    X_c: pd.DataFrame,
+    y_c: pd.Series,
+    method: str = "isotonic",
+    beta: float = 2.0,
+) -> tuple:
+    """
+    Full calibration and threshold selection flow.
+
+    Steps:
+        1. Calibrate fitted_pipeline on part B.
+        2. Plot reliability curve.
+        3. Select threshold on part C.
+        4. Plot PR curve.
+        5. Log everything to MLflow.
+
+    Args:
+        fitted_pipeline: Champion pipeline fitted on part A.
+        X_b, y_b: Part B (calibration set).
+        X_c, y_c: Part C (threshold selection set).
+        method: Calibration method ("isotonic" or "sigmoid").
+        beta: F-beta for threshold selection.
+
+    Returns:
+        Tuple (calibrated_pipeline, threshold).
+    """
+    mlflow.set_experiment("fraud-sparkov-compare")
+
+    with mlflow.start_run(run_name="calibration"):
+
+        # 1. Calibrate
+        cal_pipe = calibrate_pipeline(fitted_pipeline, X_b, y_b, method=method)
+        mlflow.log_param("calibration_method", method)
+        mlflow.log_param("calibration_set_size", len(X_b))
+        mlflow.log_metric("brier_part_b",
+            brier_score_loss(y_b, cal_pipe.predict_proba(X_b)[:, 1]))
+
+        # 2. Reliability curve
+        uncal_probs = fitted_pipeline.predict_proba(X_b)[:, 1]
+        cal_probs   = cal_pipe.predict_proba(X_b)[:, 1]
+        rel_path    = plot_reliability_curve(y_b.values, uncal_probs, cal_probs)
+        mlflow.log_artifact(str(rel_path))
+
+        # 3. Threshold selection
+        threshold   = select_threshold(cal_pipe, X_c, y_c, beta=beta)
+        mlflow.log_metric("operating_threshold", threshold)
+        mlflow.log_param("threshold_beta", beta)
+
+        # 4. PR curve
+        pr_path = plot_pr_curve(cal_pipe, X_c, y_c, threshold)
+        mlflow.log_artifact(str(pr_path))
+
+        logger.info(f"Calibration complete. Threshold={threshold:.4f}")
+
+    return cal_pipe, threshold

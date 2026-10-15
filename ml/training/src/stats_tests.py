@@ -1,203 +1,311 @@
 """
-stats_tests.py — Statistical validation for Member 1 (§9 of design v5).
+stats_tests.py — Statistical benchmarking for Member 1 (§8 of design v5).
 
-Inputs: cv_scores_long.parquet from cv_compare.py
-Outputs:
-    tables/friedman.csv
-    tables/wilcoxon_holm.csv
-    figures/cv_boxplot.png
-    figures/ranking_plot.png
-    figures/pvalue_heatmap.png
+Steps:
+1. Friedman test (non-parametric omnibus) on repeated CV scores.
+2. Post-hoc Wilcoxon pairwise tests (Holm correction).
+3. Effect sizes (Cohen's d for each pair vs. best model).
+4. 95% CI per model (bootstrap or t-based).
+5. Save figures: CD diagram proxy, CI bar chart.
 
-Protocol:
-1. Friedman test across all 5 models (scipy.stats.friedmanchisquare).
-2. If Friedman is significant: 10 pairwise Wilcoxon signed-rank tests.
-3. Holm correction on the 10 p-values (statsmodels multipletests method="holm").
-4. 95% bootstrap CIs over fold scores for each model.
-5. Effect sizes: mean paired difference + rank-biserial correlation (or Cliff's delta).
-6. [NICE] Critical difference diagram via scikit-posthocs (Nemenyi).
-
-Caveat (report this):
-    CV fold scores are not independent (shared training data), so p-values
-    are somewhat optimistic. This is a known limitation of CV-based testing.
-
-All outputs are logged to MLflow as artifacts.
+All results are saved to reports/tables/ and logged to MLflow.
 """
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
+import mlflow
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from scipy import stats
-from statsmodels.stats.multitest import multipletests
+from scipy.stats import wilcoxon, friedmanchisquare
+import scikit_posthocs as sp
 
-from config import ALPHA, TABLES_DIR, FIGURES_DIR, MLFLOW_EXP_COMPARE
+from config import ALPHA, ARTIFACTS_DIR, REPORTS_DIR
 
 logger = logging.getLogger(__name__)
 
+FIGURES_DIR = REPORTS_DIR / "figures"
+TABLES_DIR  = REPORTS_DIR / "tables"
 
-def load_cv_scores(cv_type: str = "stratified") -> pd.DataFrame:
+
+# ==============================================================================
+# Helpers
+# ==============================================================================
+
+def _ensure_dirs():
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    TABLES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _cohen_d(a: np.ndarray, b: np.ndarray) -> float:
+    """Cohen's d between two 1-D arrays."""
+    pooled_std = np.sqrt((a.std(ddof=1) ** 2 + b.std(ddof=1) ** 2) / 2)
+    if pooled_std < 1e-12:
+        return 0.0
+    return float((a.mean() - b.mean()) / pooled_std)
+
+
+def _bootstrap_ci(
+    scores: np.ndarray,
+    n_boot: int = 2000,
+    alpha: float = 0.05,
+    seed: int = 42,
+) -> tuple[float, float]:
     """
-    Load cv_scores_long.parquet and filter to one cv_type.
+    Bootstrap 95% CI for the mean of `scores`.
+    Returns (lower, upper).
+    """
+    rng   = np.random.default_rng(seed)
+    means = [rng.choice(scores, size=len(scores), replace=True).mean()
+             for _ in range(n_boot)]
+    lo = float(np.percentile(means, 100 * alpha / 2))
+    hi = float(np.percentile(means, 100 * (1 - alpha / 2)))
+    return lo, hi
+
+
+# ==============================================================================
+# Friedman test
+# ==============================================================================
+
+def run_friedman(results: Dict[str, np.ndarray]) -> dict:
+    """
+    Friedman test: H0 = all models have the same distribution of PR-AUC scores.
+
+    Requires all score arrays to have the same length (guaranteed because they
+    use identical folds from cv_compare.py).
 
     Args:
-        cv_type: "stratified" or "grouped".
+        results: Dict model_name -> scores ndarray (all same length).
 
     Returns:
-        Wide-format DataFrame: rows=folds, columns=model names,
-        values=pr_auc scores. Shape: (n_folds * n_repeats) × n_models.
+        Dict with keys: statistic, p_value, significant.
     """
-    raise NotImplementedError
+    model_names = list(results.keys())
+    score_arrays = [results[m] for m in model_names]
+
+    stat, p = friedmanchisquare(*score_arrays)
+    significant = p < ALPHA
+
+    out = dict(statistic=float(stat), p_value=float(p), significant=significant)
+    logger.info(
+        f"Friedman test: chi2={stat:.4f}, p={p:.4e}, "
+        f"{'SIGNIFICANT' if significant else 'not significant'} at alpha={ALPHA}"
+    )
+    return out
 
 
-def friedman_test(scores_wide: pd.DataFrame) -> Tuple[float, float]:
-    """
-    Apply the Friedman test across all models.
+# ==============================================================================
+# Wilcoxon pairwise + Holm correction
+# ==============================================================================
 
-    Uses scipy.stats.friedmanchisquare with one column per model.
-
-    Args:
-        scores_wide: Wide DataFrame — rows=observations, columns=models.
-
-    Returns:
-        Tuple (statistic, p_value).
-        If p_value < ALPHA, proceed to pairwise Wilcoxon tests.
-    """
-    raise NotImplementedError
-
-
-def pairwise_wilcoxon(
-    scores_wide: pd.DataFrame,
+def run_wilcoxon_holm(
+    results: Dict[str, np.ndarray],
 ) -> pd.DataFrame:
     """
-    Run all 10 pairwise Wilcoxon signed-rank tests between 5 models.
+    Pairwise Wilcoxon signed-rank tests with Holm correction.
 
-    Uses scipy.stats.wilcoxon with zero_method="wilcox" (handles near-ceiling ties).
-    Reports the raw p-value before Holm correction.
-
-    Args:
-        scores_wide: Wide DataFrame — rows=observations, columns=models.
-
-    Returns:
-        DataFrame with columns: model_a, model_b, statistic, p_value_raw.
-        10 rows (C(5,2)=10 pairs).
-    """
-    raise NotImplementedError
-
-
-def holm_correction(wilcoxon_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Apply Holm correction to pairwise Wilcoxon p-values.
-
-    Uses statsmodels.stats.multitest.multipletests(method="holm").
+    Uses scikit-posthocs which already applies Holm.
 
     Args:
-        wilcoxon_df: Output of pairwise_wilcoxon().
+        results: Dict model_name -> scores ndarray.
 
     Returns:
-        Same DataFrame with added columns:
-            p_value_holm  : Holm-corrected p-value
-            reject        : True if the null hypothesis is rejected at ALPHA
-        Written to TABLES_DIR / "wilcoxon_holm.csv".
+        DataFrame of adjusted p-values (models × models).
     """
-    raise NotImplementedError
+    df = pd.DataFrame(results)
+    p_matrix = sp.posthoc_wilcoxon(df, p_adjust="holm")
+    return p_matrix
 
 
-def bootstrap_ci(
-    scores_wide: pd.DataFrame,
-    n_bootstrap: int = 1000,
-    ci: float = 0.95,
+# ==============================================================================
+# Confidence intervals + effect sizes
+# ==============================================================================
+
+def compute_ci_and_effect_sizes(
+    results: Dict[str, np.ndarray],
+    best_model: str,
 ) -> pd.DataFrame:
     """
-    Compute bootstrap confidence intervals for each model's mean PR-AUC.
-
-    Uses percentile bootstrap over the fold scores (not over the dataset).
-
-    Args:
-        scores_wide: Wide DataFrame.
-        n_bootstrap: Number of bootstrap iterations.
-        ci: Confidence level (default 0.95 → 95% CI).
-
-    Returns:
-        DataFrame with columns: model, mean, ci_low, ci_high.
-    """
-    raise NotImplementedError
-
-
-def effect_sizes(scores_wide: pd.DataFrame) -> pd.DataFrame:
-    """
-    Compute paired mean difference and rank-biserial correlation for each pair.
-
-    Rank-biserial correlation: r = 1 - (2 * wilcoxon_statistic) / (n * (n+1))
-    where n = number of paired observations.
+    For each model compute:
+        - mean PR-AUC
+        - 95% bootstrap CI (lo, hi)
+        - Cohen's d vs. best_model
 
     Args:
-        scores_wide: Wide DataFrame.
+        results: Dict model_name -> scores ndarray.
+        best_model: Name of the best model (e.g. "xgboost").
 
     Returns:
-        DataFrame with columns: model_a, model_b, mean_diff, rank_biserial.
+        DataFrame with columns: model, mean, ci_lo, ci_hi, cohen_d.
     """
-    raise NotImplementedError
+    rows = []
+    best_scores = results[best_model]
+
+    for name, scores in results.items():
+        mean       = float(scores.mean())
+        ci_lo, ci_hi = _bootstrap_ci(scores)
+        d          = _cohen_d(scores, best_scores)
+        rows.append(dict(
+            model=name,
+            mean=mean,
+            ci_lo=ci_lo,
+            ci_hi=ci_hi,
+            cohen_d=d,
+        ))
+
+    df = pd.DataFrame(rows).sort_values("mean", ascending=False).reset_index(drop=True)
+    return df
 
 
-def plot_cv_boxplot(scores_wide: pd.DataFrame) -> Path:
+# ==============================================================================
+# Figures
+# ==============================================================================
+
+def plot_ci_barchart(
+    ci_df: pd.DataFrame,
+    title: str = "PR-AUC 95% CI per Model",
+    filename: str = "ci_barchart.png",
+) -> Path:
     """
-    Plot a boxplot of PR-AUC scores per model.
+    Bar chart with 95% CI error bars for each model.
 
-    Each box shows the distribution over all folds and repeats.
-    Saved to FIGURES_DIR / "cv_boxplot.png".
+    Args:
+        ci_df: DataFrame from compute_ci_and_effect_sizes.
+        title: Plot title.
+        filename: Output filename in reports/figures/.
 
     Returns:
-        Path to the saved figure.
+        Path to saved figure.
     """
-    raise NotImplementedError
+    _ensure_dirs()
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    models = ci_df["model"].tolist()
+    means  = ci_df["mean"].tolist()
+    lowers = [m - lo for m, lo in zip(means, ci_df["ci_lo"])]
+    uppers = [hi - m  for m, hi in zip(means, ci_df["ci_hi"])]
+
+    colors = ["#2ecc71" if i == 0 else "#3498db" for i in range(len(models))]
+    bars   = ax.barh(models[::-1], means[::-1], xerr=[lowers[::-1], uppers[::-1]],
+                     color=colors[::-1], capsize=5, alpha=0.85)
+
+    ax.set_xlabel("PR-AUC (average precision)", fontsize=11)
+    ax.set_title(title, fontsize=13, fontweight="bold")
+    ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.3f"))
+    ax.grid(axis="x", linestyle="--", alpha=0.5)
+    plt.tight_layout()
+
+    out = FIGURES_DIR / filename
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    logger.info(f"CI barchart saved to {out}")
+    return out
 
 
-def plot_ranking_with_ci(ci_df: pd.DataFrame) -> Path:
+def plot_score_distributions(
+    results: Dict[str, np.ndarray],
+    filename: str = "cv_distributions.png",
+) -> Path:
     """
-    Plot model ranking with 95% bootstrap CI error bars.
+    Boxplot of CV score distributions for all models.
 
-    This is Figure 1 of the 3-figure demo (§17 of design v5).
-    Saved to FIGURES_DIR / "ranking_plot.png".
+    Args:
+        results: Dict model_name -> scores ndarray.
+        filename: Output filename.
 
     Returns:
-        Path to the saved figure.
+        Path to saved figure.
     """
-    raise NotImplementedError
+    _ensure_dirs()
+
+    df = pd.DataFrame(results)
+    ordered = df.mean().sort_values(ascending=False).index.tolist()
+    df = df[ordered]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    df.boxplot(ax=ax, vert=False, patch_artist=True)
+    ax.set_xlabel("PR-AUC (average precision)", fontsize=11)
+    ax.set_title("CV Score Distributions per Model", fontsize=13, fontweight="bold")
+    ax.grid(axis="x", linestyle="--", alpha=0.5)
+    plt.tight_layout()
+
+    out = FIGURES_DIR / filename
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    logger.info(f"Score distributions saved to {out}")
+    return out
 
 
-def plot_pvalue_heatmap(wilcoxon_holm_df: pd.DataFrame) -> Path:
+# ==============================================================================
+# Full stats pipeline
+# ==============================================================================
+
+def run_stats_pipeline(
+    results: Dict[str, np.ndarray],
+    best_model: str,
+    mlflow_run_name: str = "stats_tests",
+) -> dict:
     """
-    Plot a heatmap of Holm-corrected p-values for all 10 pairwise comparisons.
-
-    Saved to FIGURES_DIR / "pvalue_heatmap.png".
-
-    Returns:
-        Path to the saved figure.
-    """
-    raise NotImplementedError
-
-
-def run_all_stats(cv_type: str = "stratified") -> Dict:
-    """
-    Run the complete statistical validation protocol and return a results dict.
+    Run the full statistical testing pipeline and log to MLflow.
 
     Steps:
-        1. Load CV scores
-        2. Friedman test
-        3. Pairwise Wilcoxon (if Friedman significant)
-        4. Holm correction
-        5. Bootstrap CIs
-        6. Effect sizes
-        7. Save all tables and figures
-        8. Log to MLflow
+        1. Friedman test
+        2. Wilcoxon pairwise + Holm correction
+        3. CIs + effect sizes
+        4. Figures saved to reports/figures/
 
     Args:
-        cv_type: "stratified" or "grouped".
+        results: Dict model_name -> scores ndarray from cv_compare.
+        best_model: Name of the champion candidate (highest mean PR-AUC).
+        mlflow_run_name: Name for the MLflow run.
 
     Returns:
-        Dict with keys: friedman, wilcoxon_holm, ci, effect_sizes.
+        Dict with keys: friedman, wilcoxon_holm, ci_table, figure_paths.
     """
-    raise NotImplementedError
+    _ensure_dirs()
+
+    friedman  = run_friedman(results)
+    p_matrix  = run_wilcoxon_holm(results)
+    ci_df     = compute_ci_and_effect_sizes(results, best_model)
+
+    # Save tables
+    ci_path = TABLES_DIR / "ci_effect_sizes.csv"
+    ci_df.to_csv(ci_path, index=False)
+
+    ph_path = TABLES_DIR / "wilcoxon_holm_pvalues.csv"
+    p_matrix.to_csv(ph_path)
+
+    # Save figures
+    ci_fig_path   = plot_ci_barchart(ci_df)
+    dist_fig_path = plot_score_distributions(results)
+
+    with mlflow.start_run(run_name=mlflow_run_name):
+        mlflow.log_metric("friedman_statistic", friedman["statistic"])
+        mlflow.log_metric("friedman_p_value",   friedman["p_value"])
+        mlflow.log_param("friedman_significant", str(friedman["significant"]))
+        mlflow.log_param("alpha", ALPHA)
+        mlflow.log_param("best_model_candidate", best_model)
+
+        for _, row in ci_df.iterrows():
+            mlflow.log_metric(f"{row['model']}_mean_pr_auc", row["mean"])
+            mlflow.log_metric(f"{row['model']}_ci_lo",       row["ci_lo"])
+            mlflow.log_metric(f"{row['model']}_ci_hi",       row["ci_hi"])
+            mlflow.log_metric(f"{row['model']}_cohen_d",     row["cohen_d"])
+
+        mlflow.log_artifact(str(ci_path))
+        mlflow.log_artifact(str(ph_path))
+        mlflow.log_artifact(str(ci_fig_path))
+        mlflow.log_artifact(str(dist_fig_path))
+
+    logger.info("Statistical testing complete. Results logged to MLflow.")
+
+    return dict(
+        friedman=friedman,
+        wilcoxon_holm=p_matrix,
+        ci_table=ci_df,
+        figure_paths=[ci_fig_path, dist_fig_path],
+    )

@@ -77,7 +77,7 @@ def file_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
 def _parse_datetime(df: pd.DataFrame) -> pd.DataFrame:
     """Parse the transaction datetime column to pandas datetime."""
     if DATETIME_COL in df.columns:
-        df[DATETIME_COL] = pd.to_datetime(df[DATETIME_COL], infer_datetime_format=True)
+        df[DATETIME_COL] = pd.to_datetime(df[DATETIME_COL])
     return df
 
 
@@ -323,7 +323,7 @@ def print_data_report(df_train: pd.DataFrame, df_test: pd.DataFrame) -> None:
     print(f"Shape         : {df_train.shape}")
     print(f"Columns       : {df_train.columns.tolist()}")
     print(f"Fraud rate    : {df_train[TARGET_COL].mean():.6f} ({df_train[TARGET_COL].sum()} frauds)")
-    print(f"Date range    : {df_train[DATETIME_COL].min()} → {df_train[DATETIME_COL].max()}")
+    print(f"Date range    : {df_train[DATETIME_COL].min()} -> {df_train[DATETIME_COL].max()}")
     print(f"Missing values:\n{df_train.isnull().sum()[df_train.isnull().sum() > 0]}")
     print(f"SHA-256       : {file_sha256(TRAIN_FILE)}")
 
@@ -333,7 +333,7 @@ def print_data_report(df_train: pd.DataFrame, df_test: pd.DataFrame) -> None:
     print(sep)
     print(f"Shape         : {df_test.shape}")
     print(f"Fraud rate    : {df_test[TARGET_COL].mean():.6f} ({df_test[TARGET_COL].sum()} frauds)")
-    print(f"Date range    : {df_test[DATETIME_COL].min()} → {df_test[DATETIME_COL].max()}")
+    print(f"Date range    : {df_test[DATETIME_COL].min()} -> {df_test[DATETIME_COL].max()}")
     print(f"Missing values:\n{df_test.isnull().sum()[df_test.isnull().sum() > 0]}")
     print(f"SHA-256       : {file_sha256(TEST_FILE)}")
 
