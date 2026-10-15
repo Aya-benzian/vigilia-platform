@@ -156,24 +156,12 @@ jobs:
 
       - name: Run tests
         working-directory: ml/training
-        env:
-          PYTHONPATH: src
         run: |
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short \
-              --cov=src \
-              --cov-report=xml:coverage.xml \
-              --cov-report=term-missing
+            python -m pytest -v --tb=short
           else
             echo "No tests found yet — skipping (will fail once tests are added)"
           fi
-
-      - name: Upload coverage report (for SonarCloud)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ml-training-coverage
-          path: ml/training/coverage.xml
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 4 — Frontend (Node / npm)
