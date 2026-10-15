@@ -139,8 +139,11 @@ jobs:
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
             python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
+            sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
-            echo "No tests found yet — skipping (will fail once tests are added)"
+            echo "No tests found yet — creating empty coverage report"
+            echo '<?xml version="1.0" ?><coverage version="7.0"></coverage>' > coverage.xml
           fi
 
       - name: Upload coverage report
@@ -181,8 +184,11 @@ jobs:
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
             python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
+            sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
-            echo "No tests found yet — skipping (will fail once tests are added)"
+            echo "No tests found yet — creating empty coverage report"
+            echo '<?xml version="1.0" ?><coverage version="7.0"></coverage>' > coverage.xml
           fi
 
       - name: Upload coverage report
