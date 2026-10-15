@@ -119,12 +119,11 @@ def make_svm(
             C=1.0,
             class_weight="balanced",
             max_iter=2000,
-            random_state=SEED,
         )
         if params:
-            defaults.update(params)
+            defaults.update({k: v for k, v in params.items() if k != "random_state"})
         logger.debug(f"make_svm (LinearSVC): {defaults}")
-        return LinearSVC(**defaults)
+        return LinearSVC(**defaults, random_state=SEED)
     else:
         defaults = dict(
             C=1.0,
@@ -132,12 +131,11 @@ def make_svm(
             gamma="scale",
             class_weight="balanced",
             probability=False,  # CalibratedClassifierCV will add probabilities
-            random_state=SEED,
         )
         if params:
-            defaults.update(params)
+            defaults.update({k: v for k, v in params.items() if k != "random_state"})
         logger.debug(f"make_svm (RBF SVC): {defaults}")
-        return SVC(**defaults)
+        return SVC(**defaults, random_state=SEED)
 
 
 def make_mlp(params: Optional[Dict[str, Any]] = None) -> MLPClassifier:
@@ -153,13 +151,12 @@ def make_mlp(params: Optional[Dict[str, Any]] = None) -> MLPClassifier:
         max_iter=200,
         early_stopping=True,
         validation_fraction=0.1,
-        random_state=SEED,
     )
     if params:
-        defaults.update(params)
+        defaults.update({k: v for k, v in params.items() if k != "random_state"})
 
     logger.debug(f"make_mlp: {defaults}")
-    return MLPClassifier(**defaults)
+    return MLPClassifier(**defaults, random_state=SEED)
 
 
 # ==============================================================================

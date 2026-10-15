@@ -55,7 +55,7 @@ def make_repeated_stratified_cv() -> RepeatedStratifiedKFold:
 
 def make_group_cv() -> StratifiedGroupKFold:
     """5-fold stratified group CV (group = cc_num)."""
-    return StratifiedGroupKFold(n_splits=CV_N_SPLITS)
+    return StratifiedGroupKFold(n_splits=CV_N_SPLITS)  # NOSONAR — no random_state: StratifiedGroupKFold is deterministic
 
 
 # ==============================================================================
