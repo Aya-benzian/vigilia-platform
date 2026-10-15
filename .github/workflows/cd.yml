@@ -1,0 +1,182 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Vigilia Platform — Release Pipeline (CD)
+# Triggered when a semantic version tag is pushed (e.g. v1.0.0, v2.3.1)
+#
+# Tagging strategy on release:
+#   :v1.2.3          → exact semver tag (immutable)
+#   :1.2             → minor floating tag
+#   :1               → major floating tag
+#   :latest          → always the newest production release
+#   :sha-<7-char>    → pinned commit SHA (for audit/traceability)
+#
+# Workflow:
+#   release-images → build all 11 images in parallel, push to GHCR
+#   create-release → create GitHub Release with image manifest
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CD — Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"      # matches v1.0.0, v2.3.1, etc.
+
+# No concurrency cancellation on releases — always run to completion
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Build & push versioned images to GHCR (matrix over all 11 services)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  release-images:
+    name: "Release — ${{ matrix.image.name }}"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write      # push to ghcr.io
+
+    strategy:
+      fail-fast: false     # push as many images as possible even if one fails
+      matrix:
+        image:
+          - name: api-gateway
+            context: backend/api-gateway
+          - name: auth-service
+            context: backend/auth-service
+          - name: customer-service
+            context: backend/customer-service
+          - name: transaction-service
+            context: backend/transaction-service
+          - name: risk-management-service
+            context: backend/risk-management-service
+          - name: notification-service
+            context: backend/notification-service
+          - name: audit-service
+            context: backend/audit-service
+          - name: ml-serving
+            context: ml/serving
+          - name: ml-training
+            context: ml/training
+          - name: frontend
+            context: frontend
+          - name: mlflow
+            context: infrastructure/docker/mlflow
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set lowercase image prefix
+        id: image_prefix
+        run: echo "value=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/vigilia" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}
+          # Semver tags: v1.2.3 also pushes :1.2  :1  :latest  + pinned SHA
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=vigilia-${{ matrix.image.name }}
+            org.opencontainers.image.description=Vigilia Platform — ${{ matrix.image.name }} service
+            org.opencontainers.image.vendor=Vigilia
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Reuse layer cache already populated by CI push runs on develop/main
+          cache-from: type=registry,ref=${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}:cache
+          cache-to: type=registry,ref=${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}:cache,mode=max
+
+      - name: Image summary
+        run: |
+          echo "### Docker — ${{ matrix.image.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tags pushed:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Digest: ${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — Create GitHub Release with image manifest
+# Runs after all matrix images have been pushed successfully
+# ─────────────────────────────────────────────────────────────────────────────
+  create-release:
+    name: "Create GitHub Release"
+    runs-on: ubuntu-latest
+    needs: [release-images]
+
+    permissions:
+      contents: write      # create GitHub Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for auto-generated changelog
+
+      - name: Set lowercase image prefix
+        id: image_prefix
+        run: echo "value=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/vigilia" >> "$GITHUB_OUTPUT"
+
+      - name: Build image reference list
+        id: images
+        run: |
+          VERSION="${{ github.ref_name }}"
+          PREFIX="${{ steps.image_prefix.outputs.value }}"
+          SERVICES="api-gateway auth-service customer-service transaction-service risk-management-service notification-service audit-service ml-serving ml-training frontend mlflow"
+          LIST=""
+          for svc in $SERVICES; do
+            LIST="${LIST}- \`${PREFIX}-${svc}:${VERSION}\`\n"
+          done
+          echo "list<<EOF" >> "$GITHUB_OUTPUT"
+          printf "$LIST" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Vigilia ${{ github.ref_name }}"
+          generate_release_notes: true
+          make_latest: true
+          body: |
+            ## Vigilia Platform ${{ github.ref_name }}
+
+            All 11 container images have been published to GHCR.
+
+            ### Container Images
+
+            ${{ steps.images.outputs.list }}
+
+            ### Pull an image
+
+            ```
+            docker pull ghcr.io/${{ github.repository_owner }}/vigilia-api-gateway:${{ github.ref_name }}
+            ```
