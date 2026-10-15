@@ -123,13 +123,23 @@ jobs:
 
       - name: Run tests
         working-directory: ml/serving
+        env:
+          PYTHONPATH: src:.
         # Discovers tests under ml/serving/tests/ or exits 0 if none yet
         run: |
+          pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short
+            python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
           else
             echo "No tests found yet — skipping (will fail once tests are added)"
           fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ml-serving-coverage
+          path: ml/serving/coverage.xml
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 3 — ML Training (Python 3.12)
@@ -156,12 +166,22 @@ jobs:
 
       - name: Run tests
         working-directory: ml/training
+        env:
+          PYTHONPATH: src:.
         run: |
+          pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short
+            python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
           else
             echo "No tests found yet — skipping (will fail once tests are added)"
           fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ml-training-coverage
+          path: ml/training/coverage.xml
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 4 — Frontend (Node / npm)
@@ -218,6 +238,20 @@ jobs:
           pattern: "*-jar"
           path: sonar-binaries
           merge-multiple: true
+
+      - name: Download Python ML training coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ml-training-coverage
+          path: ml/training
+
+      - name: Download Python ML serving coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ml-serving-coverage
+          path: ml/serving
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3
