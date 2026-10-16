@@ -15,7 +15,8 @@ Run with: pytest tests/test_preprocess.py -v
 import numpy as np
 import pandas as pd
 import pytest
-
+from src.preprocess import build_pipeline, NUMERIC_FEATURES
+from sklearn.linear_model import LogisticRegression
 # ---------------------------------------------------------------------------
 # Test 1 — Haversine on a known pair
 # ---------------------------------------------------------------------------
@@ -90,11 +91,43 @@ def test_dow_monday():
 # ---------------------------------------------------------------------------
 
 def test_unseen_category_handled():
-    """
-    A category not seen during fit() should produce all-zero one-hot encoding
-    (handle_unknown="ignore"). The pipeline should not raise an error.
-    """
-    pytest.skip("Implement after build_pipeline() is complete.")
+    """A category not seen during fit() should produce all-zero one-hot encoding
+    (handle_unknown="ignore"). The pipeline should not raise an error."""
+    from src.preprocess import build_pipeline, NUMERIC_FEATURES, CATEGORICAL_FEATURES
+    from sklearn.linear_model import LogisticRegression
+    import numpy as np
+    import pandas as pd
+
+    # Two rows with different labels so LogisticRegression has both classes
+    train_df = pd.concat([
+        _make_minimal_row(category="grocery_pos"),
+        _make_minimal_row(category="entertainment"),
+    ], ignore_index=True)
+    pipe = build_pipeline(LogisticRegression(), model_type="logreg")
+    pipe.fit(train_df, np.array([0, 1]))
+
+    # Extract the two feature-engineering steps to apply before the preprocessor
+    engineer = pipe.named_steps["engineer"]
+    dropper = pipe.named_steps["dropper"]
+    preprocessor = pipe.named_steps["preprocessor"]
+
+    # Transform a row with an unseen category through the same steps
+    test_df = _make_minimal_row(category="unknown_category")
+    X_eng = engineer.transform(test_df)
+    X_dropped = dropper.transform(X_eng)
+    X = preprocessor.transform(X_dropped)
+
+    # Numeric features come first, then cat columns: [category OHE cols..., gender OHE cols...]
+    # The OneHotEncoder saw 2 categories + 1 gender value → 2+1 = 3 cat cols
+    # We need to verify only the 'category' OHE portion is zero; gender is known
+    cat_start = len(NUMERIC_FEATURES)
+    # Get the number of categories learned for 'category' feature
+    ohe = preprocessor.named_transformers_["cat"].named_steps["encoder"]
+    n_category_cols = len(ohe.categories_[0])  # categories_[0] = category feature
+    category_cols = X[:, cat_start:cat_start + n_category_cols]
+    assert np.allclose(category_cols, 0), (
+        f"Expected unseen category to produce all-zero OHE, got {category_cols}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -102,11 +135,33 @@ def test_unseen_category_handled():
 # ---------------------------------------------------------------------------
 
 def test_stable_column_order():
-    """
-    Two identical rows must produce the same feature column order.
-    Column order must not depend on dict insertion order or categorical values.
-    """
-    pytest.skip("Implement after build_pipeline() is complete.")
+    """Two identical rows must produce the same feature column order.
+    Column order must not depend on dict insertion order or categorical values."""
+    from src.preprocess import build_pipeline, NUMERIC_FEATURES, CATEGORICAL_FEATURES
+    from sklearn.linear_model import LogisticRegression
+    import numpy as np
+    import pandas as pd
+
+    # Two rows with different labels so LogisticRegression has both classes
+    train_df = pd.concat([
+        _make_minimal_row(),
+        _make_minimal_row(amt=200.0),
+    ], ignore_index=True)
+    pipe = build_pipeline(LogisticRegression(), model_type="logreg")
+    pipe.fit(train_df, np.array([0, 1]))
+
+    # Extract pipeline steps
+    engineer = pipe.named_steps["engineer"]
+    dropper = pipe.named_steps["dropper"]
+    preprocessor = pipe.named_steps["preprocessor"]
+
+    # Transform the same single row twice — shape and values must match
+    row = _make_minimal_row()
+    X1 = preprocessor.transform(dropper.transform(engineer.transform(row)))
+    X2 = preprocessor.transform(dropper.transform(engineer.transform(row)))
+
+    assert X1.shape == X2.shape
+    assert np.allclose(X1, X2)
 
 
 # ---------------------------------------------------------------------------
