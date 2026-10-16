@@ -1,6 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Vigilia Platform — CI Pipeline
-# Triggered on every Pull Request against: main, develop, workspace/*
+# Triggered on:
+#   • Pull Requests targeting: main, develop, workspace/*  (build + scan, no push)
+#   • Push to develop  →  build + scan + push :sha-* and :develop-latest tags
+#   • Push to main     →  build + scan + push :sha-* and :main-latest tags
 #
 # Pipeline (sequential gates):
 #   gitleaks      → secret scan (blocks everything if secrets found)
@@ -9,7 +12,8 @@
 #   ml-training   → pip install + pytest (ML training workspace)
 #   frontend      → npm install + build
 #   sonar         → SonarCloud quality gate
-#   docker-build  → Build + Trivy image scan (matrix, cached via GHCR)
+#   docker-build  → Build + Trivy image scan (matrix, cached via GHCR)  [PRs only]
+#   docker-push   → Build + push versioned images to GHCR                [push to develop/main]
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: CI
@@ -20,10 +24,15 @@ on:
       - main
       - develop
       - "workspace/**"
+  # Trigger image push only on direct merges (push events) to develop or main
+  push:
+    branches:
+      - main
+      - develop
 
-# Cancel in-flight runs on the same PR branch when a new push arrives
+# Cancel in-flight runs on the same PR/push branch when a new commit arrives
 concurrency:
-  group: ci-${{ github.head_ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -130,8 +139,11 @@ jobs:
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
             python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
+            sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
-            echo "No tests found yet — skipping (will fail once tests are added)"
+            echo "No tests found yet — creating empty coverage report"
+            echo '<?xml version="1.0" ?><coverage version="7.0"></coverage>' > coverage.xml
           fi
 
       - name: Upload coverage report
@@ -172,8 +184,11 @@ jobs:
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
             python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
+            sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
-            echo "No tests found yet — skipping (will fail once tests are added)"
+            echo "No tests found yet — creating empty coverage report"
+            echo '<?xml version="1.0" ?><coverage version="7.0"></coverage>' > coverage.xml
           fi
 
       - name: Upload coverage report
@@ -351,18 +366,126 @@ jobs:
           severity: CRITICAL,HIGH
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 7 — CI Gate (unified single status check for GitHub branch protection)
+# JOB 7 — Docker push to GHCR (only on merge to develop or main)
+#
+# Tagging strategy:
+#   :sha-<short-sha>        → pinned, immutable, rollback-safe
+#   :develop-latest         → always the newest develop build
+#   :main-latest            → always the newest main build
+#
+# This job is SKIPPED on pull_request events (docker-build handles those).
+# ─────────────────────────────────────────────────────────────────────────────
+  docker-push:
+    name: "GHCR — push ${{ matrix.image.name }}"
+    runs-on: ubuntu-latest
+    # Only run on push events (merges), not on pull_request events
+    if: github.event_name == 'push' && needs.backend.result == 'success' && needs.ml-serving.result == 'success' && needs.ml-training.result == 'success' && needs.frontend.result == 'success' && (needs.sonar.result == 'success' || needs.sonar.result == 'skipped')
+    needs: [backend, ml-serving, ml-training, frontend, sonar]
+
+    permissions:
+      contents: read
+      packages: write        # required to push to ghcr.io
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: api-gateway
+            context: backend/api-gateway
+          - name: auth-service
+            context: backend/auth-service
+          - name: customer-service
+            context: backend/customer-service
+          - name: transaction-service
+            context: backend/transaction-service
+          - name: risk-management-service
+            context: backend/risk-management-service
+          - name: notification-service
+            context: backend/notification-service
+          - name: audit-service
+            context: backend/audit-service
+          - name: ml-serving
+            context: ml/serving
+          - name: ml-training
+            context: ml/training
+          - name: frontend
+            context: frontend
+          - name: mlflow
+            context: infrastructure/docker/mlflow
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set lowercase image prefix
+        id: image_prefix
+        run: echo "value=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/vigilia" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}
+          # Three tags per image:
+          #   sha-<7-char>           → pinned commit (immutable, used for rollback)
+          #   develop-latest         → rolling latest on develop branch
+          #   main-latest            → rolling latest on main branch
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=${{ github.ref_name }}-latest
+
+      - name: Build and push Docker image to GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          push: true                       # ← actual registry push
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}:cache
+          cache-to: type=registry,ref=${{ steps.image_prefix.outputs.value }}-${{ matrix.image.name }}:cache,mode=max
+
+      - name: Summary
+        run: |
+          echo "### 🐳 Images pushed to GHCR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 8 — CI Gate (unified single status check for GitHub branch protection)
 # ─────────────────────────────────────────────────────────────────────────────
   ci-gate:
     name: "CI Gate — All Checks"
     runs-on: ubuntu-latest
-    needs: [docker-build]
+    needs: [docker-build, docker-push]
     if: always()
     steps:
       - name: Verify pipeline status
         run: |
-          if [ "${{ needs.docker-build.result }}" != "success" ]; then
-            echo "CI pipeline failed! Downstream builds or tests were unsuccessful."
+          # On PR events: docker-build must succeed; docker-push is skipped (OK)
+          # On push events: docker-push must succeed; docker-build is skipped (OK)
+          DB="${{ needs.docker-build.result }}"
+          DP="${{ needs.docker-push.result }}"
+
+          if [ "$DB" = "failure" ] || [ "$DB" = "cancelled" ]; then
+            echo "❌ docker-build failed (result: $DB)"
             exit 1
           fi
-          echo "All pipeline gates passed successfully! ✅"
+          if [ "$DP" = "failure" ] || [ "$DP" = "cancelled" ]; then
+            echo "❌ docker-push failed (result: $DP)"
+            exit 1
+          fi
+          echo "✅ All pipeline gates passed!"
+          echo "   docker-build : $DB"
+          echo "   docker-push  : $DP"
