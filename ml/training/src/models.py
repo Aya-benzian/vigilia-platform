@@ -32,19 +32,18 @@ def make_logreg(params: Optional[Dict[str, Any]] = None) -> LogisticRegression:
         solver="lbfgs",
         max_iter=1000,
         class_weight="balanced",
-        random_state=SEED,
         n_jobs=-1,
     )
     if params:
-        # solver must be "saga" when penalty="l1"
-        if params.get("penalty") == "l1":
-            params.setdefault("solver", "saga")
+        clean = {k: v for k, v in params.items() if k != "random_state"}
+        if clean.get("penalty") == "l1":
+            clean.setdefault("solver", "saga")
         else:
-            params.setdefault("solver", "lbfgs")
-        defaults.update(params)
+            clean.setdefault("solver", "lbfgs")
+        defaults.update(clean)
 
     logger.debug(f"make_logreg: {defaults}")
-    return LogisticRegression(**defaults)
+    return LogisticRegression(**defaults, random_state=SEED)
 
 
 def make_random_forest(params: Optional[Dict[str, Any]] = None) -> RandomForestClassifier:
@@ -59,14 +58,13 @@ def make_random_forest(params: Optional[Dict[str, Any]] = None) -> RandomForestC
         min_samples_leaf=1,
         max_features="sqrt",
         class_weight="balanced_subsample",
-        random_state=SEED,
         n_jobs=-1,
     )
     if params:
-        defaults.update(params)
+        defaults.update({k: v for k, v in params.items() if k != "random_state"})
 
     logger.debug(f"make_random_forest: {defaults}")
-    return RandomForestClassifier(**defaults)
+    return RandomForestClassifier(**defaults, random_state=SEED)
 
 
 def make_xgboost(
@@ -89,16 +87,16 @@ def make_xgboost(
         reg_lambda=1.0,
         scale_pos_weight=scale_pos_weight,
         tree_method="hist",
-        random_state=SEED,
         n_jobs=-1,
-        eval_metric="aucpr",   # PR-AUC aligned with our primary metric
+        eval_metric="aucpr",
         verbosity=0,
+        enable_categorical=True,
     )
     if params:
-        defaults.update(params)
+        defaults.update({k: v for k, v in params.items() if k != "random_state"})
 
     logger.debug(f"make_xgboost: scale_pos_weight={scale_pos_weight}")
-    return XGBClassifier(**defaults)
+    return XGBClassifier(**defaults, random_state=SEED)
 
 
 def make_svm(

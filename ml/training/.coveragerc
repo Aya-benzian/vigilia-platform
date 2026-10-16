@@ -1,0 +1,11 @@
+[run]
+branch = True
+source = src
+relative_files = True
+
+[report]
+show_missing = True
+skip_empty = True
+
+[xml]
+output = coverage.xml
