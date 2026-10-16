@@ -1,4 +1,4 @@
-﻿# ML Training — Team Notes & Decisions Log
+# ML Training — Team Notes & Decisions Log
 > **Member 1 — Machine Learning & Statistical Validation**
 > This file is updated every time we make an important decision, learn something, or complete a step.
 > Use it to explain the work to teammates or the professor.
@@ -16,6 +16,12 @@
 8. [Files Created](#8-files-created)
 9. [Tests Passing](#9-tests-passing)
 10. [Next Steps](#10-next-steps)
+11. [Progress Log — Session 2](#11-progress-log--what-was-done-session-2--2026-10-15)
+12. [Real Dataset Numbers](#12-real-dataset-numbers-from-data_check--2026-10-15)
+13. [Pipeline Stage Overview](#13-current-pipeline-status)
+14. [What is a venv (Virtual Environment) vs Real Data](#14-what-is-a-venv-virtual-environment-vs-real-data)
+15. [Session 3 Updates — PR & Quality Gate Hardening](#15-session-3-updates--pr--quality-gate-hardening-2026-10-16)
+16. [Master Conception & Cahier des Charges Roadmap](#16-master-conception--cahier-des-charges-roadmap)
 
 ---
 
@@ -394,3 +400,120 @@ All commands from ml/training/ with venv activated:
 | calibrate | Waiting | After select |
 | evaluate | Waiting | After calibrate -- run ONCE |
 | register | Waiting | Last step |
+
+---
+
+## 14. What is a venv (Virtual Environment) vs Real Data
+
+### Virtual Environment (.venv) != Virtual Data
+- **`venv`** stands for **Python Virtual Environment**.
+- It is **not** virtual or simulated data. It is a completely isolated local folder (`ml/training/.venv/`) containing:
+  1. A dedicated Python interpreter (Python 3.12.9)
+  2. Isolated pip packages (`pandas`, `scikit-learn`, `xgboost`, `optuna`, `mlflow`)
+- **Why it is used**: Prevents package version collisions with system software or other projects. It guarantees reproducibility across machines and Docker CI.
+
+### Real Data Confirmation
+- The data files are **real CSV files on disk** in `ml/training/data/raw/`:
+  - `fraudTrain.csv`: 351 MB (1,296,675 real transactions)
+  - `fraudTest.csv`: 150 MB (555,719 real transactions)
+- What was run during unit tests (`pytest`) were fast smoke-test samples to verify code logic and algorithms without waiting hours.
+- Real heavy training will run against these full disk datasets during Phase 2.
+
+---
+
+## 15. Session 3 Updates — PR & Quality Gate Hardening (2026-10-16)
+
+### Key Actions Completed
+1. **Model Factories Determinism (`models.py`)**: Added explicit `random_state=SEED` across all 5 model factories (`make_logreg`, `make_random_forest`, `make_xgboost`, `make_svm`, `make_mlp`) to satisfy SonarCloud static analysis security/reliability rules.
+2. **Coverage Configuration (`.coveragerc`)**: Removed `relative_files = True` so coverage reports output absolute paths. This matches the CI container path rewriting via `sed` for SonarCloud Docker.
+3. **Unit Tests Added (`test_models.py`)**: Implemented unit tests verifying factory construction, seed preservation, and estimator types for all 5 models.
+4. **Preprocess Tests Unskipped (`test_preprocess.py`)**:
+   - `test_unseen_category_handled`: Verified OneHotEncoder gracefully handles unseen test categories (`handle_unknown="ignore"`).
+   - `test_stable_column_order`: Verified identical output feature order between train and test transformations.
+   - All 9 preprocess and model tests passing locally.
+5. **Git Pull Request**: Committed to `feat/ml-training-setup` and opened PR into `develop`.
+6. **Trivy Scan Context**: Trivy container scan alerts on PR are related to Kubernetes manifest configurations in `infrastructure/kubernetes/*.yaml` (Aya's DevOps files), not ML training Python code.
+
+---
+
+## 16. Master Conception & Cahier des Charges Roadmap
+
+Full overview of all phases based on the professor's specification, `docs/requirements-traceability.md`, and `docs/ownership.md`:
+
+```
+┌────────────────────────────────────────────────────────┐
+│  Phase 1: Architecture & Testing Setup                 │  <-- ✅ 100% COMPLETE
+│  (13 modules built, schema contract, unit tests, PR)   │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│  Phase 2: Heavy Experimentation (The Training Run)     │  <-- 🔜 NEXT STEP
+│  (Tune → CV Compare → Statistical Tests → Selection)   │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│  Phase 3: Calibration, Thresholding & Final Test       │
+│  (Calibrate on Part B, Threshold on C, fraudTest ONCE) │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│  Phase 4: MLflow Registration & Team Handoff           │
+│  (Promote @champion, export artifacts for Member 2)    │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│  Phase 5: Academic Report & Defense Deliverables       │
+│  (Friedman table, CD diagram, calibration curve)       │
+└──────────────────────────┴─────────────────────────────┘
+```
+
+### Detailed Execution Steps for Remaining Phases
+
+#### Phase 2 — Experiment Execution (Heavy Training)
+1. **Step 2.1: Hyperparameter Tuning (`python -m src.pipeline tune`)**
+   - Run Optuna across Part A (TPE sampler, 30 trials per model, 3-fold inner PR-AUC CV).
+   - Models tuned: Logistic Regression, Random Forest, XGBoost, SVM, MLP.
+   - Output: `artifacts/best_params.json`.
+2. **Step 2.2: 5x10 Repeated Cross-Validation (`python -m src.pipeline compare`)**
+   - Run 50 folds on identical splits for 5 models + 2 baselines.
+   - Compute PR-AUC (primary metric), ROC-AUC, F1, F2, MCC, Brier score.
+   - Also evaluate cardholder grouping via `StratifiedGroupKFold(cc_num)`.
+   - Output: `artifacts/cv_results.csv`.
+3. **Step 2.3: Statistical Rigor & Hypothesis Testing (`python -m src.pipeline stats`)**
+   - Friedman non-parametric rank test across repeated CV folds.
+   - Pairwise Wilcoxon signed-rank tests with Holm-Bonferroni correction.
+   - Bootstrap 95% confidence intervals and Cohen's d effect sizes.
+   - Output: Statistical comparison tables and Critical Difference (CD) diagram.
+4. **Step 2.4: Objective Champion Selection (`python -m src.pipeline select`)**
+   - Automatically executes the pre-committed decision rule in `src/select_model.py`.
+   - Metric hierarchy: PR-AUC superiority -> Brier Score tie-breaker -> explainability.
+
+#### Phase 3 — Calibration & Final Evaluation
+1. **Step 3.1: Probability Calibration & Threshold Tuning (`python -m src.pipeline calibrate`)**
+   - Fit `CalibratedClassifierCV` (isotonic or sigmoid) on holdout **Part B** (never seen during training).
+   - Find optimal operating threshold tau on holdout **Part C** using fraud business cost matrix and F2-score (prioritizing fraud recall).
+   - Output: Calibrated pipeline artifact and optimal threshold.
+2. **Step 3.2: Final Academic Test Evaluation (`python -m src.pipeline evaluate`)**
+   - Evaluated **EXACTLY ONCE** on the untouched `fraudTest.csv` (555,719 rows).
+   - Computes final unbiased test metrics: PR-AUC, ROC-AUC, F1, F2, MCC, Brier score, and inference latency per transaction.
+
+#### Phase 4 — MLflow Registry & Team Interface (Contract 1)
+1. **Step 4.1: MLflow Model Registry (`python -m src.pipeline register`)**
+   - Connect to local or cluster MLflow server (`http://localhost:5000`).
+   - Log parameters, metrics, artifact binaries, and curves.
+   - Promote model version to `@champion` alias.
+   - Generate `model_card.json`.
+2. **Step 4.2: Team Handoff (Contract 1)**
+   - **Member 2 (FastAPI Serving)**: Receives `@champion` pipeline and `src/schema.py`. Can run inference directly without reimplementing feature engineering.
+   - **Member 4 (Frontend UI)**: Receives model card metrics and latency benchmarks for the analyst dashboard.
+
+#### Phase 5 — Academic Report & Defense Deliverables
+- Model Benchmark Table (Baselines + 5 ML models with mean +/- std).
+- Statistical Significance Tables (Friedman p-value, Wilcoxon/Holm matrix).
+- Visualizations: Critical Difference Diagram, PR/ROC curves, Reliability Diagram (before vs after calibration).
+- Final presentation script for the team's 5-minute project defense.
+
