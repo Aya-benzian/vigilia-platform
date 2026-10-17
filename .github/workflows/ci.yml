@@ -347,7 +347,7 @@ jobs:
             type=sha,prefix=pr-${{ github.event.number }}-,format=short
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.image.context }}
           push: false
@@ -450,7 +450,7 @@ jobs:
             type=raw,value=${{ github.ref_name }}-latest
 
       - name: Build and push Docker image to GHCR
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.image.context }}
           push: true                       # ← actual registry push
