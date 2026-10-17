@@ -22,6 +22,7 @@
 14. [What is a venv (Virtual Environment) vs Real Data](#14-what-is-a-venv-virtual-environment-vs-real-data)
 15. [Session 3 Updates — PR & Quality Gate Hardening](#15-session-3-updates--pr--quality-gate-hardening-2026-10-16)
 16. [Master Conception & Cahier des Charges Roadmap](#16-master-conception--cahier-des-charges-roadmap)
+17. [Pipeline Verification vs Heavy Training Execution](#17-pipeline-verification-vs-heavy-training-execution)
 
 ---
 
@@ -516,4 +517,39 @@ Full overview of all phases based on the professor's specification, `docs/requir
 - Statistical Significance Tables (Friedman p-value, Wilcoxon/Holm matrix).
 - Visualizations: Critical Difference Diagram, PR/ROC curves, Reliability Diagram (before vs after calibration).
 - Final presentation script for the team's 5-minute project defense.
+
+---
+
+## 17. Pipeline Verification vs Heavy Training Execution
+
+### 1. Why we tested on small/mock data first
+- In software engineering and MLOps, testing is divided into two distinct steps:
+  1. **Pipeline Construction & Verification (Smoke/Unit Tests)**:
+     - Tests code logic, transformations, edge cases (unseen categories, NaN handling), and data contracts.
+     - Uses small dummy/synthetic batches so that `pytest` runs in 2 seconds instead of hours.
+     - Guarantees zero runtime crashes, mathematical correctness, and SonarCloud/CI compliance *before* launching heavy compute.
+  2. **Heavy Real Training Execution**:
+     - Runs the validated pipeline on the full 1.3 million real transactions (`fraudTrain.csv`).
+     - Executes Optuna hyperparameter tuning, 5x10 repeated cross-validation folds, and model training.
+
+### 2. How to properly run pipeline stages in PowerShell
+When running commands from the terminal on Windows, ensure that the `.venv` Python and `PYTHONPATH` are active:
+
+```powershell
+# 1. Navigate to training workspace
+cd c:\Users\Administrateur\Documents\vigilia-platform\ml\training
+
+# 2. Activate Python 3.12 virtual environment
+.\.venv\Scripts\activate
+
+# 3. Add src directory to Python search path
+$env:PYTHONPATH="src"
+
+# 4. Instant verification on REAL data (takes ~5 seconds):
+python -m src.pipeline data_check
+
+# 5. Run heavy tuning (~30-40 mins of computation):
+python -m src.pipeline tune
+```
+
 
