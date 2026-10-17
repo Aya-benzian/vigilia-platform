@@ -53,6 +53,8 @@ ml/serving/models/
 *.joblib
 *.pkl
 *.onnx
+*.db
+*.sqlite
 
 # ML training generated outputs (never committed)
 ml/training/reports/figures/*

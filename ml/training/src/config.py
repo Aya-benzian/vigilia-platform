@@ -66,8 +66,24 @@ OPTUNA_TIMEOUT  = None     # set seconds if equal-time budget needed for SVM/MLP
 OPTUNA_METRIC   = "average_precision"
 OPTUNA_DIRECTION = "maximize"
 
+import os
+import socket
+
+def _resolve_tracking_uri() -> str:
+    env_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if env_uri:
+        return env_uri
+    for host in ("localhost", "mlflow"):
+        try:
+            with socket.create_connection((host, 5000), timeout=0.5):
+                return f"http://{host}:5000"
+        except (OSError, socket.error):
+            pass
+    local_db = (ROOT_DIR / "mlflow.db").resolve()
+    return f"sqlite:///{local_db.as_posix()}"
+
 # MLflow experiments
-MLFLOW_TRACKING_URI     = "http://mlflow:5000"   # override via env var
+MLFLOW_TRACKING_URI     = _resolve_tracking_uri()
 MLFLOW_EXP_TUNING       = "fraud-sparkov-tuning"
 MLFLOW_EXP_COMPARE      = "fraud-sparkov-compare"
 MLFLOW_EXP_FINAL        = "fraud-final"
