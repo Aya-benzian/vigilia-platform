@@ -18,6 +18,12 @@ Each stage is idempotent and logs to MLflow.
 import argparse
 import logging
 import sys
+from pathlib import Path
+
+# Ensure src directory is in sys.path so config and sibling modules resolve cleanly
+_SRC_DIR = Path(__file__).resolve().parent
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 
 import mlflow
 import numpy as np
