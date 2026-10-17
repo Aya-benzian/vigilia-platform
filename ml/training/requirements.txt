@@ -19,7 +19,7 @@
 # --- Data ---
 pandas==3.0.6
 numpy==2.5.3
-pyarrow==25.0.1       # must be <26 due to mlflow 3.17.0 conflict
+pyarrow==26.0.0       # must be <26 due to mlflow 3.17.0 conflict
 
 # --- Statistics ---
 scipy==1.18.1
