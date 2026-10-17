@@ -1,9 +1,55 @@
-# Baseline Data Science & ML Dependencies for Vigilia Training (Member 1)
-# Note: Rebuild the training container image whenever modifying this file.
+# ==============================================================================
+# Vigilia Platform — ML Training Dependencies (Member 1)
+# Pinned versions validated together on Python 3.12.3 (2026-10-10).
+# After installing, run: pip freeze > requirements.lock.txt
+# Member 2 and Member 5 must install from requirements.lock.txt to guarantee
+# that the pickled calibrated model loads correctly (same library versions).
+#
+# WARNING: pyarrow must stay below 26. pyarrow 26.0.0 conflicts with
+# mlflow 3.17.0 (requires pyarrow<26). Pin at 25.0.1.
+#
+# WARNING: Do NOT use the default mlflow sklearn serialization format (skops).
+# It rejects CalibratedClassifierCV + XGBClassifier as untrusted types.
+# Use: mlflow.sklearn.log_model(..., serialization_format="cloudpickle")
+# ==============================================================================
 
-setuptools<70.0.0
-numpy==1.26.4
-pandas==2.2.2
-scipy==1.13.1
-scikit-learn==1.5.0
-mlflow==2.14.1
+# --- Language runtime (use Python 3.12 — required by numpy 2.5, scipy 1.18, xgboost 3.4) ---
+# Python 3.12 is specified in the Dockerfile base image; not installed via pip.
+
+# --- Data ---
+pandas==3.0.6
+numpy==2.5.3
+pyarrow==25.0.1       # must be <26 due to mlflow 3.17.0 conflict
+
+# --- Statistics ---
+scipy==1.18.1
+statsmodels==0.15.0   # Holm correction: multipletests(method="holm")
+scikit-posthocs==0.17.1  # [NICE] Nemenyi / critical difference diagram
+
+# --- Machine Learning ---
+scikit-learn==1.9.1
+xgboost==3.4.1
+imbalanced-learn==0.14.2  # optional: compare undersampling inside folds
+
+# --- Hyperparameter Tuning ---
+optuna==5.0.0
+
+# --- MLflow Tracking & Model Registry ---
+mlflow==3.17.0
+
+# --- Persistence ---
+joblib==1.6.0
+
+# --- Schema Validation (Contract 1 with Member 2) ---
+pydantic==2.14.0
+
+# --- Plotting ---
+matplotlib==3.11.2
+seaborn==0.13.2
+
+# --- Testing ---
+pytest==9.1.1
+pytest-cov==6.1.0
+
+# --- Linting & Formatting ---
+ruff==0.17.0
