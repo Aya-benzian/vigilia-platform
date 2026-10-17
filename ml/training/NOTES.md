@@ -552,4 +552,20 @@ python -m src.pipeline data_check
 python -m src.pipeline tune
 ```
 
+### 3. How to run with Docker (Option 2 — Aya / Team Standard)
+Since the `vigilia-ml-training` Docker image and `vigilia-mlflow` server are running, you can run directly inside Docker with live volume mounts:
+
+```powershell
+# From repository root (vigilia-platform):
+docker run --rm `
+  --network vigilia_default `
+  -v ${PWD}/ml/training/src:/workspace/src `
+  -v ${PWD}/ml/training/data:/workspace/data `
+  -v ${PWD}/ml/training/artifacts:/workspace/artifacts `
+  vigilia-ml-training python -m src.pipeline tune
+```
+
+This guarantees 100% containerized execution with direct network connection to `http://mlflow:5000` and PostgreSQL!
+
+
 
