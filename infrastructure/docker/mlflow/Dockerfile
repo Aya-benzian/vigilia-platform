@@ -1,4 +1,4 @@
-FROM ghcr.io/mlflow/mlflow:v2.14.1
+FROM ghcr.io/mlflow/mlflow:v3.17.1
 
 # Install PostgreSQL adapter for MLflow tracking metadata store
 RUN pip install --no-cache-dir psycopg2-binary==2.9.9
