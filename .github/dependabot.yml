@@ -25,6 +25,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - github-actions
@@ -42,6 +43,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -59,6 +61,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -76,6 +79,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -93,6 +97,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -110,6 +115,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -127,6 +133,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -144,6 +151,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - java
@@ -162,6 +170,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - python
@@ -179,6 +188,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - python
@@ -197,6 +207,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - javascript
@@ -215,6 +226,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -226,6 +238,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -237,6 +250,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -248,6 +262,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -259,6 +274,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -270,6 +286,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -281,6 +298,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -292,6 +310,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -303,6 +322,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -315,6 +335,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
@@ -327,6 +348,7 @@ updates:
       day: monday
       time: "06:00"
       timezone: UTC
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - docker
