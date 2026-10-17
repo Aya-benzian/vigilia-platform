@@ -1,11 +1,11 @@
 # Stage 1: Build wheels
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 WORKDIR /app
 COPY requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
 # Stage 2: Run
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 WORKDIR /app
 
 # Create non-root user
