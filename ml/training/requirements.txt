@@ -18,7 +18,7 @@
 
 # --- Data ---
 pandas==3.0.6
-numpy==2.5.3
+numpy==2.5.4
 pyarrow==25.0.1       # must be <26 due to mlflow 3.17.0 conflict
 
 # --- Statistics ---
@@ -35,13 +35,13 @@ imbalanced-learn==0.14.2  # optional: compare undersampling inside folds
 optuna==5.0.0
 
 # --- MLflow Tracking & Model Registry ---
-mlflow==3.17.0
+mlflow==3.17.1
 
 # --- Persistence ---
 joblib==1.6.0
 
 # --- Schema Validation (Contract 1 with Member 2) ---
-pydantic==2.14.0
+pydantic==2.14.1
 
 # --- Plotting ---
 matplotlib==3.11.2
