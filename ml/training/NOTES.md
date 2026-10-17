@@ -23,6 +23,7 @@
 15. [Session 3 Updates — PR & Quality Gate Hardening](#15-session-3-updates--pr--quality-gate-hardening-2026-10-16)
 16. [Master Conception & Cahier des Charges Roadmap](#16-master-conception--cahier-des-charges-roadmap)
 17. [Pipeline Verification vs Heavy Training Execution](#17-pipeline-verification-vs-heavy-training-execution)
+18. [Understanding MLflow, Docker & The Live Results Dashboard](#18-understanding-mlflow-docker--the-live-results-dashboard)
 
 ---
 
@@ -566,6 +567,30 @@ docker run --rm `
 ```
 
 This guarantees 100% containerized execution with direct network connection to `http://mlflow:5000` and PostgreSQL!
+
+---
+
+## 18. Understanding MLflow, Docker & The Live Results Dashboard
+
+### 1. The Big Picture: How the Pieces Connect
+- **The Engine (Member 1 ML Code)**:
+  - Trains the 5 fraud detection models (Logistic Regression, Random Forest, XGBoost, SVM, MLP).
+  - Calculates metrics: PR-AUC, ROC-AUC, F1, F2, Brier score, inference latency.
+- **The Database + Tracking Server (Aya / Member 5 Infra in Docker)**:
+  - `vigilia-postgres`: Persistent PostgreSQL database storing all experiment metadata.
+  - `vigilia-mlflow`: The MLflow tracking server orchestrating experiments and model artifacts.
+  - Port conflict resolution: Host port mapped to `5434:5432` in `docker-compose.yml` to prevent collisions with existing system Postgres.
+- **The Live Dashboard (`http://localhost:5000`)**:
+  - The built-in MLflow web UI connected to the database.
+  - Instead of looking at raw text in a terminal, results stream live to this dashboard.
+  - You, Aya, and the professor can visually inspect and compare models, parameters, and curves.
+
+### 2. Live Verification Status (2026-10-17)
+- `vigilia-postgres` and `vigilia-mlflow` running and healthy in Docker.
+- Tracking URI verified active at `http://localhost:5000`.
+- MLflow web dashboard confirmed live in browser with `vigilia-smoke-test` experiment visible.
+- When `tune` is executed, the `fraud-sparkov-tuning` experiment appears in real-time with each model's trial results.
+
 
 
 
