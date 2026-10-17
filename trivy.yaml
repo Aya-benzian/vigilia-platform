@@ -1,0 +1,6 @@
+scan:
+  maven:
+    mirrors:
+      - source: https://repo.maven.apache.org/maven2/
+        targets:
+          - https://maven-central-eu.storage-download.googleapis.com/maven2/

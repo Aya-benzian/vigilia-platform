@@ -1,0 +1,333 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependabot — Vigilia Platform
+#
+# Ecosystems covered:
+#   github-actions  → workflow action versions
+#   maven           → 7 Spring Boot services
+#   pip             → ml/serving, ml/training
+#   npm             → frontend
+#   docker          → 11 Dockerfiles (base image updates)
+#
+# Schedule: weekly on Monday at 06:00 UTC
+# Groups:   minor + patch updates are bundled into a single PR per ecosystem
+#           to reduce noise. Security updates always get their own PR.
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 2
+
+updates:
+
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── Maven — Backend services ────────────────────────────────────────────────
+  - package-ecosystem: maven
+    directory: /backend/api-gateway
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: maven
+    directory: /backend/auth-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: maven
+    directory: /backend/customer-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: maven
+    directory: /backend/transaction-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: maven
+    directory: /backend/risk-management-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: maven
+    directory: /backend/notification-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: maven
+    directory: /backend/audit-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - java
+      - backend
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── pip — ML services ───────────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /ml/serving
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - python
+      - ml-serving
+    groups:
+      pip-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /ml/training
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - python
+      - ml-training
+    groups:
+      pip-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── npm — Frontend ──────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - javascript
+      - frontend
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # ── Docker — base image updates ─────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /backend/api-gateway
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /backend/auth-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /backend/customer-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /backend/transaction-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /backend/risk-management-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /backend/notification-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /backend/audit-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /infrastructure/docker/mlflow
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+      - mlops
+
+  - package-ecosystem: docker
+    directory: /ml/serving
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+      - ml-serving
+
+  - package-ecosystem: docker
+    directory: /ml/training
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    labels:
+      - dependencies
+      - docker
+      - ml-training
