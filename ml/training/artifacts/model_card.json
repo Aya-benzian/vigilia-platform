@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "model_name": "xgboost",
+  "mlflow_registered_name": "fraud-model",
+  "mlflow_alias": "champion",
+  "dataset": "Sparkov synthetic credit card fraud dataset",
+  "random_seed": 42,
+  "operating_threshold": 0.19480518996715546,
+  "performance": {
+    "pr_auc": 0.8623887246311219,
+    "roc_auc": 0.9965714907737113,
+    "f1": 0.7593378607809848,
+    "f2": 0.802458060464699,
+    "mcc": 0.7614070921832238,
+    "brier": 0.0010843521774798594,
+    "inference_ms": 35.827737619838445
+  },
+  "confusion_matrix": {
+    "tp": 1789,
+    "fp": 778,
+    "tn": 552796,
+    "fn": 356
+  },
+  "business_cost": 39490.0,
+  "intended_use": "Fraud/risk classification for FinTech transactions.",
+  "limitations": [
+    "Trained on synthetic Sparkov data \u2014 performance may differ on real data.",
+    "Threshold tuned on part C of training data \u2014 may need recalibration in production."
+  ],
+  "fairness_note": "No fairness analysis performed in Phase 1."
+}

@@ -22,24 +22,17 @@ Artifacts produced:
     5. artifacts/scores_part_c.parquet
        Calibrated scores on part C + threshold used. For Member 2 and Member 3.
 
-    6. Base (uncalibrated) model saved separately in MLflow.
-       For Member 2's SHAP explanations — SHAP explains the base model,
-       not the calibrated wrapper.
-
-All artifacts are also logged to MLflow under MLFLOW_EXP_FINAL.
+All artifacts are saved to ARTIFACTS_DIR.
 """
 
 import json
 import logging
-import platform
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-import numpy as np
 import pandas as pd
 
-from config import ARTIFACTS_DIR, SEED, TARGET_COL, MLFLOW_EXP_FINAL
+from config import ARTIFACTS_DIR, TARGET_COL
 
 logger = logging.getLogger(__name__)
 
@@ -58,20 +51,20 @@ def export_test_predictions(
         is_fraud (true label)
         calibrated_score (predicted probability)
         prediction (0 or 1, using threshold)
-
-    Member 2 uses this to compute PCA / t-SNE / UMAP coordinates and
-    to build the scatter plot data for the analyst dashboard.
-
-    Args:
-        calibrated_pipeline: Finalist calibrated Pipeline.
-        X_test: fraudTest features.
-        y_test: fraudTest labels.
-        threshold: Decision threshold from part C.
-
-    Returns:
-        Path to the written parquet file.
     """
-    raise NotImplementedError
+    logger.info(f"Generating test predictions on {len(X_test):,} samples...")
+    probs = calibrated_pipeline.predict_proba(X_test)[:, 1]
+    preds = (probs >= threshold).astype(int)
+
+    df_out = X_test.copy()
+    df_out["is_fraud"] = y_test.values
+    df_out["calibrated_score"] = probs
+    df_out["prediction"] = preds
+
+    out_path = ARTIFACTS_DIR / "test_predictions.parquet"
+    df_out.to_parquet(out_path, index=False)
+    logger.info(f"Exported test predictions to {out_path} ({len(df_out):,} rows)")
+    return out_path
 
 
 def export_calibration_scores(
@@ -87,96 +80,107 @@ def export_calibration_scores(
 
     Part B scores: for conformal prediction calibration (Member 2).
     Part C scores: for threshold studies (Members 2 and 3).
-
-    Returns:
-        Tuple (path_to_scores_b, path_to_scores_c).
     """
-    raise NotImplementedError
+    logger.info("Generating calibration scores on parts B and C...")
+    probs_b = calibrated_pipeline.predict_proba(X_B)[:, 1]
+    df_b = X_B.copy()
+    df_b["is_fraud"] = y_B.values
+    df_b["calibrated_score"] = probs_b
+    out_b = ARTIFACTS_DIR / "scores_part_b.parquet"
+    df_b.to_parquet(out_b, index=False)
+
+    probs_c = calibrated_pipeline.predict_proba(X_C)[:, 1]
+    preds_c = (probs_c >= threshold).astype(int)
+    df_c = X_C.copy()
+    df_c["is_fraud"] = y_C.values
+    df_c["calibrated_score"] = probs_c
+    df_c["threshold"] = threshold
+    df_c["prediction"] = preds_c
+    out_c = ARTIFACTS_DIR / "scores_part_c.parquet"
+    df_c.to_parquet(out_c, index=False)
+
+    logger.info(f"Exported calibration scores: {out_b} and {out_c}")
+    return out_b, out_c
 
 
 def build_model_card(
     selected_model: str,
-    selection_report: Dict,
-    metrics: Dict,
-    inference_timing: Dict,
-    calibration_info: Dict,
-    threshold: float,
-    mlflow_run_id: str,
-    mlflow_model_version: str,
+    threshold: Optional[float] = None,
 ) -> Dict:
-    """
-    Build the model_card.json as specified in §15 of design v5.
+    """Build the model_card.json summary."""
+    from register import build_model_card as reg_build_card
+    metrics_file = ARTIFACTS_DIR / "test_metrics.json"
+    if metrics_file.exists():
+        with open(metrics_file) as f:
+            metrics = json.load(f)
+    else:
+        metrics = {}
 
-    Contents:
-        Model name and version (Contract 10)
-        MLflow run ID and model version
-        Training date
-        Library versions (from importlib.metadata)
-        Dataset name and date range (from DATASET.md — filled manually)
-        Split description (A/B/C/test)
-        Feature list with types and order
-        Imbalance method
-        Hyperparameters (best from Optuna)
-        Selection rule and result (from selection_report)
-        Calibration method and slice (B)
-        Threshold and how it was chosen
-        Cost matrix (assumptions)
-        Headline metrics with CIs
-        Inference time with hardware
-        Reference statistics (training feature distributions — for Member 5 drift monitoring)
-        Known limitations
+    if threshold is None:
+        thr_file = ARTIFACTS_DIR / "threshold.txt"
+        threshold = float(thr_file.read_text().strip()) if thr_file.exists() else 0.5
 
-    Args:
-        selected_model: Name of the selected model.
-        selection_report: Output of select_model.select_model().
-        metrics: Output of evaluate.compute_all_metrics().
-        inference_timing: Output of evaluate.measure_inference_time().
-        calibration_info: Dict with method, brier_before, brier_after.
-        threshold: Decision threshold from part C.
-        mlflow_run_id: MLflow run ID of the final run.
-        mlflow_model_version: Registered model version string.
-
-    Returns:
-        The model card dict (also written to ARTIFACTS_DIR / "model_card.json").
-    """
-    raise NotImplementedError
+    return reg_build_card(metrics, threshold, selected_model)
 
 
 def export_all_artifacts(
-    calibrated_pipeline: Any,
-    base_pipeline: Any,
-    X_test: pd.DataFrame,
-    y_test: pd.Series,
-    X_B: pd.DataFrame,
-    y_B: pd.Series,
-    X_C: pd.DataFrame,
-    y_C: pd.Series,
-    threshold: float,
-    selection_report: Dict,
-    metrics: Dict,
-    inference_timing: Dict,
-    calibration_info: Dict,
-    mlflow_run_id: str,
-    mlflow_model_version: str,
+    calibrated_pipeline: Any = None,
+    X_test: Optional[pd.DataFrame] = None,
+    y_test: Optional[pd.Series] = None,
+    X_B: Optional[pd.DataFrame] = None,
+    y_B: Optional[pd.Series] = None,
+    X_C: Optional[pd.DataFrame] = None,
+    y_C: Optional[pd.Series] = None,
+    threshold: Optional[float] = None,
+    selected_model: Optional[str] = None,
 ) -> Dict[str, Path]:
     """
     Run all export functions in sequence and return paths to all artifacts.
-
-    Args:
-        calibrated_pipeline: Finalist calibrated Pipeline.
-        base_pipeline: Finalist base (uncalibrated) Pipeline (for SHAP).
-        X_test, y_test: fraudTest.
-        X_B, y_B: Part B.
-        X_C, y_C: Part C.
-        threshold: Decision threshold from part C.
-        selection_report: From select_model.select_model().
-        metrics: From evaluate.compute_all_metrics().
-        inference_timing: From evaluate.measure_inference_time().
-        calibration_info: Dict with calibration summary.
-        mlflow_run_id: MLflow final run ID.
-        mlflow_model_version: Version string.
-
-    Returns:
-        Dict mapping artifact name → Path.
     """
-    raise NotImplementedError
+    import pickle
+    from data_io import load_train_raw, split_train_abc, load_test_raw
+    from preprocess import export_feature_spec
+
+    logger.info("=== EXPORTING ALL HAND-OFF ARTIFACTS ===")
+    if calibrated_pipeline is None:
+        with open(ARTIFACTS_DIR / "calibrated_pipeline.pkl", "rb") as f:
+            calibrated_pipeline = pickle.load(f)
+
+    if threshold is None:
+        threshold = float((ARTIFACTS_DIR / "threshold.txt").read_text().strip())
+
+    if selected_model is None:
+        selected_model = (ARTIFACTS_DIR / "selected_model.txt").read_text().strip()
+
+    if X_test is None or y_test is None:
+        df_test = load_test_raw()
+        X_test = df_test.drop(columns=[TARGET_COL], errors="ignore")
+        y_test = df_test[TARGET_COL]
+
+    if X_B is None or y_B is None or X_C is None or y_C is None:
+        df_train = load_train_raw()
+        _, part_b, part_c = split_train_abc(df_train)
+        X_B = part_b.drop(columns=[TARGET_COL], errors="ignore")
+        y_B = part_b[TARGET_COL]
+        X_C = part_c.drop(columns=[TARGET_COL], errors="ignore")
+        y_C = part_c[TARGET_COL]
+
+    out_paths = {}
+    out_paths["test_predictions"] = export_test_predictions(calibrated_pipeline, X_test, y_test, threshold)
+    out_b, out_c = export_calibration_scores(calibrated_pipeline, X_B, y_B, X_C, y_C, threshold)
+    out_paths["scores_part_b"] = out_b
+    out_paths["scores_part_c"] = out_c
+    out_paths["feature_spec"] = export_feature_spec()
+    build_model_card(selected_model, threshold=threshold)
+    out_paths["model_card"] = ARTIFACTS_DIR / "model_card.json"
+
+    logger.info("=== ALL ARTIFACTS SUCCESSFULLY EXPORTED ===")
+    for name, path in out_paths.items():
+        logger.info(f"  - {name}: {path}")
+
+    return out_paths
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    export_all_artifacts()

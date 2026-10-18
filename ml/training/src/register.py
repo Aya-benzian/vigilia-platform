@@ -140,22 +140,27 @@ def register_champion(
         mlflow.log_artifact(str(card_path), artifact_path="metadata")
         mlflow.log_artifact(str(spec_path), artifact_path="metadata")
 
-        # Log model with cloudpickle — required for:
-        #   - XGBClassifier (not a trusted skops type)
-        #   - CalibratedClassifierCV wrapping XGBoost
-        mlflow.sklearn.log_model(
+        # Save model locally with cloudpickle then log as artifact
+        # (avoids MLflow 3.x client CreateLoggedModel incompatibility with MLflow 2.14 server)
+        import tempfile, shutil
+        tmp_dir = tempfile.mkdtemp()
+        model_local_path = Path(tmp_dir) / "model"
+        mlflow.sklearn.save_model(
             sk_model=calibrated_pipeline,
-            artifact_path="model",
+            path=str(model_local_path),
             serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
-            registered_model_name=MLFLOW_MODEL_NAME,
-            input_example=None,
         )
+        mlflow.log_artifacts(str(model_local_path), artifact_path="model")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
         run_id = run.info.run_id
 
-    # Get the latest version
-    versions = client.search_model_versions(f"name='{MLFLOW_MODEL_NAME}'")
-    latest_version = max(versions, key=lambda v: int(v.version)).version
+    # Register model in Model Registry from run artifact
+    model_version_obj = mlflow.register_model(
+        model_uri=f"runs:/{run_id}/model",
+        name=MLFLOW_MODEL_NAME,
+    )
+    latest_version = str(model_version_obj.version)
 
     # Set @champion alias
     client.set_registered_model_alias(

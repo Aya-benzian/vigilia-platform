@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0",
+  "raw_input_fields": [
+    {
+      "name": "trans_date_trans_time",
+      "type": "datetime",
+      "format": "ISO8601"
+    },
+    {
+      "name": "amt",
+      "type": "float",
+      "unit": "USD",
+      "range": [
+        0,
+        null
+      ]
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "note": "merchant category"
+    },
+    {
+      "name": "gender",
+      "type": "string",
+      "values": [
+        "M",
+        "F"
+      ]
+    },
+    {
+      "name": "dob",
+      "type": "date",
+      "format": "YYYY-MM-DD"
+    },
+    {
+      "name": "lat",
+      "type": "float",
+      "range": [
+        -90,
+        90
+      ]
+    },
+    {
+      "name": "long",
+      "type": "float",
+      "range": [
+        -180,
+        180
+      ]
+    },
+    {
+      "name": "city_pop",
+      "type": "int",
+      "range": [
+        1,
+        null
+      ]
+    },
+    {
+      "name": "merch_lat",
+      "type": "float",
+      "range": [
+        -90,
+        90
+      ]
+    },
+    {
+      "name": "merch_long",
+      "type": "float",
+      "range": [
+        -180,
+        180
+      ]
+    }
+  ],
+  "engineered_features": [
+    {
+      "name": "amt_log",
+      "type": "float",
+      "formula": "log1p(amt)"
+    },
+    {
+      "name": "hour",
+      "type": "int",
+      "formula": "trans_date_trans_time.hour"
+    },
+    {
+      "name": "dow",
+      "type": "int",
+      "formula": "trans_date_trans_time.dayofweek"
+    },
+    {
+      "name": "is_night",
+      "type": "int",
+      "formula": "1 if hour in [0..5] else 0"
+    },
+    {
+      "name": "distance_km",
+      "type": "float",
+      "formula": "haversine(lat, long, merch_lat, merch_long)"
+    },
+    {
+      "name": "age",
+      "type": "float",
+      "formula": "(trans_date - dob).days / 365.25"
+    },
+    {
+      "name": "city_pop_log",
+      "type": "float",
+      "formula": "log1p(city_pop)"
+    }
+  ],
+  "numeric_features": [
+    "amt_log",
+    "hour",
+    "dow",
+    "is_night",
+    "distance_km",
+    "age",
+    "city_pop_log"
+  ],
+  "categorical_features": [
+    "category",
+    "gender"
+  ],
+  "target": "is_fraud",
+  "drop_columns": [
+    "trans_num",
+    "first",
+    "last",
+    "street",
+    "cc_num"
+  ]
+}
