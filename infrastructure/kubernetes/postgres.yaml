@@ -22,11 +22,27 @@ spec:
             - containerPort: 5432
           env:
             - name: POSTGRES_DB
-              value: vigilia
+              valueFrom:
+                configMapKeyRef:
+                  name: vigilia-config
+                  key: POSTGRES_DB
             - name: POSTGRES_USER
-              value: vigilia
+              valueFrom:
+                configMapKeyRef:
+                  name: vigilia-config
+                  key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
-              value: vigilia_secret
+              valueFrom:
+                secretKeyRef:
+                  name: vigilia-secrets
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", "vigilia", "-d", "vigilia"]

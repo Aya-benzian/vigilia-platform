@@ -6,6 +6,11 @@
 !.env.example
 !**/.env.example
 
+# Kubernetes secrets (never commit actual credentials)
+infrastructure/kubernetes/secret.yaml
+infrastructure/kubernetes/secrets.yaml
+!infrastructure/kubernetes/secret.example.yaml
+
 *.pem
 *.key
 *.p12
