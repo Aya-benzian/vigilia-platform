@@ -20,6 +20,22 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: vigilia-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vigilia-secrets
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
           startupProbe:
             httpGet:
               path: /actuator/health

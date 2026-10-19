@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vigilia-config
+  labels:
+    app.kubernetes.io/part-of: vigilia-platform
+data:
+  # ── Environment & Logging ───────────────────────────────────────────
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+
+  # ── PostgreSQL Database Coordinates (Non-Sensitive) ─────────────────
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "vigilia"
+  POSTGRES_USER: "vigilia"
+
+  # ── Spring Boot Common DataSource Configuration ─────────────────────
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/vigilia"
+  SPRING_DATASOURCE_USERNAME: "vigilia"
+
+  # ── Internal Service Discovery URLs (Kubernetes Cluster DNS) ─────────
+  AUTH_SERVICE_URL: "http://auth-service:8081"
+  CUSTOMER_SERVICE_URL: "http://customer-service:8082"
+  TRANSACTION_SERVICE_URL: "http://transaction-service:8083"
+  RISK_MANAGEMENT_SERVICE_URL: "http://risk-management-service:8084"
+  NOTIFICATION_SERVICE_URL: "http://notification-service:8085"
+  AUDIT_SERVICE_URL: "http://audit-service:8086"
+  ML_SERVING_URL: "http://ml-serving:8000"
