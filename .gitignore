@@ -48,6 +48,8 @@ ml/training/data/*
 !ml/training/data/.gitkeep
 ml/training/artifacts/*
 !ml/training/artifacts/.gitkeep
+!ml/training/artifacts/*.json
+!ml/training/artifacts/*.txt
 ml/training/mlruns/
 ml/serving/models/
 *.joblib

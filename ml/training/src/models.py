@@ -119,7 +119,7 @@ def make_svm(
             max_iter=2000,
         )
         if params:
-            defaults.update({k: v for k, v in params.items() if k != "random_state"})
+            defaults.update({k: v for k, v in params.items() if k not in ("random_state", "gamma")})
         logger.debug(f"make_svm (LinearSVC): {defaults}")
         return LinearSVC(**defaults, random_state=SEED)
     else:
@@ -151,7 +151,10 @@ def make_mlp(params: Optional[Dict[str, Any]] = None) -> MLPClassifier:
         validation_fraction=0.1,
     )
     if params:
-        defaults.update({k: v for k, v in params.items() if k != "random_state"})
+        clean = {k: v for k, v in params.items() if k != "random_state"}
+        if "hidden_layer_sizes" in clean and isinstance(clean["hidden_layer_sizes"], list):
+            clean["hidden_layer_sizes"] = tuple(clean["hidden_layer_sizes"])
+        defaults.update(clean)
 
     logger.debug(f"make_mlp: {defaults}")
     return MLPClassifier(**defaults, random_state=SEED)
