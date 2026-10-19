@@ -3,7 +3,10 @@ useDefault = true
 
 [allowlist]
 description = "Allowlist template examples and documentation configs"
+commits = [
+    "9afe86f9bb946efb71c8b0a94ae36ea08e1582d8"
+]
 paths = [
-    'infrastructure/kubernetes/secret\\.example\\.yaml$',
-    '\\.env\\.example$'
+    '''(^|/)secret\.example\.yaml$''',
+    '''(^|/)\.env\.example$'''
 ]
