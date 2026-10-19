@@ -101,7 +101,7 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress package -DskipTests
 
       - name: Upload JAR artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.service }}-jar
           path: backend/${{ matrix.service }}/target/*.jar
@@ -147,7 +147,7 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ml-serving-coverage
@@ -192,7 +192,7 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ml-training-coverage
