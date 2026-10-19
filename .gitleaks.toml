@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist template examples and documentation configs"
+paths = [
+    'infrastructure/kubernetes/secret\\.example\\.yaml$',
+    '\\.env\\.example$'
+]
