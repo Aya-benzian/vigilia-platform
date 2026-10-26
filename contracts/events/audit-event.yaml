@@ -1,0 +1,87 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Audit Event Contract (M3 -> M4)
+  version: 1.0.0
+  description: REST payload specification sent by backend services to Member 4's audit-service (Port 8086).
+
+paths:
+  /api/v1/audit-events:
+    post:
+      summary: Record compliance audit log event
+      description: Emitted on every sensitive state change, authorization decision, authentication attempt, or analyst resolution.
+      operationId: recordAuditEvent
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditEventPayload'
+      responses:
+        '201':
+          description: Audit event recorded.
+        '400':
+          description: Invalid audit event format.
+
+components:
+  schemas:
+    AuditEventPayload:
+      type: object
+      required:
+        - eventId
+        - timestamp
+        - serviceSource
+        - action
+        - principal
+        - outcome
+        - correlationId
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          example: "2b8e6679-7425-40de-944b-e07fc1f90bb2"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:01Z"
+        serviceSource:
+          type: string
+          example: "risk-management-service"
+        action:
+          type: string
+          enum:
+            - USER_LOGIN_SUCCESS
+            - USER_LOGIN_FAILURE
+            - TRANSACTION_EVALUATION
+            - ANALYST_MANUAL_DECISION
+            - RULE_UPDATED
+            - ACCESS_DENIED
+          example: "TRANSACTION_EVALUATION"
+        principal:
+          type: string
+          description: User ID, service name, or system subject who initiated the action.
+          example: "service:transaction-service"
+        targetResource:
+          type: string
+          example: "transaction:7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        outcome:
+          type: string
+          enum: [SUCCESS, FAILURE, SUSPENDED]
+          example: "SUCCESS"
+        correlationId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        details:
+          type: object
+          additionalProperties: true
+          example:
+            decision: "APPROVED"
+            fraudProbability: 0.0425
+            modelVersion: "purchase-fraud-model:1.0.0"
