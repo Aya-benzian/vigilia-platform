@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Risk Management Service API
+  version: 1.0.0
+  description: Fraud scoring orchestration, business rules engine, human review queue, and analyst decision resolution.
+servers:
+  - url: http://localhost:8084
+    description: Direct local risk-management-service instance
+  - url: http://localhost:8080/api/v1/risk
+    description: Proxied via API Gateway
+
+paths:
+  /api/v1/risk/evaluate:
+    post:
+      summary: Evaluate transaction risk
+      description: Internal service endpoint called by transaction-service. Evaluates transaction features against hard rules and FastAPI ML model, assigns business status (APPROVED, REJECTED, PENDING_REVIEW), and persists evaluation in the risk schema.
+      operationId: evaluateRisk
+      tags:
+        - Risk Evaluation
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskEvaluationRequest'
+      responses:
+        '200':
+          description: Risk evaluation completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskEvaluationResponse'
+        '400':
+          description: Invalid evaluation payload.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '500':
+          description: Internal evaluation error.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/risk/reviews/pending:
+    get:
+      summary: List transactions pending human review
+      description: Returns transactions in PENDING_REVIEW status requiring manual inspection by fraud analysts.
+      operationId: listPendingReviews
+      tags:
+        - Analyst Review
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - $ref: './common-schemas.yaml#/components/parameters/PageQuery'
+        - $ref: './common-schemas.yaml#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: List of pending review tasks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingReviewPageResponse'
+
+  /api/v1/risk/reviews/{id}/decision:
+    post:
+      summary: Submit analyst review decision
+      description: Allows a human fraud analyst (ROLE_ANALYST) to manually approve or reject a transaction suspended in PENDING_REVIEW.
+      operationId: submitAnalystDecision
+      tags:
+        - Analyst Review
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: id
+          in: path
+          required: true
+          description: Unique risk evaluation UUID.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalystDecisionRequest'
+      responses:
+        '200':
+          description: Analyst decision registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskEvaluationResponse'
+        '400':
+          description: Invalid decision format.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Review task not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '409':
+          description: Review task already resolved.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/risk/policies/active:
+    get:
+      summary: Get active decision policies
+      description: Returns the active risk decision policies. If 'type' query parameter is specified, returns the single active policy for that transaction type; otherwise, returns the list of all active policies.
+      operationId: getActiveDecisionPolicies
+      tags:
+        - Decision Policies
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: type
+          in: query
+          required: false
+          description: Optional filter by transaction type (PURCHASE or TRANSFER).
+          schema:
+            type: string
+            enum: [PURCHASE, TRANSFER]
+            example: "PURCHASE"
+      responses:
+        '200':
+          description: Active decision policies list (if no type specified) or single active decision policy (if type specified).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/DecisionPolicyResponse'
+                  - $ref: '#/components/schemas/DecisionPolicyResponse'
+        '400':
+          description: Invalid transaction type provided.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: No active decision policy found for the requested transaction type.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+components:
+  schemas:
+    RiskEvaluationRequest:
+      type: object
+      required:
+        - transactionId
+        - customerId
+        - transactionType
+        - amount
+        - currency
+        - timestamp
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        transactionType:
+          $ref: './common-schemas.yaml#/components/schemas/TransactionType'
+        amount:
+          $ref: './common-schemas.yaml#/components/schemas/MoneyAmount'
+        currency:
+          $ref: './common-schemas.yaml#/components/schemas/Currency'
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:00Z"
+        # Customer Demographics
+        customerAge:
+          type: integer
+          example: 38
+        customerGender:
+          type: string
+          example: "M"
+        customerLatitude:
+          type: number
+          format: double
+          example: 48.8566
+        customerLongitude:
+          type: number
+          format: double
+          example: 2.3522
+        cityPopulation:
+          type: integer
+          example: 2161000
+        # Transaction specifics
+        merchantCategory:
+          type: string
+          example: "shopping_net"
+        merchantLatitude:
+          type: number
+          format: double
+          example: 48.8600
+        merchantLongitude:
+          type: number
+          format: double
+          example: 2.3500
+
+    RiskEvaluationResponse:
+      type: object
+      required:
+        - evaluationId
+        - transactionId
+        - decision
+        - fraudProbability
+        - uncertainty
+        - decisionReason
+        - evaluatedAt
+      properties:
+        evaluationId:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        transactionId:
+          type: string
+          format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        decision:
+          $ref: './common-schemas.yaml#/components/schemas/RiskStatus'
+        fraudProbability:
+          type: number
+          format: double
+          description: Calibrated fraud probability score [0.0 - 1.0].
+          example: 0.1450
+        uncertainty:
+          type: number
+          format: double
+          description: Model uncertainty estimation score [0.0 - 1.0].
+          example: 0.0820
+        modelVersion:
+          type: string
+          example: "purchase-fraud-model:1.0.0"
+        decisionReason:
+          type: string
+          example: "ML_SCORE_BELOW_LOW_THRESHOLD"
+        topFeatures:
+          type: array
+          items:
+            type: object
+            properties:
+              feature:
+                type: string
+                example: "amt"
+              weight:
+                type: number
+                format: double
+                example: 0.45
+        evaluatedAt:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:01Z"
+
+    AnalystDecisionRequest:
+      type: object
+      required:
+        - analystId
+        - decision
+        - reason
+      properties:
+        analystId:
+          type: string
+          example: "analyst-marie"
+        decision:
+          type: string
+          enum: [APPROVED, REJECTED]
+          example: "APPROVED"
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+          example: "Verified customer identity and transaction context by phone."
+
+    PendingReviewItem:
+      type: object
+      required:
+        - evaluationId
+        - transactionId
+        - customerId
+        - amount
+        - currency
+        - fraudProbability
+        - uncertainty
+        - suspendedAt
+      properties:
+        evaluationId:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        transactionId:
+          type: string
+          format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        amount:
+          type: number
+          format: double
+          example: 850.00
+        currency:
+          type: string
+          example: "EUR"
+        fraudProbability:
+          type: number
+          format: double
+          example: 0.5420
+        uncertainty:
+          type: number
+          format: double
+          example: 0.4120
+        reason:
+          type: string
+          example: "HIGH_UNCERTAINTY_OR_INTERMEDIATE_SCORE"
+        suspendedAt:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:00Z"
+
+    PendingReviewPageResponse:
+      type: object
+      required:
+        - content
+        - meta
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingReviewItem'
+        meta:
+          $ref: './common-schemas.yaml#/components/schemas/PaginationMeta'
+
+    DecisionPolicyResponse:
+      type: object
+      required:
+        - id
+        - transactionType
+        - version
+        - rejectThreshold
+        - approveThreshold
+        - uncertaintyThreshold
+        - mlTimeoutMs
+        - maxAmountHardLimit
+        - velocityHardCap1h
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        transactionType:
+          $ref: './common-schemas.yaml#/components/schemas/TransactionType'
+        version:
+          type: integer
+          example: 1
+        rejectThreshold:
+          type: number
+          format: double
+          description: ML fraud probability threshold above which transactions are rejected [0.0 - 1.0].
+          example: 0.70000
+        approveThreshold:
+          type: number
+          format: double
+          description: ML fraud probability threshold below which transactions are approved [0.0 - 1.0].
+          example: 0.30000
+        uncertaintyThreshold:
+          type: number
+          format: double
+          description: ML model uncertainty threshold above which transactions trigger human review [0.0 - 1.0].
+          example: 0.50000
+        mlTimeoutMs:
+          type: integer
+          description: Maximum timeout in milliseconds for ML serving inference call.
+          example: 1500
+        maxAmountHardLimit:
+          type: number
+          format: double
+          description: Hard transaction amount limit triggering immediate rejection.
+          example: 5000.00
+        velocityHardCap1h:
+          type: integer
+          description: Maximum allowed transaction count per customer within rolling 1-hour window.
+          example: 15
+        isActive:
+          type: boolean
+          description: Indicates whether this policy is the currently active one for its transaction type.
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:00Z"

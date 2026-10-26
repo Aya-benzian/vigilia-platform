@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -52,13 +54,120 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ApiErrorResponse> handleUserAlreadyExistsException(
+            UserAlreadyExistsException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Utilisateur déjà existant [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "USER_ALREADY_EXISTS",
+                ex.getMessage(),
+                HttpStatus.CONFLICT.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler({AuthenticationFailedException.class, BadCredentialsException.class})
+    public ResponseEntity<ApiErrorResponse> handleAuthenticationFailedException(
+            Exception ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Échec d'authentification [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "INVALID_CREDENTIALS",
+                "Identifiants invalides",
+                HttpStatus.UNAUTHORIZED.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountLockedException(
+            AccountLockedException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Compte bloqué [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "ACCOUNT_LOCKED",
+                ex.getMessage(),
+                HttpStatus.FORBIDDEN.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidTokenException(
+            InvalidTokenException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Jeton invalide [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "TOKEN_INVALID",
+                ex.getMessage(),
+                HttpStatus.UNAUTHORIZED.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    @ExceptionHandler(TokenExpiredException.class)
+    public ResponseEntity<ApiErrorResponse> handleTokenExpiredException(
+            TokenExpiredException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Jeton expiré [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "TOKEN_EXPIRED",
+                ex.getMessage(),
+                HttpStatus.UNAUTHORIZED.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Accès refusé [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "FORBIDDEN",
+                "Accès interdit pour ce rôle ou cette ressource",
+                HttpStatus.FORBIDDEN.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleResourceNotFoundException(
             ResourceNotFoundException ex,
             HttpServletRequest request) {
 
         String correlationId = resolveCorrelationId(request);
-
         log.warn("Ressource introuvable [correlationId={}]: {}", correlationId, ex.getMessage());
 
         ApiErrorResponse errorResponse = new ApiErrorResponse(
@@ -77,7 +186,6 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
 
         String correlationId = resolveCorrelationId(request);
-
         log.warn("Route ou ressource introuvable [correlationId={}]: {}", correlationId, ex.getMessage());
 
         ApiErrorResponse errorResponse = new ApiErrorResponse(
@@ -96,14 +204,11 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
 
         String correlationId = resolveCorrelationId(request);
-
         log.error("Erreur interne inattendue [correlationId={}]: {}", correlationId, ex.getMessage(), ex);
-
-        String message = "Une erreur interne inattendue est survenue";
 
         ApiErrorResponse errorResponse = new ApiErrorResponse(
                 "INTERNAL_SERVER_ERROR",
-                message,
+                "Une erreur interne inattendue est survenue",
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 correlationId
         );

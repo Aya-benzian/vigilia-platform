@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — API Gateway Routing & Security Contract
+  version: 1.0.0
+  description: Public entry point routing, path mappings, JWT enforcement, and header propagation rules.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Stateless JWT issued by auth-service.
+
+gatewayRouting:
+  publicRoutes:
+    - path: /api/v1/auth/login
+      targetService: http://auth-service:8081
+      authRequired: false
+    - path: /api/v1/auth/register
+      targetService: http://auth-service:8081
+      authRequired: false
+    - path: /api/v1/auth/refresh
+      targetService: http://auth-service:8081
+      authRequired: false
+    - path: /swagger-ui.html
+      targetService: self
+      authRequired: false
+    - path: /v3/api-docs
+      targetService: self
+      authRequired: false
+
+  authenticatedRoutes:
+    - pathPrefix: /api/v1/customers
+      targetService: http://customer-service:8082
+      requiredRoles:
+        - ROLE_CUSTOMER
+        - ROLE_ANALYST
+        - ROLE_ADMIN
+    - pathPrefix: /api/v1/transactions
+      targetService: http://transaction-service:8083
+      requiredRoles:
+        - ROLE_CUSTOMER
+        - ROLE_ANALYST
+        - ROLE_ADMIN
+    - pathPrefix: /api/v1/risk/reviews
+      targetService: http://risk-management-service:8084
+      requiredRoles:
+        - ROLE_ANALYST
+        - ROLE_ADMIN
+    - pathPrefix: /api/v1/risk/policies
+      targetService: http://risk-management-service:8084
+      requiredRoles:
+        - ROLE_ANALYST
+        - ROLE_ADMIN
+
+  internalOnlyRoutes:
+    - pathPrefix: /api/v1/risk/evaluate
+      targetService: http://risk-management-service:8084
+      description: Strictly blocked from public Gateway entry; accessible only via internal Docker network from transaction-service.
+    - pathPrefix: /actuator
+      description: Blocked from public Gateway; accessible only internally for Prometheus/Grafana.
+    - pathPrefix: /internal
+      description: Strictly blocked from public Gateway entry; internal microservice communication only.
+
+  headerPropagation:
+    - name: X-Correlation-Id
+      behavior: If present in client request, preserve; otherwise generate new UUID v4. Propagate to all downstream calls and return in response.
+    - name: X-User-Id
+      behavior: Injected by Gateway after JWT validation. Contains authenticated user UUID.
+    - name: X-User-Roles
+      behavior: Injected by Gateway after JWT validation. Comma-separated list of roles.
+    - name: X-Customer-Id
+      behavior: Injected by Gateway if resolved from token claims.

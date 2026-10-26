@@ -20,13 +20,18 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
     public static final String MDC_KEY = "correlationId";
 
+    private static final java.util.regex.Pattern CORRELATION_ID_PATTERN =
+            java.util.regex.Pattern.compile("^[a-zA-Z0-9_-]{1,64}$");
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String correlationId = request.getHeader(CORRELATION_ID_HEADER);
-        if (correlationId == null || correlationId.trim().isEmpty()) {
+        if (correlationId == null || correlationId.trim().isEmpty() || !CORRELATION_ID_PATTERN.matcher(correlationId.trim()).matches()) {
             correlationId = UUID.randomUUID().toString();
+        } else {
+            correlationId = correlationId.trim();
         }
 
         MDC.put(MDC_KEY, correlationId);

@@ -1,2 +1,7 @@
 9afe86f9bb946efb71c8b0a94ae36ea08e1582d8:infrastructure/kubernetes/secret.example.yaml:kubernetes-secret-yaml:40
 9afe86f9bb946efb71c8b0a94ae36ea08e1582d8:infrastructure/kubernetes/secret.example.yaml:generic-api-key:48
+# FALSE POSITIVE — f7c08cb: "-----BEGIN PRIVATE KEY-----" is a PEM parsing marker used in
+# String.replace() to strip PEM headers from an environment-injected key. No actual private key
+# material is present in the file. The code has been refactored in the follow-up commit to use
+# a regex instead of string literals, so this historical commit is the only occurrence.
+f7c08cbd163d38953e3ab12b6b80a14fe6122069:backend/auth-service/src/main/java/com/vigilia/auth/security/RsaKeyProvider.java:private-key:113

@@ -30,6 +30,14 @@ public class ApiResponse<T> {
         return new ApiResponse<>(data, meta);
     }
 
+    public static <T> ApiResponse<T> success(T data) {
+        return new ApiResponse<>(data);
+    }
+
+    public static <T> ApiResponse<T> success(T data, String message) {
+        return new ApiResponse<>(data, message != null ? Map.of("message", message) : Collections.emptyMap());
+    }
+
     public static <T> ApiResponse<T> empty() {
         return new ApiResponse<>(null, Collections.emptyMap());
     }

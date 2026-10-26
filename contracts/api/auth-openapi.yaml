@@ -1,0 +1,256 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Auth Service API
+  version: 1.0.0
+  description: Authentication, user registration, JWT generation, validation, and token refresh.
+servers:
+  - url: http://localhost:8081
+    description: Direct local auth-service instance
+  - url: http://localhost:8080/api/v1/auth
+    description: Proxied via API Gateway
+
+paths:
+  /api/v1/auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a new user profile with credentials in the auth schema and assigns default role ROLE_CUSTOMER.
+      operationId: registerUser
+      tags:
+        - Authentication
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or invalid request format.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '409':
+          description: Username or email already registered.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate user
+      description: Validates user credentials and issues signed JWT access and refresh tokens.
+      operationId: loginUser
+      tags:
+        - Authentication
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Missing or malformed credentials.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '401':
+          description: Bad credentials.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/validate:
+    get:
+      summary: Validate token
+      description: Validates JWT signature, validity and returns user identity claims for Gateway / internal services.
+      operationId: validateToken
+      tags:
+        - Authentication
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token to validate.
+          schema:
+            type: string
+            example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token is valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenValidationResponse'
+        '401':
+          description: Token expired, invalid or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Generates a new access token using a valid refresh token.
+      operationId: refreshToken
+      tags:
+        - Authentication
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Refresh token invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "jdupont"
+        email:
+          type: string
+          format: email
+          example: "jdupont@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          format: password
+          example: "P@ssw0rdSecure!"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "jdupont"
+        password:
+          type: string
+          format: password
+          example: "P@ssw0rdSecure!"
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: "dGhpcy1pcy1hLXJlZnJlc2gtdG9rZW4..."
+
+    AuthResponse:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+        - userId
+        - username
+        - roles
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "dGhpcy1pcy1hLXJlZnJlc2gtdG9rZW4..."
+        tokenType:
+          type: string
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          description: Validity in seconds.
+          example: 86400
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        username:
+          type: string
+          example: "jdupont"
+        customerId:
+          type: string
+          format: uuid
+          nullable: true
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        roles:
+          type: array
+          items:
+            $ref: './common-schemas.yaml#/components/schemas/UserRole'
+
+    TokenValidationResponse:
+      type: object
+      required:
+        - valid
+        - userId
+        - username
+        - roles
+      properties:
+        valid:
+          type: boolean
+          example: true
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        username:
+          type: string
+          example: "jdupont"
+        customerId:
+          type: string
+          format: uuid
+          nullable: true
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        roles:
+          type: array
+          items:
+            $ref: './common-schemas.yaml#/components/schemas/UserRole'

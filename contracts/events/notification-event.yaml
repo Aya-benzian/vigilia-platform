@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Notification Event Contract (M3 -> M4)
+  version: 1.0.0
+  description: REST payload specification sent by backend services to Member 4's notification-service (Port 8085).
+
+paths:
+  /api/v1/notifications:
+    post:
+      summary: Send notification request
+      description: Emitted when a critical business event occurs (transaction rejected, pending manual review, or high-risk alert).
+      operationId: sendNotification
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationEventPayload'
+      responses:
+        '202':
+          description: Notification accepted for asynchronous dispatch.
+        '400':
+          description: Invalid notification payload.
+
+components:
+  schemas:
+    NotificationEventPayload:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - timestamp
+        - customerId
+        - channel
+        - title
+        - message
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          example: "1a8e6679-7425-40de-944b-e07fc1f90aa1"
+        eventType:
+          type: string
+          enum:
+            - TRANSACTION_APPROVED
+            - TRANSACTION_REJECTED
+            - TRANSACTION_SUSPENDED_REVIEW
+            - SECURITY_ALERT
+          example: "TRANSACTION_SUSPENDED_REVIEW"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:00Z"
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        transactionId:
+          type: string
+          format: uuid
+          nullable: true
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        channel:
+          type: string
+          enum: [EMAIL, SMS, IN_APP, PUSH]
+          example: "IN_APP"
+        title:
+          type: string
+          example: "Vérification requise sur votre transaction"
+        message:
+          type: string
+          example: "Votre transaction de 850.00 EUR est en cours d'analyse complémentaire par notre service sécurité."
+        metadata:
+          type: object
+          additionalProperties: true
+          example:
+            amount: 850.00
+            currency: "EUR"
