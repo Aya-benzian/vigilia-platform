@@ -74,7 +74,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         # Run even if Trivy found issues so the report always lands in Security tab
         if: always()
         with:
@@ -110,7 +110,7 @@ jobs:
           # K8s manifests under infrastructure/k8s/** will be picked up once added
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-config.sarif
