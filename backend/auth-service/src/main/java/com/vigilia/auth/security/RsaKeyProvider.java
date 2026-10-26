@@ -110,18 +110,16 @@ public class RsaKeyProvider {
     }
 
     private RSAPrivateKey parsePrivateKey(String pem) throws Exception {
-        String cleanPem = pem.replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "")
-                .replaceAll("\\s", "");
+        // Strip PEM wrapper lines (any line starting with '-----') and all whitespace
+        String cleanPem = pem.replaceAll("-{5}[^-]+-{5}", "").replaceAll("\\s", "");
         byte[] encoded = Base64.getDecoder().decode(cleanPem);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return (RSAPrivateKey) kf.generatePrivate(new PKCS8EncodedKeySpec(encoded));
     }
 
     private RSAPublicKey parsePublicKey(String pem) throws Exception {
-        String cleanPem = pem.replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .replaceAll("\\s", "");
+        // Strip PEM wrapper lines (any line starting with '-----') and all whitespace
+        String cleanPem = pem.replaceAll("-{5}[^-]+-{5}", "").replaceAll("\\s", "");
         byte[] encoded = Base64.getDecoder().decode(cleanPem);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return (RSAPublicKey) kf.generatePublic(new X509EncodedKeySpec(encoded));
