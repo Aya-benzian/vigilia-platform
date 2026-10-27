@@ -1,0 +1,45 @@
+{
+  "domain": "transfer",
+  "champion_model": "xgboost",
+  "feature_count": 38,
+  "raw_domain_only_pr_auc": 0.8761881672355528,
+  "raw_augmented_cross_domain_pr_auc": 0.8357755964532656,
+  "raw_pr_auc_lift": -0.040412570782287216,
+  "calibrated_domain_only_pr_auc": 0.8350500533113405,
+  "calibrated_augmented_cross_domain_pr_auc": 0.8001666603489548,
+  "calibrated_pr_auc_lift": -0.03488339296238574,
+  "test_roc_auc": 0.9996684941104886,
+  "test_brier_calibrated": 0.0007432501879520714,
+  "candidates": {
+    "logreg": {
+      "val_pr_auc": 0.19153252690668532,
+      "val_roc_auc": 0.9191532973984413,
+      "val_brier": 0.12595810972699065,
+      "fit_time_s": 0.7014622688293457
+    },
+    "rf": {
+      "val_pr_auc": 0.7737447568336623,
+      "val_roc_auc": 0.992995460296197,
+      "val_brier": 0.0038085555555555555,
+      "fit_time_s": 3.827969551086426
+    },
+    "xgboost": {
+      "val_pr_auc": 0.97607824179541,
+      "val_roc_auc": 0.9998881553067756,
+      "val_brier": 0.0008111704373732209,
+      "fit_time_s": 1.0330047607421875
+    },
+    "svm": {
+      "val_pr_auc": 0.1789797589160612,
+      "val_roc_auc": 0.9184911598039529,
+      "val_brier": 0.1445368576765612,
+      "fit_time_s": 3.1961779594421387
+    },
+    "mlp": {
+      "val_pr_auc": 0.0460783094362781,
+      "val_roc_auc": 0.8703941143324935,
+      "val_brier": 0.0046693350142714245,
+      "fit_time_s": 7.446134328842163
+    }
+  }
+}
