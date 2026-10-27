@@ -42,6 +42,7 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_WINDOW_MINUTES = 15;
@@ -401,7 +402,7 @@ public class AuthServiceImpl implements AuthService {
 
     private String generateOpaqueToken() {
         byte[] randomBytes = new byte[32];
-        new SecureRandom().nextBytes(randomBytes);
+        SECURE_RANDOM.nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 }
