@@ -1,0 +1,307 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — ML Serving Prediction Contract (M2 <-> M3)
+  version: 1.0.0
+  description: Interface specification between risk-management-service (Member 3) and ml-serving FastAPI (Member 2).
+servers:
+  - url: http://ml-serving:8000
+    description: Internal Docker container for ML Serving
+
+paths:
+  /predict/purchase:
+    post:
+      summary: Predict fraud for credit card / purchase transaction
+      description: Evaluates raw purchase features against the champion purchase fraud detection model loaded from MLflow Model Registry.
+      operationId: predictPurchaseFraud
+      tags:
+        - ML Inference
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseInferenceRequest'
+      responses:
+        '200':
+          description: Inactive inference prediction returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+        '400':
+          description: Feature schema validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+        '503':
+          description: Model not loaded or MLflow unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MLErrorResponse'
+
+  /predict/transfer:
+    post:
+      summary: Predict fraud for wire transfer transaction
+      description: |
+        PROPOSAL / PENDING CONFIRMATION:
+        Evaluates wire transfer features against transfer fraud model.
+        Note: The transfer model is pending training & delivery by Member 1/2.
+      operationId: predictTransferFraud
+      tags:
+        - ML Inference
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferInferenceRequest'
+      responses:
+        '200':
+          description: Transfer inference prediction returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+        '503':
+          description: Transfer model currently unready (triggers backend fallback PENDING_REVIEW).
+
+  # Alternative proposed option: Single endpoint with discriminator
+  /predict:
+    post:
+      summary: Unified prediction endpoint with discriminator (Alternative Option)
+      description: Dispatches internally to purchase or transfer champion model based on transaction_type.
+      operationId: predictUnified
+      tags:
+        - ML Inference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PurchaseInferenceRequest'
+                - $ref: '#/components/schemas/TransferInferenceRequest'
+              discriminator:
+                propertyName: transaction_type
+      responses:
+        '200':
+          description: Prediction outcome.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+
+components:
+  schemas:
+    PurchaseInferenceRequest:
+      type: object
+      required:
+        - transaction_id
+        - transaction_type
+        - trans_date_trans_time
+        - amt
+        - category
+        - gender
+        - dob
+        - lat
+        - long
+        - city_pop
+        - merch_lat
+        - merch_long
+      properties:
+        transaction_id:
+          type: string
+          format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        transaction_type:
+          type: string
+          enum: ["PURCHASE"]
+          example: "PURCHASE"
+        trans_date_trans_time:
+          type: string
+          format: date-time
+          description: ISO 8601 transaction timestamp.
+          example: "2026-10-25T22:30:00Z"
+        amt:
+          type: number
+          format: float
+          minimum: 0.01
+          description: Transaction amount in USD (matching Sparkov dataset).
+          example: 125.50
+        category:
+          type: string
+          description: Merchant category string matching dataset vocabulary.
+          example: "shopping_net"
+        gender:
+          type: string
+          enum: ["M", "F"]
+          example: "M"
+        dob:
+          type: string
+          format: date
+          description: Customer date of birth (YYYY-MM-DD).
+          example: "1988-06-15"
+        lat:
+          type: number
+          format: float
+          minimum: -90.0
+          maximum: 90.0
+          description: Customer latitude.
+          example: 40.7128
+        long:
+          type: number
+          format: float
+          minimum: -180.0
+          maximum: 180.0
+          description: Customer longitude.
+          example: -74.0060
+        city_pop:
+          type: integer
+          minimum: 1
+          description: City population count.
+          example: 8419000
+        merch_lat:
+          type: number
+          format: float
+          minimum: -90.0
+          maximum: 90.0
+          description: Merchant latitude.
+          example: 40.7150
+        merch_long:
+          type: number
+          format: float
+          minimum: -180.0
+          maximum: 180.0
+          description: Merchant longitude.
+          example: -74.0020
+
+    TransferInferenceRequest:
+      type: object
+      description: "PROPOSED DRAFT: To be finalized once Member 1 delivers transfer model spec."
+      required:
+        - transaction_id
+        - transaction_type
+        - amount
+        - sender_account_id
+        - recipient_iban
+        - timestamp
+      properties:
+        transaction_id:
+          type: string
+          format: uuid
+          example: "8c9e6679-7425-40de-944b-e07fc1f90ae8"
+        transaction_type:
+          type: string
+          enum: ["TRANSFER"]
+          example: "TRANSFER"
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 1500.00
+        sender_account_id:
+          type: string
+          example: "ACC-FR-10293"
+        recipient_iban:
+          type: string
+          example: "FR7630006000011234567890189"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:00Z"
+
+    PredictionResponse:
+      type: object
+      required:
+        - transaction_id
+        - model_name
+        - model_version
+        - prediction
+        - fraud_probability
+        - uncertainty
+      properties:
+        transaction_id:
+          type: string
+          format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        model_name:
+          type: string
+          description: MLflow registered model name.
+          example: "purchase-fraud-model"
+        model_version:
+          type: string
+          description: Exact registered model version or commit SHA.
+          example: "1.0.0"
+        prediction:
+          type: string
+          enum: ["FRAUD", "LEGITIMATE"]
+          description: Raw binary model output based on internal threshold.
+          example: "LEGITIMATE"
+        fraud_probability:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+          description: Calibrated fraud probability score.
+          example: 0.0425
+        uncertainty:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+          description: Epistemic / predictive uncertainty score.
+          example: 0.0812
+        features_importance:
+          type: array
+          description: Optional list of top feature importances or SHAP values.
+          items:
+            type: object
+            required:
+              - feature
+              - importance
+            properties:
+              feature:
+                type: string
+                example: "amt"
+              importance:
+                type: number
+                format: double
+                example: 0.3540
+
+    MLErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "UNPROCESSABLE_FEATURE"
+        message:
+          type: string
+          example: "Missing or out-of-range field: amt must be strictly positive"
+
+operationalSLA:
+  connectTimeoutMs: 200
+  readTimeoutMs: 500
+  retryCount: 1
+  fallbackBehavior:
+    status: PENDING_REVIEW
+    reason: FALLBACK_ML_TIMEOUT_OR_FAILURE
+    strictRule: No automated approval is ever granted on ML failure.

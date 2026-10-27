@@ -1,0 +1,177 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Common OpenAPI Schemas
+  version: 1.0.0
+  description: Shared data types, RFC 7807 / RFC 9457 error definitions, and pagination metadata.
+
+components:
+  parameters:
+    CorrelationIdHeader:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Unique request correlation ID for distributed tracing (UUID v4).
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: Zero-based page index.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    SizeQuery:
+      name: size
+      in: query
+      required: false
+      description: Number of records per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # --------------------------------------------------------------------------
+    # RFC 7807 / RFC 9457 Problem Details
+    # --------------------------------------------------------------------------
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference identifying the problem type.
+          example: "https://api.vigilia.com/errors/validation-error"
+        title:
+          type: string
+          description: Short human-readable summary of the problem type.
+          example: "Validation Error"
+        status:
+          type: integer
+          description: The HTTP status code.
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence.
+          example: "amount: must be greater than 0"
+        instance:
+          type: string
+          description: A URI reference that identifies the specific occurrence.
+          example: "/api/v1/transactions"
+        code:
+          type: string
+          description: Internal application error code.
+          example: "VALIDATION_ERROR"
+        correlationId:
+          type: string
+          format: uuid
+          description: Request correlation ID for tracing.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        timestamp:
+          type: string
+          format: date-time
+          description: UTC timestamp when the error occurred.
+          example: "2026-10-25T22:30:00Z"
+        invalidParams:
+          type: array
+          description: List of invalid input parameters (for validation errors).
+          items:
+            $ref: '#/components/schemas/InvalidParam'
+
+    InvalidParam:
+      type: object
+      required:
+        - name
+        - reason
+      properties:
+        name:
+          type: string
+          description: Field or parameter name.
+          example: "amount"
+        reason:
+          type: string
+          description: Explanation of the validation rule violation.
+          example: "must be strictly positive"
+
+    # --------------------------------------------------------------------------
+    # Common Domain Value Objects
+    # --------------------------------------------------------------------------
+    Currency:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: ISO 4217 three-letter currency code.
+      example: "EUR"
+
+    MoneyAmount:
+      type: number
+      format: double
+      minimum: 0.01
+      description: Monetary amount rounded to 2 decimal places.
+      example: 149.99
+
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        page:
+          type: integer
+          description: Current page index (0-based).
+          example: 0
+        size:
+          type: integer
+          description: Page size.
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of records across all pages.
+          example: 142
+        totalPages:
+          type: integer
+          description: Total number of pages.
+          example: 8
+
+    # --------------------------------------------------------------------------
+    # Common Enums
+    # --------------------------------------------------------------------------
+    TransactionType:
+      type: string
+      enum:
+        - PURCHASE
+        - TRANSFER
+      description: Domain type of transaction.
+      example: "PURCHASE"
+
+    RiskStatus:
+      type: string
+      enum:
+        - APPROVED
+        - REJECTED
+        - PENDING_REVIEW
+      description: Authoritative business decision status assigned by Risk Management.
+      example: "APPROVED"
+
+    UserRole:
+      type: string
+      enum:
+        - ROLE_CUSTOMER
+        - ROLE_ANALYST
+        - ROLE_ADMIN
+      description: Security role for RBAC authorization.
+      example: "ROLE_CUSTOMER"

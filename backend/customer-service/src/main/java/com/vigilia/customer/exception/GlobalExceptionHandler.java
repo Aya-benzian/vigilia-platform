@@ -89,6 +89,114 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiErrorResponse> handleDuplicateResourceException(
+            DuplicateResourceException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Conflit de ressource dupliquée [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "DUPLICATE_RESOURCE",
+                ex.getMessage(),
+                HttpStatus.CONFLICT.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidRequestException(
+            InvalidRequestException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Requête invalide [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "INVALID_REQUEST",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnauthorizedException(
+            UnauthorizedException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Accès non autorisé [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "UNAUTHORIZED",
+                ex.getMessage(),
+                HttpStatus.UNAUTHORIZED.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiErrorResponse> handleForbiddenException(
+            ForbiddenException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Accès refusé [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "FORBIDDEN",
+                ex.getMessage(),
+                HttpStatus.FORBIDDEN.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolationException(
+            org.springframework.dao.DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Violation d'intégrité de données [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "DATA_INTEGRITY_VIOLATION",
+                "Une contrainte d'unicité ou d'intégrité a été enfreinte",
+                HttpStatus.CONFLICT.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Paramètre invalide [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "INVALID_ARGUMENT",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenericException(
             Exception ex,

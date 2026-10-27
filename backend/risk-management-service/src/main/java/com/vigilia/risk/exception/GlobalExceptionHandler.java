@@ -90,6 +90,40 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalState(
+            IllegalStateException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Conflit d'état [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "CONFLICT",
+                ex.getMessage() != null ? ex.getMessage() : "Conflit d'état",
+                HttpStatus.CONFLICT.value(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Argument invalide [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "BAD_REQUEST",
+                ex.getMessage() != null ? ex.getMessage() : "Argument invalide",
+                HttpStatus.BAD_REQUEST.value(),
+                correlationId
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenericException(
             Exception ex,
