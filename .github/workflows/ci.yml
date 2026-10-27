@@ -247,7 +247,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download all backend JAR artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           # Pattern matches all <service>-jar artifacts uploaded by the backend job
           pattern: "*-jar"
@@ -255,14 +255,14 @@ jobs:
           merge-multiple: true
 
       - name: Download Python ML training coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: ml-training-coverage
           path: ml/training
 
       - name: Download Python ML serving coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: ml-serving-coverage
