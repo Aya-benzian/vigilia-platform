@@ -269,7 +269,7 @@ jobs:
           path: ml/serving
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarcloud-github-action@v5
         with:
           # Strict gate (wait=true) ONLY for main branch (production baseline)
           # Relaxed/informative mode (wait=false) on develop and feature branches
