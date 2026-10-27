@@ -27,6 +27,7 @@ TABLES_DIR     = REPORTS_DIR / "tables"
 
 TRAIN_FILE = DATA_RAW_DIR / "fraudTrain.csv"
 TEST_FILE  = DATA_RAW_DIR / "fraudTest.csv"
+TRANSFER_FILE = DATA_RAW_DIR / "paysim_transfer.csv"
 ULB_FILE   = DATA_RAW_DIR / "creditcard.csv"   # [NICE] optional
 
 # ==============================================================================

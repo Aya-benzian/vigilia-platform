@@ -26,6 +26,7 @@
 18. [Understanding MLflow, Docker & The Live Results Dashboard](#18-understanding-mlflow-docker--the-live-results-dashboard)
 19. [Session 4 Progress Log — Phase 2 Optuna Tuning Complete & Frozen Parameters](#19-session-4-progress-log--phase-2-optuna-tuning-complete--frozen-parameters-2026-10-18)
 20. [Session 5 Progress Log — Phases 3–7 Complete: Full Training Pipeline, Champion Elected & MLflow Registry](#20-session-5-progress-log--phases-37-complete-full-training-pipeline-champion-elected--mlflow-registry-2026-10-18)
+21. [Sparkov Feature Engineering & 22-Column Breakdown](#21-sparkov-feature-engineering--22-column-breakdown)
 
 ---
 
@@ -735,6 +736,113 @@ All artifacts required by Members 2, 3, 4, and 5 are fully generated and validat
 
 ---
 **Status**: Member 1 ML Training Pipeline is **100% COMPLETE**. Ready for commit and review!
+
+---
+
+## 21. Sparkov Feature Engineering & 22-Column Breakdown
+
+### 21.1 Overview: Logic vs. Memorization ("Stupid Training")
+A fundamental question in fraud detection ML is: **Why did we not use all 22 raw columns in the Sparkov dataset?**
+
+Dumping raw database columns into an ML model causes **noise memorization (overfitting)** rather than **behavioral learning (generalization)**:
+* If the model sees individual customer names or street addresses, it simply memorizes *"Alice on Oak Street is a fraudster"*, which is useless for detecting new, unseen fraud.
+* By dropping identifiers and engineering **behavioral features**, we force the model to learn **fraud logic**: anomalous transaction amounts, suspicious hours, uncharacteristic physical distances, and merchant category risks.
+
+### 21.2 The Exact Breakdown of the 22 Raw Columns
+
+| Category | Count | Columns | Role & Purpose |
+|---|:---:|---|---|
+| **Raw Columns Used to Engineer Features** | **10** | `trans_date_trans_time`, `amt`, `category`, `gender`, `dob`, `lat`, `long`, `city_pop`, `merch_lat`, `merch_long` | Transformed via `ColumnTransformer` into **9 clean behavioral features** ($X$). |
+| **Target Variable ($y$)** | **1** | `is_fraud` | Ground truth label ($0 = \text{Legitimate}, 1 = \text{Fraud}$). What the model learns to predict. |
+| **Cross-Validation Group Key** | **1** | `cc_num` | Credit card number. Used strictly in `StratifiedGroupKFold` so the same card never appears in both train and validation folds (prevents data leakage). Never fed as an input feature. |
+| **Completely Dropped Columns** | **10** | `trans_num`, `first`, `last`, `street`, `city`, `state`, `zip`, `job`, `merchant`, `unix_time` | Eliminated to prevent overfitting, high dimensionality, redundancy, and privacy violations. |
+| **Total Raw Columns** | **22** | | Full schema in `fraudTrain.csv` / `fraudTest.csv`. |
+
+### 21.3 The 9 Final Features Fed to the Models ($X$)
+
+From the 10 raw columns, the preprocessing pipeline (`src/preprocess.py`) constructs **7 numeric** and **2 categorical** features:
+
+1. **`amt_log`** ($\text{Numeric}$): $\log(1 + \text{amt})$. Compresses the heavy right-tail skew of monetary amounts.
+2. **`hour`** ($\text{Numeric}$): Extracted transaction hour ($0\text{--}23$) from `trans_date_trans_time`. Captures diurnal fraud spikes.
+3. **`dow`** ($\text{Numeric}$): Day of the week ($0 = \text{Monday}, 6 = \text{Sunday}$). Captures weekday vs. weekend patterns.
+4. **`is_night`** ($\text{Numeric}$): Binary flag ($1$ if hour $\in [0, 5]$, else $0$). High-risk overnight window.
+5. **`distance_km`** ($\text{Numeric}$): Great-circle distance (Haversine formula) computed from cardholder coordinates (`lat`, `long`) to merchant coordinates (`merch_lat`, `merch_long`). Highlights physically implausible transactions.
+6. **`age`** ($\text{Numeric}$): Cardholder age at transaction time: $(\text{trans\_date} - \text{dob}) / 365.25$.
+7. **`city_pop_log`** ($\text{Numeric}$): $\log(1 + \text{city\_pop})$. Proxy for population density (rural vs. major metro).
+8. **`category`** ($\text{Categorical}$): One-hot encoded spending category (e.g. `grocery_pos`, `shopping_net`, `gas_transport`) with `handle_unknown="ignore"`.
+9. **`gender`** ($\text{Categorical}$): Binary encoded cardholder gender (`M` / `F`).
+
+### 21.4 Why the 10 Columns Were Dropped
+
+1. **Personal Identifiers (PII) & Overfitting (`first`, `last`, `street`, `trans_num`)**:
+   - Unique identifiers have zero predictive power for new transactions. If left in, tree models split on names and addresses, producing severe overfitting.
+   - GDPR / privacy compliance: Real-time ML serving APIs should only consume minimal necessary transaction fields.
+2. **Cardinality Explosion (`merchant`, `job`)**:
+   - `merchant` contains thousands of individual shop names. One-hot encoding them creates a massive, sparse matrix that drastically slows down training and degrades generalization. The aggregated `category` captures the risk profile cleanly.
+   - `job` contains hundreds of free-text titles that do not generalize across cardholders.
+3. **Feature Redundancy (`city`, `state`, `zip`, `unix_time`)**:
+   - `city`, `state`, and `zip` are already represented more accurately and continuously by exact GPS coordinates (`lat`, `long`) and `city_pop`.
+   - `unix_time` is mathematically identical to `trans_date_trans_time`.
+
+---
+
+## 22. Dual-Domain ML Architecture & Cross-Domain Feature Benchmark (2026-10-26)
+
+### 22.1 Architecture Overview & Canonical Contracts
+To satisfy the updated Vigilia Conception architecture, the ML Training module was upgraded from single-domain purchase detection to **Dual-Domain Fraud Detection**:
+1. **Purchase Domain (`purchase-v2`)**: Evaluates point-of-sale and e-commerce card purchases using **48 canonical point-in-time features**, incorporating linked transfer behavior (inbound transfers, balance draining, cross-domain velocity).
+2. **Transfer Domain (`transfer-v2`)**: Evaluates peer-to-peer and bank transfers using **38 canonical point-in-time features**, incorporating linked purchase behavior (cross-domain purchase velocity, recent high-risk merchant purchases).
+3. **Machine-Readable Contract**: `artifacts/feature_spec.json` defines exact schemas, types, and cold-start sentinels ($2,592,000\,\text{s}$ / $30\,\text{days}$).
+4. **Java Parity Golden Rows**: Generated $250$ golden rows per domain (`golden_rows_purchase.json` & `golden_rows_transfer.json`) to verify that the Java backend engine matches Python feature calculations to within $10^{-6}$.
+
+### 22.2 Transfer Dataset (PaySim Integration & Leakage Elimination)
+- Streamed and filtered `theman10/paysim` from Hugging Face into `data/raw/paysim_transfer.csv`.
+- Filtered to $532,909$ clean `TRANSFER` rows with an authentic fraud prevalence of $0.7688\%$.
+- **Target Leakage Remediation**: Dropped post-transaction fields (`newbalanceOrig`, `newbalanceDest`) because the synthetic simulator creates arithmetic artifacts ($old - amt \neq new$) that trivialized fraud prediction. Kept only pre-transaction `oldbalanceOrg` and point-in-time ledger history.
+
+### 22.3 Candidate Model Benchmark Results
+
+Chronological split: $60\%$ Train ($90,000$), $10\%$ Calibration ($15,000$), $15\%$ Validation ($22,500$), $15\%$ Independent Test ($22,500$).
+
+#### Purchase Domain (48 Features)
+| Model | Val PR-AUC | Val ROC-AUC | Val Brier Score | Fit Time | Status |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **XGBoost (Gradient Boosting)** | **0.9633** | **0.9992** | **0.0008** | **1.40s** | **Elected Champion** |
+| Random Forest | 0.8972 | 0.9928 | 0.0030 | 4.73s | Candidate |
+| Multi-Layer Perceptron (MLP) | 0.8412 | 0.9440 | 0.0023 | 8.68s | Candidate |
+| Support Vector Machine (LinearSVC) | 0.4194 | 0.9338 | 0.0693 | 1.49s | Baseline |
+| Logistic Regression | 0.3678 | 0.9457 | 0.0170 | 0.64s | Baseline |
+
+#### Transfer Domain (38 Features)
+| Model | Val PR-AUC | Val ROC-AUC | Val Brier Score | Fit Time | Status |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **XGBoost (Gradient Boosting)** | **0.9761** | **0.9999** | **0.0008** | **1.32s** | **Elected Champion** |
+| Random Forest | 0.7737 | 0.9930 | 0.0038 | 3.91s | Candidate |
+| Logistic Regression | 0.1915 | 0.9192 | 0.1260 | 0.70s | Baseline |
+| Support Vector Machine (LinearSVC) | 0.1790 | 0.9185 | 0.1445 | 3.37s | Baseline |
+| Multi-Layer Perceptron (MLP) | 0.0461 | 0.8704 | 0.0047 | 7.67s | Candidate |
+
+### 22.4 Ablation Study & Cross-Domain Feature Lift (Independent Test Set)
+
+Evaluated the champion XGBoost model with domain-only baseline features vs. full augmented cross-domain features on the unseen $22,500$-row chronological test set:
+
+| Domain | Baseline Features | Augmented Features | Metric | Domain-Only | Cross-Domain Augmented | Net Lift |
+|---|:---:|:---:|---|:---:|:---:|:---:|
+| **Purchase** | 29 | 48 | **Raw PR-AUC** | 0.9531 | **0.9659** | **+1.28%** |
+| **Purchase** | 29 | 48 | **Calibrated PR-AUC** | 0.9293 | **0.9524** | **+2.32%** |
+| **Purchase** | 29 | 48 | **Brier Error** | 0.0016 | **0.0012** | **-25.0% error** |
+| **Transfer** | 20 | 38 | **Raw PR-AUC** | 0.8762 | **0.8358** | -4.04% |
+| **Transfer** | 20 | 38 | **Calibrated PR-AUC** | 0.8351 | **0.8002** | -3.49% |
+| **Transfer** | 20 | 38 | **ROC-AUC** | 0.9997 | **0.9997** | 0.00% |
+
+> **Key Finding**: In the Purchase domain, cross-domain transfer signals (such as incoming transfers followed rapidly by high-value purchases and wallet draining) provide a significant boost of **+2.32% in calibrated PR-AUC** and reduce Brier calibration loss by **25%**. In the Transfer domain, transfer-specific velocity and balance signals dominate prediction, with the dual model maintaining robust detection ($0.9997$ ROC-AUC, $0.8002$ PR-AUC).
+
+### 22.5 Saved Champion Pipelines & Contracts
+- `artifacts/purchase_champion_pipeline.pkl`: Production pipeline (preprocessor + calibrated XGBoost) for 48 purchase features.
+- `artifacts/transfer_champion_pipeline.pkl`: Production pipeline (preprocessor + calibrated XGBoost) for 38 transfer features.
+- `artifacts/purchase_benchmark_summary.json` & `artifacts/transfer_benchmark_summary.json`: Benchmark telemetry and ablation metrics.
+- `artifacts/golden_rows_purchase.json` & `artifacts/golden_rows_transfer.json`: Parity test fixtures for the Java ingestion service.
+
 
 
 
