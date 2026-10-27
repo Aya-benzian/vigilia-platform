@@ -7,7 +7,6 @@
 !**/.env.example
 docker-compose.override.yml
 docker-compose.override.*.yml
-!docker-compose.override.example.yml
 
 # Kubernetes secrets (never commit actual credentials)
 infrastructure/kubernetes/secret.yaml

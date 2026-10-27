@@ -86,7 +86,7 @@ services:
       - "8081:8081"
     environment:
       SERVER_PORT: "8081"
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=auth
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
       JWT_SECRET: ${JWT_SECRET:-change_me_with_a_long_random_base64_string}
@@ -101,7 +101,7 @@ services:
       - "8082:8082"
     environment:
       SERVER_PORT: "8082"
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=customer
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
     depends_on:
@@ -115,7 +115,7 @@ services:
       - "8083:8083"
     environment:
       SERVER_PORT: "8083"
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=transaction
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
     depends_on:
@@ -129,7 +129,7 @@ services:
       - "8084:8084"
     environment:
       SERVER_PORT: "8084"
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=risk
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
     depends_on:
