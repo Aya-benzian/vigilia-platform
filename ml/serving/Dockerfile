@@ -13,7 +13,10 @@ RUN addgroup --system appgroup && adduser --system --group appuser
 
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache /wheels/* && rm -rf /wheels
+RUN pip install --no-cache --no-deps /wheels/numpy*.whl && \
+    pip install --no-cache --no-deps /wheels/scipy*.whl && \
+    pip install --no-cache --no-deps /wheels/*.whl && \
+    rm -rf /wheels
 
 COPY . .
 RUN chown -R appuser:appgroup /app
