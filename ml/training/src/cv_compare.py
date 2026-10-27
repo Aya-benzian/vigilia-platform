@@ -93,7 +93,7 @@ def compare_models(
         "logreg":  build_pipeline(make_logreg(best_params.get("logreg")),   "logreg"),
         "rf":      build_pipeline(make_random_forest(best_params.get("rf")), "rf"),
         "xgboost": build_pipeline(make_xgboost(best_params.get("xgboost"), spw), "xgboost"),
-        "svm":     build_pipeline(make_svm(best_params.get("svm")),          "svm"),
+        "svm":     build_pipeline(make_svm(best_params.get("svm"), use_linear=True), "svm"),
         "mlp":     build_pipeline(make_mlp(best_params.get("mlp")),          "mlp"),
     }
 
@@ -163,7 +163,7 @@ def compare_models_group_cv(
         "logreg":  build_pipeline(make_logreg(best_params.get("logreg")),   "logreg"),
         "rf":      build_pipeline(make_random_forest(best_params.get("rf")), "rf"),
         "xgboost": build_pipeline(make_xgboost(best_params.get("xgboost"), spw), "xgboost"),
-        "svm":     build_pipeline(make_svm(best_params.get("svm")),          "svm"),
+        "svm":     build_pipeline(make_svm(best_params.get("svm"), use_linear=True), "svm"),
         "mlp":     build_pipeline(make_mlp(best_params.get("mlp")),          "mlp"),
     }
 

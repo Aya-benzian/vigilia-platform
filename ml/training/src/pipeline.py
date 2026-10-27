@@ -169,7 +169,8 @@ def stage_select(results: dict = None, best_model_candidate: str = None):
     scores_dict = {m: {"mean": float(s.mean()), "std": float(s.std())}
                    for m, s in results.items()}
 
-    selected = select_model(scores_dict)
+    ret = select_model(scores_dict)
+    selected = ret[0] if isinstance(ret, tuple) else ret
     logger.info(f"Selected champion: {selected}")
 
     from config import ARTIFACTS_DIR

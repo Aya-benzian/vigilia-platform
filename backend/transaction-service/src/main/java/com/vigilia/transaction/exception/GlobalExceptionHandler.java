@@ -71,6 +71,132 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ApiErrorResponse> handleInsufficientFundsException(
+            InsufficientFundsException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Solde insuffisant [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "INSUFFICIENT_FUNDS",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidAmountException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidAmountException(
+            InvalidAmountException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Montant invalide [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "INVALID_AMOUNT",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidOperationException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidOperationException(
+            InvalidOperationException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Opération invalide sur le portefeuille [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "INVALID_OPERATION",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleIdempotencyConflictException(
+            IdempotencyConflictException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Conflit d'idempotence [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "IDEMPOTENCY_CONFLICT",
+                ex.getMessage(),
+                HttpStatus.CONFLICT.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnauthorizedException(
+            UnauthorizedException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Non autorisé [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "UNAUTHORIZED",
+                ex.getMessage(),
+                HttpStatus.UNAUTHORIZED.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiErrorResponse> handleForbiddenException(
+            ForbiddenException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.warn("Accès refusé [correlationId={}]: {}", correlationId, ex.getMessage());
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "FORBIDDEN",
+                ex.getMessage(),
+                HttpStatus.FORBIDDEN.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleServiceUnavailableException(
+            ServiceUnavailableException ex,
+            HttpServletRequest request) {
+
+        String correlationId = resolveCorrelationId(request);
+        log.error("Service dépendant indisponible [correlationId={}]: {}", correlationId, ex.getMessage(), ex);
+
+        ApiErrorResponse errorResponse = new ApiErrorResponse(
+                "SERVICE_UNAVAILABLE",
+                ex.getMessage(),
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                correlationId
+        );
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNoResourceFoundException(
             NoResourceFoundException ex,

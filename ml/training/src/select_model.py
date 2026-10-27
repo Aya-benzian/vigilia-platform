@@ -36,7 +36,7 @@ Selection rule (verbatim from design v5 §7):
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -56,72 +56,74 @@ EXPLAINABILITY_RANK: Dict[str, int] = {
 
 
 def compute_mean_pr_auc(
-    cv_scores: pd.DataFrame,
+    cv_scores: Any,
     cv_type: str = "stratified",
 ) -> pd.Series:
     """
-    Compute mean PR-AUC per model from the long-format CV scores.
-
-    Args:
-        cv_scores: Long-format DataFrame with columns model, cv_type, pr_auc, ...
-                   Output of cv_compare.merge_cv_results().
-        cv_type: "stratified" or "grouped".
-
-    Returns:
-        Series indexed by model name, values = mean PR-AUC. Sorted descending.
+    Compute mean PR-AUC per model. Supports DataFrame or dict of arrays/scores.
     """
-    filtered = cv_scores[cv_scores["cv_type"] == cv_type]
-    return filtered.groupby("model")["pr_auc"].mean().sort_values(ascending=False)
+    if isinstance(cv_scores, dict):
+        res = {}
+        for m, v in cv_scores.items():
+            if isinstance(v, dict) and "mean" in v:
+                res[m] = float(v["mean"])
+            else:
+                res[m] = float(np.mean(v))
+        return pd.Series(res).sort_values(ascending=False)
+
+    if isinstance(cv_scores, pd.DataFrame):
+        if "cv_type" in cv_scores.columns:
+            filtered = cv_scores[cv_scores["cv_type"] == cv_type]
+            return filtered.groupby("model")["pr_auc"].mean().sort_values(ascending=False)
+        return cv_scores.mean().sort_values(ascending=False)
+
+    raise ValueError(f"Unsupported cv_scores format: {type(cv_scores)}")
 
 
 def build_tied_set(
     mean_scores: pd.Series,
-    wilcoxon_holm_df: pd.DataFrame,
+    wilcoxon_holm_df: Optional[pd.DataFrame] = None,
     use_practical_margin: bool = True,
 ) -> List[str]:
     """
     Build the tied set: best model + all models not significantly worse.
-
-    A model is excluded from the tied set only if BOTH conditions hold:
-        1. Holm-adjusted p < ALPHA (statistically significantly worse than the best)
-        2. use_practical_margin=True AND mean difference > PRACTICAL_MARGIN
-
-    Args:
-        mean_scores: Output of compute_mean_pr_auc() — sorted descending.
-        wilcoxon_holm_df: Output of stats_tests.holm_correction().
-                          Columns: model_a, model_b, p_value_holm, reject, mean_diff.
-        use_practical_margin: If True, also require mean_diff > PRACTICAL_MARGIN
-                              before excluding a model from the tied set.
-
-    Returns:
-        List of model names in the tied set. Always contains at least the best model.
     """
     best_model = mean_scores.index[0]
     tied_set = [best_model]
 
-    for model in mean_scores.index[1:]:
-        # Find the comparison row between best_model and this model
-        row = wilcoxon_holm_df[
-            (
-                (wilcoxon_holm_df["model_a"] == best_model) &
-                (wilcoxon_holm_df["model_b"] == model)
-            ) | (
-                (wilcoxon_holm_df["model_a"] == model) &
-                (wilcoxon_holm_df["model_b"] == best_model)
-            )
-        ]
+    if wilcoxon_holm_df is None or wilcoxon_holm_df.empty:
+        return tied_set
 
-        if row.empty:
-            # No statistical test result — include in tied set (conservative)
+    for model in mean_scores.index[1:]:
+        p_holm = None
+        mean_diff = float(abs(mean_scores[best_model] - mean_scores[model]))
+
+        # Case 1: Square matrix format (index and columns have model names)
+        if model in wilcoxon_holm_df.index and best_model in wilcoxon_holm_df.columns:
+            p_holm = float(wilcoxon_holm_df.loc[model, best_model])
+
+        # Case 2: Long format table
+        elif "model_a" in wilcoxon_holm_df.columns and "model_b" in wilcoxon_holm_df.columns:
+            row = wilcoxon_holm_df[
+                (
+                    (wilcoxon_holm_df["model_a"] == best_model) &
+                    (wilcoxon_holm_df["model_b"] == model)
+                ) | (
+                    (wilcoxon_holm_df["model_a"] == model) &
+                    (wilcoxon_holm_df["model_b"] == best_model)
+                )
+            ]
+            if not row.empty:
+                p_holm = float(row["p_value_holm"].iloc[0])
+                mean_diff = float(abs(row.get("mean_diff", pd.Series([mean_diff])).iloc[0]))
+
+        if p_holm is None:
             logger.warning(
                 f"No Wilcoxon/Holm result found for ({best_model}, {model}). "
                 f"Including {model} in tied set (conservative)."
             )
             tied_set.append(model)
             continue
-
-        p_holm = row["p_value_holm"].iloc[0]
-        mean_diff = abs(row.get("mean_diff", pd.Series([0.0])).iloc[0])
 
         is_statistically_worse = p_holm < ALPHA
         is_practically_worse = (
@@ -131,13 +133,13 @@ def build_tied_set(
         if is_statistically_worse and is_practically_worse:
             logger.info(
                 f"{model} excluded from tied set: "
-                f"Holm p={p_holm:.4f} < {ALPHA}, diff={mean_diff:.4f} > {PRACTICAL_MARGIN}"
+                f"Holm p={p_holm:.4e} < {ALPHA}, diff={mean_diff:.4f} > {PRACTICAL_MARGIN}"
             )
         else:
             tied_set.append(model)
             logger.info(
                 f"{model} included in tied set: "
-                f"Holm p={p_holm:.4f}, diff={mean_diff:.4f}"
+                f"Holm p={p_holm:.4e}, diff={mean_diff:.4f}"
             )
 
     return tied_set
@@ -195,43 +197,24 @@ def apply_tiebreaker(
 
 
 def select_model(
-    cv_scores: pd.DataFrame,
-    wilcoxon_holm_df: pd.DataFrame,
-    brier_scores: Dict[str, float],
-    inference_p95_ms: Dict[str, float],
+    cv_scores: Any,
+    wilcoxon_holm_df: Optional[pd.DataFrame] = None,
+    brier_scores: Optional[Dict[str, float]] = None,
+    inference_p95_ms: Optional[Dict[str, float]] = None,
     cv_type: str = "stratified",
 ) -> Tuple[str, List[str], Dict]:
-    """
-    Apply the complete selection rule and return the selected model name.
+    if brier_scores is None:
+        brier_scores = {}
+    if inference_p95_ms is None:
+        inference_p95_ms = {}
+    if wilcoxon_holm_df is None:
+        from config import REPORTS_DIR
+        ph_path = REPORTS_DIR / "tables" / "wilcoxon_holm_pvalues.csv"
+        if ph_path.exists():
+            wilcoxon_holm_df = pd.read_csv(ph_path, index_col=0)
+        else:
+            wilcoxon_holm_df = pd.DataFrame()
 
-    This is the main entry point called by pipeline.py at the 'select' stage.
-
-    Args:
-        cv_scores: Long-format CV scores (output of cv_compare.merge_cv_results()).
-        wilcoxon_holm_df: Pairwise Wilcoxon + Holm results (stats_tests output).
-        brier_scores: Dict model → calibrated Brier score.
-        inference_p95_ms: Dict model → p95 single-row inference latency (ms).
-        cv_type: "stratified" for headline result.
-
-    Returns:
-        Tuple:
-            selected_model (str)  : name of the chosen model
-            tied_set (List[str])  : all models in the tied set
-            report (Dict)         : full selection report for model_card.json
-
-    Example return:
-        ("xgboost", ["xgboost", "rf"], {
-            "rule_version": "v5",
-            "cv_type": "stratified",
-            "primary_metric": "pr_auc",
-            "best_model_by_metric": "xgboost",
-            "tied_set": ["xgboost", "rf"],
-            "selected_model": "xgboost",
-            "tiebreaker_used": "brier_calibrated",
-            "mean_pr_auc": {...},
-            ...
-        })
-    """
     logger.info(f"=== Applying selection rule (cv_type={cv_type}) ===")
 
     # Step 1: Primary metric ranking

@@ -24,6 +24,8 @@
 16. [Master Conception & Cahier des Charges Roadmap](#16-master-conception--cahier-des-charges-roadmap)
 17. [Pipeline Verification vs Heavy Training Execution](#17-pipeline-verification-vs-heavy-training-execution)
 18. [Understanding MLflow, Docker & The Live Results Dashboard](#18-understanding-mlflow-docker--the-live-results-dashboard)
+19. [Session 4 Progress Log — Phase 2 Optuna Tuning Complete & Frozen Parameters](#19-session-4-progress-log--phase-2-optuna-tuning-complete--frozen-parameters-2026-10-18)
+20. [Session 5 Progress Log — Phases 3–7 Complete: Full Training Pipeline, Champion Elected & MLflow Registry](#20-session-5-progress-log--phases-37-complete-full-training-pipeline-champion-elected--mlflow-registry-2026-10-18)
 
 ---
 
@@ -590,6 +592,150 @@ This guarantees 100% containerized execution with direct network connection to `
 - Tracking URI verified active at `http://localhost:5000`.
 - MLflow web dashboard confirmed live in browser with `vigilia-smoke-test` experiment visible.
 - When `tune` is executed, the `fraud-sparkov-tuning` experiment appears in real-time with each model's trial results.
+
+---
+
+## 19. Session 4 Progress Log — Phase 2 Optuna Tuning Complete & Frozen Parameters (2026-10-18)
+
+### 1. Optuna Hyperparameter Optimization Execution
+- **Strategy**: 30 trials per model evaluated on 3-fold stratified cross-validation over the tuning subsample ($N=100,000$ transactions from Split A). Objective metric: PR-AUC (`average_precision`).
+- **All 5 Models Tuned and Logged to MLflow** (`fraud-sparkov-tuning`, Experiment ID 2):
+
+| Model | Optuna Best PR-AUC | Optimal Hyperparameters Selected | Execution Time |
+|---|:---:|---|:---:|
+| **XGBoost** | **0.9508** 🏆 | `learning_rate=0.0524`, `max_depth=7`, `n_estimators=415`, `subsample=0.741`, `colsample_bytree=0.681`, `reg_lambda=0.0130`, `scale_pos_weight=99.4` | ~2.2 h |
+| **Random Forest** | **0.9194** | `n_estimators=462`, `max_depth=24`, `min_samples_leaf=1`, `max_features=0.3` | ~11.3 h |
+| **MLP (Neural Net)** | **0.8785** | `hidden_layer_sizes=(128, 128, 128)`, `alpha=9.28e-5`, `learning_rate_init=0.00385` | ~8.0 h |
+| **SVM (RBF)** | **0.5965** | `C=29.94`, `gamma='scale'` (on $N=10,000$ subsample) | ~3.5 min |
+| **Logistic Regression** | **0.3379** | `penalty='l2'`, `C=0.00158`, `solver='lbfgs'` | ~26.7 min |
+
+### 2. Engineering Hardening & Bug Fixes
+- **Stratified Subsampling Fix**: In `src/tune.py`, the initial call `stratified_subsample(X_tune, ...)` threw a `KeyError: 'is_fraud'` because the target column had been extracted prior to passing features. Fixed cleanly using `sklearn.model_selection.train_test_split(..., stratify=y_tune)`.
+- **MLflow Resumption & Idempotence**: Added `_get_cached_params(model_name)` in `src/tune.py`. If a model's tuning run is already marked `FINISHED` in MLflow, its parameters are loaded directly from the tracking server without re-computing 20+ hours of CPU calculation.
+- **Artifact Export**: Generated and persisted `ml/training/artifacts/best_params.json` containing the frozen hyperparameter dictionary for all five models.
+
+### 3. Pipeline Status at End of Phase 2
+- Phase 1 (Data & Features): ✅ Complete
+- Phase 2 (Optuna Tuning): ✅ Complete (`artifacts/best_params.json` created)
+
+---
+
+## 20. Session 5 Progress Log — Phases 3–7 Complete: Full Training Pipeline, Champion Elected & MLflow Registry (2026-10-18)
+
+### 1. Phase 3: Cross-Validation & Model Comparison
+We executed both cross-validation regimes on the $N=150,000$ comparison subsample from Split A:
+1. **Repeated Stratified K-Fold (5 repeats × 10 folds = 50 folds total)**:
+   - Evaluates pure discriminative ability across distinct sample splits.
+2. **Stratified Group K-Fold (5 folds grouped by `cc_num`)**:
+   - Evaluates generalization to entirely unseen cardholders (zero credit card overlap between train and test folds).
+
+| Model | 50-Fold Repeated Stratified PR-AUC | 5-Fold Stratified Group PR-AUC (by `cc_num`) | Rank | Status |
+|---|:---:|:---:|:---:|:---:|
+| **XGBoost** | **0.9547 ± 0.0078** | **0.8719 ± 0.0312** | **1** 🏆 | Statistically superior |
+| **Random Forest** | **0.9199 ± 0.0105** | **0.8985 ± 0.0200** | 2 | Strong generalization |
+| **MLP (Neural Net)** | **0.8856 ± 0.0181** | **0.8707 ± 0.0193** | 3 | Competitive |
+| **Logistic Regression** | **0.2841 ± 0.0260** | **0.2673 ± 0.0464** | 4 | Linear limitation |
+| **SVM (LinearSVC)** | **0.2175 ± 0.0221** | **0.2023 ± 0.0350** | 5 | Linear baseline |
+| **Dummy (Prior)** | **0.0092 ± 0.0001** | **0.0092 ± 0.0001** | 6 | Naive baseline |
+
+*Logged to MLflow Experiment 3 (`fraud-sparkov-compare`). Results saved to `ml/training/artifacts/cv_results.pkl`.*
+
+### 2. Phase 4: Statistical Hypothesis Testing
+Rigorous statistical tests conducted following the Demšar (2006) protocol:
+- **Omnibus Friedman Test**:
+  - $\chi^2 = 250.0000$, $p = 5.50 \times 10^{-52} \ll 0.05$.
+  - Rejects the null hypothesis of equal performance across models with overwhelming confidence.
+- **Post-Hoc Pairwise Wilcoxon Signed-Rank Test with Holm-Bonferroni Correction**:
+  - Comparison between top-ranked XGBoost and all other candidates:
+    - XGBoost vs Random Forest: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs MLP: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs Logistic Regression: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs SVM: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs Dummy: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+- **Effect Sizes (Cohen's d relative to XGBoost)**:
+  - Random Forest: $d = -3.73$ (Very large practical gap)
+  - MLP: $d = -4.90$
+  - LogReg: $d = -34.54$
+  - SVM: $d = -44.03$
+  - Dummy: $d = -169.33$
+- **Artifacts Generated**:
+  - `reports/tables/ci_effect_sizes.csv`
+  - `reports/tables/wilcoxon_holm_pvalues.csv`
+  - `reports/figures/ci_barchart.png`
+  - `reports/figures/cv_distributions.png`
+  - *Logged to MLflow Experiment 4 (`stats_tests`).*
+
+### 3. Phase 5: Automated Model Selection Rule
+Applying the pre-committed multi-criteria selection rule:
+1. Candidate with highest mean PR-AUC: `xgboost` (mean = $0.9547$).
+2. Tied set: Models with Holm-adjusted $p \ge 0.05$ or $|PR\text{-}AUC - 0.9547| \le 0.005$:
+   - Tied set: `['xgboost']` (No other model is within margin or statistically tied).
+3. **Official Champion Elected**: **`xgboost`**. Persisted to `ml/training/artifacts/selected_model.txt`.
+
+### 4. Phase 6: Probability Calibration & Operating Threshold Selection
+- **Part A Retraining**: Fitted Champion XGBoost with frozen Optuna parameters on full Part A ($1,037,340$ transactions).
+- **Part B Calibration**:
+  - Applied Isotonic Regression via `CalibratedClassifierCV(FrozenEstimator(pipe), method="isotonic")` on Part B ($129,667$ transactions).
+  - **Brier Score on Part B**: **$0.0012$** (Near-perfect reliability curve).
+  - Figure generated: `reports/figures/reliability_curve.png`.
+- **Part C Threshold Selection**:
+  - Optimized threshold to maximize $F_2$ score (weighting Recall $2\times$ over Precision to penalize missed frauds) on Part C ($129,668$ transactions).
+  - **Optimal Operating Threshold**: **$0.1948$** ($F_2 = 0.8611$, $F_1 = 0.8313$).
+  - Figure generated: `reports/figures/pr_curve_part_c.png`.
+  - Saved: `ml/training/artifacts/calibrated_pipeline.pkl` and `ml/training/artifacts/threshold.txt`.
+
+### 5. Phase 7: Final Test Set Evaluation (`fraudTest.csv` — Run ONCE)
+Evaluated once on untouched test set ($555,719$ real transactions, $2,145$ frauds):
+
+| Metric | Test Set Value | Business Interpretation |
+|---|:---:|---|
+| **PR-AUC** | **0.8624** | Primary metric (~$223\times$ lift over random base rate $0.0039$) |
+| **ROC-AUC** | **0.9966** | Exceptional ranking discrimination |
+| **F1 Score** | **0.7593** | Harmonic mean of precision & recall |
+| **F2 Score** | **0.8025** | Prioritizes fraud capture ($2\times$ weight on recall) |
+| **Recall (Sensitivity)** | **83.40%** | Caught $1,789$ out of $2,145$ fraudulent transactions |
+| **Precision** | **69.69%** | Less than 1 in 3 flagged alerts are false alarms |
+| **Specificity** | **99.86%** | Extremely low customer friction for legitimate transactions |
+| **Matthews Corr (MCC)**| **0.7614** | Balanced correlation across severe imbalance |
+| **Brier Score** | **0.0011** | Superbly calibrated probabilities for downstream serving |
+| **Confusion Matrix** | **TP=1,789 \| FP=778 \| FN=356 \| TN=552,796** | Missed only 356 frauds out of 555k transactions |
+| **Serving Latency** | **35.83 ms / sample** | Sub-100ms real-time SLA satisfied |
+
+*Saved to `ml/training/artifacts/test_metrics.json`, `reports/tables/final_test_metrics.csv`, and `reports/figures/confusion_matrix_test.png`.*
+
+### 6. MLflow Model Registry Champion Export (Contract 10)
+- Registered Model Name: `fraud-model`
+- Version: `1`
+- Model Alias: `@champion`
+- Serialization Format: Cloudpickle (encapsulates XGBoost + Scikit-Learn CalibratedClassifierCV)
+- Verified Member 3 serving retrieval:
+  ```python
+  import mlflow.sklearn
+  model = mlflow.sklearn.load_model("models:/fraud-model@champion")
+  ```
+
+### 7. Complete Artifact Hand-off Inventory
+All artifacts required by Members 2, 3, 4, and 5 are fully generated and validated:
+
+| File | Size | Destination / Consumer | Description |
+|---|:---:|:---:|---|
+| `artifacts/calibrated_pipeline.pkl` | 2.89 MB | Member 3 (ML Serving) | Calibrated Champion XGBoost pipeline |
+| `artifacts/threshold.txt` | 19 B | Member 3 (ML Serving) | Operating threshold ($0.1948$) |
+| `artifacts/feature_spec.json` | 2.2 KB | Member 2 & 3 (Contract 1) | Raw fields, types, ranges & engineered features |
+| `artifacts/model_card.json` | 975 B | Member 2 & 4 (Doc §15) | Model card with performance, matrix & limitations |
+| `artifacts/test_metrics.json` | 497 B | Member 1 & Team | Final evaluation numbers on `fraudTest.csv` |
+| `artifacts/test_predictions.parquet` | 46.7 MB | Member 2 (Explainability) | 555k test rows + labels + calibrated scores + predictions for UMAP/t-SNE |
+| `artifacts/scores_part_b.parquet` | 12.1 MB | Member 2 (Explainability) | 129k rows Part B for Conformal Prediction |
+| `artifacts/scores_part_c.parquet` | 12.1 MB | Member 2 & 3 | 129k rows Part C for threshold & abstention studies |
+| `artifacts/best_params.json` | 687 B | Member 1 & Audit | Frozen Optuna hyperparameters for all 5 models |
+| `artifacts/cv_results.pkl` | 3.2 KB | Member 1 & Audit | 50-fold repeated CV & 5-fold group CV scores |
+| `artifacts/selected_model.txt` | 7 B | Member 1 & Audit | Contains `"xgboost"` |
+| `reports/figures/*.png` | ~250 KB | Team & Final Report | 5 publication-quality figures (CV, PR, Reliability, CM, Effect Sizes) |
+| `reports/tables/*.csv` | ~2 KB | Team & Final Report | 3 summary tables (Metrics, Wilcoxon p-values, Effect sizes) |
+
+---
+**Status**: Member 1 ML Training Pipeline is **100% COMPLETE**. Ready for commit and review!
+
 
 
 

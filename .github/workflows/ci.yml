@@ -107,6 +107,14 @@ jobs:
           path: backend/${{ matrix.service }}/target/*.jar
           retention-days: 1
 
+      - name: Upload JaCoCo coverage report
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ matrix.service }}-coverage
+          path: backend/${{ matrix.service }}/target/site/jacoco/jacoco.xml
+          retention-days: 1
+
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 2 — ML Serving (FastAPI / Python 3.12)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -260,6 +268,13 @@ jobs:
           pattern: "*-jar"
           path: sonar-binaries
           merge-multiple: true
+
+      - name: Download Backend JaCoCo coverage reports
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: "*-coverage"
+          path: backend-coverage
 
       - name: Download Python ML training coverage
         uses: actions/download-artifact@v4

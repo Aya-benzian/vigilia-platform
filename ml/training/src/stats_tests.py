@@ -18,6 +18,8 @@ from typing import Dict, List
 import mlflow
 import numpy as np
 import pandas as pd
+import os
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from scipy import stats
@@ -116,8 +118,11 @@ def run_wilcoxon_holm(
     Returns:
         DataFrame of adjusted p-values (models × models).
     """
-    df = pd.DataFrame(results)
-    p_matrix = sp.posthoc_wilcoxon(df, p_adjust="holm")
+    names = list(results.keys())
+    arrays = [np.asarray(results[name]) for name in names]
+    p_matrix = sp.posthoc_wilcoxon(arrays, p_adjust="holm")
+    p_matrix.index = names
+    p_matrix.columns = names
     return p_matrix
 
 

@@ -14,7 +14,7 @@ Rules:
 
 import logging
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import mlflow
 import numpy as np
@@ -203,6 +203,41 @@ def tune_mlp(X_tune, y_tune) -> Dict[str, Any]:
 # Run all studies
 # ==============================================================================
 
+def _get_cached_params(model_name: str) -> Optional[Dict[str, Any]]:
+    """Try to retrieve already-tuned parameters from finished MLflow runs."""
+    import ast
+    try:
+        from mlflow.tracking import MlflowClient
+        client = MlflowClient()
+        exp = client.get_experiment_by_name(MLFLOW_EXP_TUNING)
+        if not exp:
+            return None
+        runs = client.search_runs(
+            exp.experiment_id,
+            filter_string=f"tags.mlflow.runName = 'tune_{model_name}' and attributes.status = 'FINISHED'",
+            max_results=1,
+        )
+        if not runs:
+            return None
+        run = runs[0]
+        params = {}
+        prefix = f"{model_name}_"
+        for k, v in run.data.params.items():
+            if k.startswith(prefix):
+                pk = k[len(prefix):]
+                try:
+                    val = ast.literal_eval(v)
+                except Exception:
+                    val = v
+                params[pk] = val
+        if params:
+            logger.info(f"Loaded cached {model_name} best params from MLflow run {run.info.run_id}: {params}")
+            return params
+    except Exception as e:
+        logger.debug(f"Could not load cached params for {model_name}: {e}")
+    return None
+
+
 def run_all_tuning(X_tune, y_tune, scale_pos_weight: float = 1.0) -> Dict[str, Dict]:
     """
     Run all five Optuna studies and return frozen hyperparameters for all models.
@@ -230,6 +265,12 @@ def run_all_tuning(X_tune, y_tune, scale_pos_weight: float = 1.0) -> Dict[str, D
     ]
 
     for model_name, tune_fn in studies:
+        cached = _get_cached_params(model_name)
+        if cached is not None:
+            logger.info(f"=== {model_name} already tuned in MLflow -> reusing cached params ===")
+            all_params[model_name] = cached
+            continue
+
         logger.info(f"=== Tuning {model_name} ({OPTUNA_N_TRIALS} trials) ===")
         with mlflow.start_run(run_name=f"tune_{model_name}"):
             params = tune_fn()
@@ -240,16 +281,26 @@ def run_all_tuning(X_tune, y_tune, scale_pos_weight: float = 1.0) -> Dict[str, D
         all_params[model_name] = params
 
     # SVM: use a smaller subsample
-    logger.info(f"=== Tuning svm ({OPTUNA_N_TRIALS} trials, small subsample) ===")
-    from data_io import stratified_subsample
-    X_svm = stratified_subsample(X_tune, SVM_SUBSAMPLE_N, random_state=SEED + 99)
-    y_svm = y_tune.loc[X_svm.index]
-    with mlflow.start_run(run_name="tune_svm"):
-        svm_params = tune_svm(X_svm, y_svm)
-        mlflow.log_params({f"svm_{k}": v for k, v in svm_params.items()})
-        mlflow.log_param("model", "svm")
-        mlflow.log_param("svm_subsample_n", SVM_SUBSAMPLE_N)
-    all_params["svm"] = svm_params
+    cached_svm = _get_cached_params("svm")
+    if cached_svm is not None:
+        logger.info("=== svm already tuned in MLflow -> reusing cached params ===")
+        all_params["svm"] = cached_svm
+    else:
+        logger.info(f"=== Tuning svm ({OPTUNA_N_TRIALS} trials, small subsample) ===")
+        from sklearn.model_selection import train_test_split
+        sample_n = min(SVM_SUBSAMPLE_N, len(X_tune) - 1)
+        X_svm, _, y_svm, _ = train_test_split(
+            X_tune, y_tune,
+            train_size=sample_n,
+            stratify=y_tune,
+            random_state=SEED + 99,
+        )
+        with mlflow.start_run(run_name="tune_svm"):
+            svm_params = tune_svm(X_svm, y_svm)
+            mlflow.log_params({f"svm_{k}": v for k, v in svm_params.items()})
+            mlflow.log_param("model", "svm")
+            mlflow.log_param("svm_subsample_n", sample_n)
+        all_params["svm"] = svm_params
 
     logger.info(f"=== All tuning complete. Best params: {all_params} ===")
     return all_params

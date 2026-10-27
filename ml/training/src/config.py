@@ -45,8 +45,8 @@ SPLIT_C = 0.10  # validation: choose threshold on calibrated probabilities
 COMPARE_SUBSAMPLE_N = 150_000   # 100k–200k rows as in design v5
 # Tuning subsample: disjoint from comparison subsample, used by Optuna
 TUNE_SUBSAMPLE_N    = 100_000
-# SVM subsample: RBF SVM is too slow beyond ~50k rows
-SVM_SUBSAMPLE_N     = 30_000
+# SVM subsample: RBF SVM is quadratic/cubic in N; 10k rows is fast (~3 min for 30 trials)
+SVM_SUBSAMPLE_N     = 10_000
 # Verify that each subsample retains at least a few hundred frauds after split
 
 # ==============================================================================
@@ -90,6 +90,7 @@ MLFLOW_EXP_FINAL        = "fraud-final"
 MLFLOW_EXP_ULB          = "fraud-ulb-benchmark"  # [NICE]
 MLFLOW_MODEL_NAME       = "fraud-model"           # registered model name
 MLFLOW_MODEL_ALIAS      = "champion"              # Contract 10
+MLFLOW_CHAMPION_ALIAS   = "champion"
 
 # ==============================================================================
 # Cost matrix for cost-based evaluation (§8 of design v5)
@@ -98,6 +99,9 @@ MLFLOW_MODEL_ALIAS      = "champion"              # Contract 10
 # cost_fn = False Negative cost = missed fraud (e.g. full transaction amount)
 # cost_fp = False Positive cost = unnecessary human review (fixed cost)
 COST_FP = 5.0      # assumed fixed review cost per false alarm (USD)
+COST_FN = 100.0    # assumed average loss per missed fraud (USD) for fixed-cost calculation
+COST_TN = 0.0      # no cost for true negative
+COST_TP = 0.0      # no cost for true positive
 # cost_fn is dynamic (= transaction amount) — computed per transaction in cost_review.py
 
 # ==============================================================================
