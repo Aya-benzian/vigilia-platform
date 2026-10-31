@@ -2,11 +2,15 @@
 # Vigilia Platform — Security Scanning (Trivy)
 #
 # Jobs:
+#   gitleaks      → secret scan (no leaked credentials)
 #   trivy-fs      → scan repo filesystem & dependencies for CVEs
 #   trivy-config  → scan IaC files for misconfigurations
 #                   (Dockerfiles, docker-compose.yml, K8s manifests)
 #
-# Results are uploaded to the GitHub Security tab as SARIF reports.
+# Trivy findings are printed to the Action log in every run.
+# SARIF upload to the Security tab is best-effort (continue-on-error: true)
+# because it requires GitHub Advanced Security or Code Scanning to be enabled
+# in the repository settings — activation is a one-time manual step.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Security Scan
@@ -32,8 +36,10 @@ concurrency:
 #                            GET /repos/{owner}/{repo}/pulls/{pull_number}/commits
 #                            Without this the API returns 403 and the scan fails
 #                            before it can even inspect a single file.
-# • security-events: write — required by github/codeql-action/upload-sarif@v3
+# • security-events: write — required by github/codeql-action/upload-sarif@v4
 #                            to post Trivy SARIF reports to the Security tab.
+#                            Upload is best-effort (continue-on-error: true) —
+#                            it needs Code Scanning enabled in repo Settings.
 permissions:
   contents: read
   pull-requests: read
@@ -83,9 +89,13 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         # Run even if Trivy found issues so the report always lands in Security tab
         if: always()
+        # best-effort: requires Code Scanning to be enabled in repo Settings →
+        # Security & analysis → Code scanning. Without it the upload returns 403
+        # but the scan above has already completed successfully.
+        continue-on-error: true
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-filesystem
@@ -111,12 +121,16 @@ jobs:
           output: trivy-config.sarif
           severity: CRITICAL,HIGH
           trivyignores: .trivyignore
-          # Paths scanned automatically: all Dockerfiles, docker-compose.yml
-          # K8s manifests under infrastructure/k8s/** will be picked up once added
+          # Paths scanned automatically: all Dockerfiles, docker-compose.yml,
+          # and K8s manifests under infrastructure/kubernetes/
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
+        # best-effort: requires Code Scanning to be enabled in repo Settings →
+        # Security & analysis → Code scanning. Without it the upload returns 403
+        # but the scan above has already completed successfully.
+        continue-on-error: true
         with:
           sarif_file: trivy-config.sarif
           category: trivy-iac
