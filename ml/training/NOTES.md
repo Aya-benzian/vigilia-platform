@@ -27,6 +27,8 @@
 19. [Session 4 Progress Log — Phase 2 Optuna Tuning Complete & Frozen Parameters](#19-session-4-progress-log--phase-2-optuna-tuning-complete--frozen-parameters-2026-10-18)
 20. [Session 5 Progress Log — Phases 3–7 Complete: Full Training Pipeline, Champion Elected & MLflow Registry](#20-session-5-progress-log--phases-37-complete-full-training-pipeline-champion-elected--mlflow-registry-2026-10-18)
 21. [Sparkov Feature Engineering & 22-Column Breakdown](#21-sparkov-feature-engineering--22-column-breakdown)
+22. [Dual-Domain ML Architecture & Cross-Domain Feature Benchmark](#22-dual-domain-ml-architecture--cross-domain-feature-benchmark-2026-10-26)
+23. [Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture](#23-academic-supervisor-directive-strict-domain-isolation--decoupled-model-architecture-2026-10-29)
 
 ---
 
@@ -837,11 +839,35 @@ Evaluated the champion XGBoost model with domain-only baseline features vs. full
 
 > **Key Finding**: In the Purchase domain, cross-domain transfer signals (such as incoming transfers followed rapidly by high-value purchases and wallet draining) provide a significant boost of **+2.32% in calibrated PR-AUC** and reduce Brier calibration loss by **25%**. In the Transfer domain, transfer-specific velocity and balance signals dominate prediction, with the dual model maintaining robust detection ($0.9997$ ROC-AUC, $0.8002$ PR-AUC).
 
-### 22.5 Saved Champion Pipelines & Contracts
-- `artifacts/purchase_champion_pipeline.pkl`: Production pipeline (preprocessor + calibrated XGBoost) for 48 purchase features.
-- `artifacts/transfer_champion_pipeline.pkl`: Production pipeline (preprocessor + calibrated XGBoost) for 38 transfer features.
-- `artifacts/purchase_benchmark_summary.json` & `artifacts/transfer_benchmark_summary.json`: Benchmark telemetry and ablation metrics.
-- `artifacts/golden_rows_purchase.json` & `artifacts/golden_rows_transfer.json`: Parity test fixtures for the Java ingestion service.
+### 22.5 Saved Champion Pipelines & Contracts (Historical Baseline)
+- Previously benchmarked in ablation study.
+
+---
+
+## 23. Academic Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture (2026-10-29)
+
+### 23.1 Motivation & Supervisor Alignment
+Following direct instruction from the academic supervisor (*encadrant*), the platform enforces **Strict Domain Isolation**:
+1. **Zero Cross-Domain Communication**: The Purchase and Transfer models are completely decoupled. 
+   - `purchase-fraud-model` consumes strictly purchase transactions, merchant properties, and cardholder home geography (Sparkov).
+   - `transfer-fraud-model` consumes strictly transfer transactions, sender history, recipient/mule indicators, and liquid account balance ratios (PaySim).
+2. **Scientific Cleanliness**: Eliminates artificial entity linkage between two independent research datasets (Sparkov and PaySim).
+3. **Microservice Loose Coupling**: Simplifies backend Java feature calculation by eliminating cross-domain database queries and joins.
+
+### 23.2 Canonical Feature Breakdown (Strictly Decoupled)
+
+| Domain | Dataset | Isolated Features | Key Signals | Champion Model | Test PR-AUC | Test ROC-AUC |
+|---|---|:---:|---|:---:|:---:|:---:|
+| **Purchase** | Sparkov | **29** | Amount, diurnal/weekly time, Haversine distance to merchant, city population, merchant category, customer historical amount stats, rolling purchase velocity (1h, 24h, 7d), novelty flags. | **XGBoost (Calibrated)** | **0.9293** (Raw: 0.9531) | **0.9987** |
+| **Transfer** | PaySim | **20** | Amount, time step, sender historical amount stats, balance drainage ratio (`amount / oldbalanceOrg`), rolling sender velocity (1h, 24h), pair transfer history, money mule fan-in indicators (`recipient_unique_senders_24h`). | **XGBoost (Calibrated)** | **0.8351** (Raw: 0.8762) | **0.9997** |
+
+### 23.3 Updated Artifacts & Contracts
+- `artifacts/feature_spec.json`: Machine-readable schemas specifying exactly 29 purchase and 20 transfer features with cold-start sentinels.
+- `artifacts/purchase_champion_pipeline.pkl`: Serialized XGBoost pipeline with Isotonic probability calibration (29 features).
+- `artifacts/transfer_champion_pipeline.pkl`: Serialized XGBoost pipeline with Isotonic probability calibration (20 features).
+- `artifacts/golden_rows_purchase.json` & `artifacts/golden_rows_transfer.json`: 250 golden test fixtures per domain matching the exact 29 / 20 feature contracts for Java parity verification.
+- **Test Suite Status**: 70/70 passing tests across schema, preprocessing, model factories, and dual-domain artifacts.
+
 
 
 
