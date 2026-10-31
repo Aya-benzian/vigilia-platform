@@ -20,7 +20,10 @@ import mlflow
 import numpy as np
 import pandas as pd
 import os
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+import tempfile
+mpl_dir = os.path.join(tempfile.gettempdir(), "vigilia_matplotlib")
+os.makedirs(mpl_dir, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", mpl_dir)
 import matplotlib.pyplot as plt
 from sklearn.metrics import (
     average_precision_score,
