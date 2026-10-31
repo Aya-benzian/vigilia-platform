@@ -26,6 +26,19 @@ concurrency:
   group: security-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
+# Least-privilege baseline for all jobs in this workflow.
+# • contents: read        — required by actions/checkout
+# • pull-requests: read   — required by gitleaks-action@v2 to list PR commits via
+#                            GET /repos/{owner}/{repo}/pulls/{pull_number}/commits
+#                            Without this the API returns 403 and the scan fails
+#                            before it can even inspect a single file.
+# • security-events: write — required by github/codeql-action/upload-sarif@v3
+#                            to post Trivy SARIF reports to the Security tab.
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 0 — Gitleaks secret scan
 # ─────────────────────────────────────────────────────────────────────────────
@@ -53,10 +66,6 @@ jobs:
   trivy-fs:
     name: "Trivy — dependency & filesystem CVE scan"
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      security-events: write   # required to upload SARIF to Security tab
 
     steps:
       - name: Checkout
@@ -88,10 +97,6 @@ jobs:
   trivy-config:
     name: "Trivy — IaC & Dockerfile misconfiguration scan"
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout
