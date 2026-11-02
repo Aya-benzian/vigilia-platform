@@ -4,7 +4,7 @@ test_model_loader.py — Tests for multi-model registry, background loading, and
 
 import time
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from model_loader import (
     DummyFraudModel,
@@ -16,6 +16,8 @@ from model_loader import (
     get_loaded_model,
     get_loaded_model_version,
     get_model_registry,
+    get_sample_features_for_family,
+    get_tracking_uri,
     is_model_loaded,
     load_all_models,
     load_champion_model,
@@ -24,6 +26,8 @@ from model_loader import (
     set_cached_model,
     start_background_model_loader,
     stop_background_model_loader,
+    validate_model_signature,
+    warmup_model,
 )
 
 
@@ -223,3 +227,162 @@ def test_background_loader_exponential_backoff_on_failure(monkeypatch: pytest.Mo
         assert is_model_loaded("transfer") is True
         assert transfer_call_count >= 3
         stop_background_model_loader()
+
+
+def test_validate_model_signature_edge_cases() -> None:
+    # 1. Model is None
+    with pytest.raises(ValueError, match="Model artifact for family 'purchase' is None."):
+        validate_model_signature(None, "purchase")
+
+    # 2. Model lacks predict and predict_proba
+    class InvalidModel:
+        pass
+
+    with pytest.raises(ValueError, match="does not expose a valid prediction interface"):
+        validate_model_signature(InvalidModel(), "purchase")
+
+    # 3. Model has MLflow signature with empty inputs list
+    class ModelWithEmptySignature:
+        def __init__(self) -> None:
+            class Sig:
+                inputs: list = []
+
+            class Meta:
+                signature = Sig()
+
+            self.metadata = Meta()
+
+        def predict_proba(self, X):
+            return [[0.5, 0.5]]
+
+    with pytest.raises(ValueError, match="contains empty input schema"):
+        validate_model_signature(ModelWithEmptySignature(), "purchase")
+
+
+def test_warmup_model_edge_cases() -> None:
+    # 1. Model is None
+    with pytest.raises(ValueError, match="Cannot warm up None model for family 'purchase'."):
+        warmup_model(None, "purchase")
+
+    # 2. Model only exposes predict() (no predict_proba)
+    class PredictOnlyModel:
+        def predict(self, X):
+            import numpy as np
+            return np.zeros(len(X), dtype=int)
+
+    # Should warm up successfully without exception
+    warmup_model(PredictOnlyModel(), "purchase")
+
+    # 3. Model whose inference raises exception during warm-up
+    class FailingModel:
+        def predict_proba(self, X):
+            raise RuntimeError("Inference graph crash")
+
+        def predict(self, X):
+            raise RuntimeError("Inference graph crash")
+
+    with pytest.raises(RuntimeError, match="Warm-up inference failed for model family 'purchase'"):
+        warmup_model(FailingModel(), "purchase")
+
+
+def test_mlflow_model_loading_success_and_fallbacks(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_model_cache()
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("USE_DUMMY_MODEL", "false")
+
+    mock_model = DummyPurchaseModel(version="mlflow-v42")
+    mock_version_obj = MagicMock()
+    mock_version_obj.version = "42"
+
+    mock_client = MagicMock()
+    mock_client.get_model_version_by_alias.return_value = mock_version_obj
+
+    # 1. Successful sklearn load
+    with patch("model_loader.MlflowClient", return_value=mock_client), \
+         patch("mlflow.sklearn.load_model", return_value=mock_model) as mock_sk_load:
+        loaded, ver = load_family_model("purchase")
+        assert loaded is mock_model
+        assert ver == "42"
+        assert is_model_loaded("purchase") is True
+        mock_sk_load.assert_called_once_with("models:/purchase-fraud-model@champion")
+
+    # 2. Pyfunc fallback when sklearn loader fails
+    reset_model_cache()
+    with patch("model_loader.MlflowClient", return_value=mock_client), \
+         patch("mlflow.sklearn.load_model", side_effect=Exception("sklearn loader incompatibility")), \
+         patch("mlflow.pyfunc.load_model", return_value=mock_model) as mock_pyfunc_load:
+        loaded, ver = load_family_model("purchase")
+        assert loaded is mock_model
+        assert ver == "42"
+        mock_pyfunc_load.assert_called_once_with("models:/purchase-fraud-model@champion")
+
+    # 3. Downloaded model is None
+    reset_model_cache()
+    with patch("model_loader.MlflowClient", return_value=mock_client), \
+         patch("mlflow.sklearn.load_model", return_value=None), \
+         patch("mlflow.pyfunc.load_model", return_value=None):
+        with pytest.raises(ValueError, match="Model artifact downloaded for family 'purchase' is None."):
+            load_family_model("purchase")
+
+    # 4. Resolved model version is empty
+    reset_model_cache()
+    empty_version_obj = MagicMock()
+    empty_version_obj.version = ""
+    mock_client_empty = MagicMock()
+    mock_client_empty.get_model_version_by_alias.return_value = empty_version_obj
+    with patch("model_loader.MlflowClient", return_value=mock_client_empty), \
+         patch("mlflow.sklearn.load_model", return_value=mock_model):
+        with pytest.raises(ValueError, match="Resolved model version for family 'purchase' is empty."):
+            load_family_model("purchase")
+
+
+def test_load_all_models_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    reset_model_cache()
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("USE_DUMMY_MODEL", "true")
+
+    results = load_all_models()
+    assert "purchase" in results
+    assert "transfer" in results
+    assert results["purchase"][1] == "dummy-purchase-v1"
+    assert results["transfer"][1] == "dummy-transfer-v1"
+
+
+def test_model_registry_and_helpers_coverage_branches() -> None:
+    registry = ModelRegistry()
+
+    # Generic dummy factory fallback
+    generic_dummy = create_dummy_model("generic")
+    assert generic_dummy.family == "generic"
+
+    # Sample features fallback for unknown family
+    sample = get_sample_features_for_family("custom")
+    assert sample == {"amount": 100.0, "hour_of_day": 12}
+
+    # Tracking URI helper
+    uri = get_tracking_uri()
+    assert isinstance(uri, str)
+
+    # set_entry family mismatch
+    entry = ModelEntry(
+        family="transfer",
+        model_name="t",
+        model_version="1",
+        model_alias="champion",
+        model=DummyTransferModel(),
+    )
+    with pytest.raises(ValueError, match="Entry family 'transfer' does not match target family 'purchase'."):
+        registry.set_entry("purchase", entry)
+
+    # get_status_summary
+    summary = registry.get_status_summary()
+    assert "purchase" in summary
+    assert "transfer" in summary
+
+    # Legacy helper wrappers
+    reset_model_cache()
+    p_dummy = DummyPurchaseModel(version="leg-1")
+    set_cached_model(p_dummy, "leg-1")
+    assert get_loaded_model_version() == "leg-1"
+    assert get_loaded_model() is p_dummy
+

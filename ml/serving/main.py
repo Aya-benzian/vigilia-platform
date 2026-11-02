@@ -181,7 +181,7 @@ def get_models() -> ModelsListResponse:
     registry = get_model_registry()
     models_metadata: Dict[str, ModelMetadata] = {}
 
-    for family in registry.supported_families:
+    for family in registry.get_supported_families:
         entry = registry.get_entry(family)
         status_str = registry.get_loading_status(family)
         default_name = current_settings.get_model_name_for_family(family)
@@ -200,13 +200,16 @@ def get_models() -> ModelsListResponse:
 
 def _background_reload_worker(target_family: str) -> None:
     """Worker task executed in background thread for async reloads."""
+    clean_target_family = str(target_family).replace("\r", "").replace("\n", "")
     try:
         reload_family_model(target_family)
-        logger.info(f"Background reload for family '{target_family}' completed successfully.")
+        logger.info("Background reload for family '%s' completed successfully.", clean_target_family)
     except Exception as exc:
         model_load_failures_metric.labels(model_family=target_family).inc()
         logger.error(
-            f"Background reload for family '{target_family}' failed ({exc.__class__.__name__}). Active model preserved."
+            "Background reload for family '%s' failed (%s). Active model preserved.",
+            clean_target_family,
+            exc.__class__.__name__,
         )
     finally:
         release_reload_guard(target_family)
@@ -251,13 +254,13 @@ def reload_model_family(
     current_settings = get_settings()
 
     # 1. Validate family parameter
-    if family not in registry.supported_families:
+    if family not in registry.get_supported_families:
         raise ServingException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code=ERROR_CODE_VALIDATION_ERROR,
             title="Invalid model family",
-            detail=f"Unknown model family '{family}'. Supported families: {list(registry.supported_families)}",
-            errors=[ValidationErrorItem(field="family", message=f"Must be one of {list(registry.supported_families)}")],
+            detail=f"Unknown model family '{family}'. Supported families: {list(registry.get_supported_families)}",
+            errors=[ValidationErrorItem(field="family", message=f"Must be one of {list(registry.get_supported_families)}")],
         )
 
     # 2. Acquire per-family concurrency guard to prevent duplicate concurrent reloads
@@ -301,8 +304,11 @@ def reload_model_family(
         )
     except Exception as exc:
         model_load_failures_metric.labels(model_family=family).inc()
+        clean_family = str(family).replace("\r", "").replace("\n", "")
         logger.error(
-            f"Synchronous reload for family '{family}' failed ({exc.__class__.__name__}). Active model preserved."
+            "Synchronous reload for family '%s' failed (%s). Active model preserved.",
+            clean_family,
+            exc.__class__.__name__,
         )
         raise ServingException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

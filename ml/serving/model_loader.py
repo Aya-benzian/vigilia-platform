@@ -143,7 +143,8 @@ def validate_model_signature(model: Any, family: str) -> bool:
             if inputs is not None and hasattr(inputs, "__len__") and len(inputs) == 0:
                 raise ValueError(f"Model signature for family '{family}' contains empty input schema.")
 
-    logger.info(f"Model signature validation passed for family '{family}'.")
+    clean_family = str(family).replace("\r", "").replace("\n", "")
+    logger.info("Model signature validation passed for family '%s'.", clean_family)
     return True
 
 
@@ -198,7 +199,8 @@ def warmup_model(model: Any, family: str) -> None:
             f"Model artifact for family '{family}' does not expose callable inference methods for warm-up."
         )
 
-    logger.info(f"Model warm-up completed successfully for family '{family}'.")
+    clean_family = str(family).replace("\r", "").replace("\n", "")
+    logger.info("Model warm-up completed successfully for family '%s'.", clean_family)
 
 
 class ModelRegistry:
@@ -235,7 +237,7 @@ class ModelRegistry:
         }
 
     @property
-    def supported_families(self) -> Tuple[str, ...]:
+    def get_supported_families(self) -> Tuple[str, ...]:
         return self.SUPPORTED_FAMILIES
 
     def _validate_family(self, family: str) -> None:
@@ -550,7 +552,8 @@ def load_family_model(
     # Dummy model fallback for local/test
     if settings.USE_DUMMY_MODEL:
         try:
-            logger.info(f"USE_DUMMY_MODEL is enabled. Initializing in-memory dummy model for family '{family}'.")
+            clean_family = str(family).replace("\r", "").replace("\n", "")
+            logger.info("USE_DUMMY_MODEL is enabled. Initializing in-memory dummy model for family '%s'.", clean_family)
             dummy = create_dummy_model(family)
 
             # Step 3: Validate model signature
@@ -574,7 +577,8 @@ def load_family_model(
             registry.record_failure(family, f"{exc.__class__.__name__}: {str(exc)}")
             raise
 
-    logger.info(f"Connecting to MLflow Tracking Server at {uri} for family '{family}'...")
+    clean_family = str(family).replace("\r", "").replace("\n", "")
+    logger.info("Connecting to MLflow Tracking Server at %s for family '%s'...", uri, clean_family)
     mlflow.set_tracking_uri(uri)
     client = MlflowClient(tracking_uri=uri)
 
@@ -582,7 +586,14 @@ def load_family_model(
         # Step 1: Resolve alias to immutable version
         model_version_meta = client.get_model_version_by_alias(name=target_name, alias=target_alias)
         version = str(model_version_meta.version)
-        logger.info(f"Resolved model '{target_name}@{target_alias}' to version {version} for family '{family}'")
+        clean_family = str(family).replace("\r", "").replace("\n", "")
+        logger.info(
+            "Resolved model '%s@%s' to version %s for family '%s'",
+            target_name,
+            target_alias,
+            version,
+            clean_family,
+        )
 
         # Step 2: Download and load model artifact via proxy
         model_uri = f"models:/{target_name}@{target_alias}"
@@ -639,12 +650,13 @@ def load_all_models(tracking_uri: Optional[str] = None) -> Dict[str, Tuple[Any, 
     """Attempts to load all supported model families. Returns loaded models per family."""
     registry = get_model_registry()
     results = {}
-    for family in registry.supported_families:
+    for family in registry.get_supported_families:
         try:
             model, version = load_family_model(family=family, tracking_uri=tracking_uri)
             results[family] = (model, version)
         except Exception as exc:
-            logger.warning(f"Failed to load model family '{family}' ({exc.__class__.__name__}).")
+            clean_family = str(family).replace("\r", "").replace("\n", "")
+            logger.warning("Failed to load model family '%s' (%s).", clean_family, exc.__class__.__name__)
     return results
 
 
@@ -655,16 +667,20 @@ def _background_loader_loop() -> None:
     attempt = 0
 
     while not _STOP_EVENT.is_set():
-        for family in registry.supported_families:
+        for family in registry.get_supported_families:
             if not registry.is_family_startup_complete(family):
                 if not acquire_reload_guard(family):
                     continue
                 try:
                     load_family_model(family)
-                    logger.info(f"Model family '{family}' successfully loaded and warmed up by background loader.")
+                    clean_family = str(family).replace("\r", "").replace("\n", "")
+                    logger.info("Model family '%s' successfully loaded and warmed up by background loader.", clean_family)
                 except Exception as exc:
+                    clean_family = str(family).replace("\r", "").replace("\n", "")
                     logger.warning(
-                        f"Model load attempt for family '{family}' failed ({exc.__class__.__name__})."
+                        "Model load attempt for family '%s' failed (%s).",
+                        clean_family,
+                        exc.__class__.__name__,
                     )
                 finally:
                     release_reload_guard(family)
@@ -770,7 +786,7 @@ def set_cached_model(
             registry.mark_startup_complete(family, True)
     else:
         # Legacy: sets for all supported families
-        for fam in registry.supported_families:
+        for fam in registry.get_supported_families:
             registry.set_model(fam, model, version)
             if mark_started:
                 registry.mark_startup_complete(fam, True)
