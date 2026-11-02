@@ -90,6 +90,9 @@ class TransactionServiceImplTest {
     @Mock
     private RiskEvaluationClient riskEvaluationClient;
 
+    @Mock
+    private TransactionOutboxService transactionOutboxService;
+
     @InjectMocks
     private TransactionServiceImpl transactionService;
 

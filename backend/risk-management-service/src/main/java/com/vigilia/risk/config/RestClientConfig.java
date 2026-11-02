@@ -9,8 +9,10 @@ import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
+
 /**
- * HTTP client configuration for calls to the ML Serving FastAPI service.
+ * HTTP client configuration for calls to the ML Serving FastAPI service and Transaction Service.
  *
  * Timeouts are read from application.properties:
  *   risk.ml.timeout-ms         → read timeout (default 1500 ms)
@@ -70,5 +72,18 @@ public class RestClientConfig {
         return RestClient.builder()
                 .requestFactory(mlClientHttpRequestFactory)
                 .requestInterceptor(correlationIdInterceptor);
+    }
+
+    @Bean
+    public RestClient transactionRestClient(
+            RestClient.Builder restClientBuilder,
+            @Value("${vigilia.transaction-service.url:http://localhost:8083}") String transactionServiceUrl) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(5));
+        return restClientBuilder
+                .baseUrl(transactionServiceUrl)
+                .requestFactory(factory)
+                .build();
     }
 }
