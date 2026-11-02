@@ -1,0 +1,10 @@
+# data/raw/ — original, unmodified source datasets
+# All CSV files here are gitignored and must NEVER be committed.
+#
+# Shared Google Drive folder for team datasets:
+# https://drive.google.com/drive/folders/15bZjqSmw3r6nMjk7LvHG-9YaTcxtHo-9?usp=sharing
+#
+# Datasets tracked via DVC (.dvc files):
+#   fraudTrain.csv       — Sparkov training data (~1.3M rows)
+#   fraudTest.csv        — Sparkov test data (~0.55M rows)
+#   paysim_transfer.csv  — PaySim transfer data (~532k rows)

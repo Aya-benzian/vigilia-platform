@@ -52,7 +52,10 @@ Thumbs.db
 
 # ML data and generated artifacts
 ml/training/data/*
-!ml/training/data/.gitkeep
+!ml/training/data/**/
+!ml/training/data/**/.gitkeep
+!ml/training/data/**/.gitignore
+!*.dvc
 ml/training/artifacts/*
 !ml/training/artifacts/.gitkeep
 !ml/training/artifacts/*.json

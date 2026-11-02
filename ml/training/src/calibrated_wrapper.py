@@ -16,11 +16,19 @@ class CalibratedModelWrapper(BaseEstimator, ClassifierMixin):
     def __init__(self, base_model=None, calibrator=None):
         self.base_model = base_model
         self.calibrator = calibrator
-        self.classes_ = np.array([0, 1])
 
     def fit(self, X=None, y=None):
         """Fit stub to satisfy sklearn Pipeline contract."""
+        self.classes_ = np.array([0, 1])
         return self
+
+    @property
+    def classes_(self):
+        return getattr(self, "_classes", np.array([0, 1]))
+
+    @classes_.setter
+    def classes_(self, value):
+        self._classes = np.asarray(value)
 
     def __sklearn_is_fitted__(self):
         """Signal to sklearn check_is_fitted that wrapper is ready for inference."""

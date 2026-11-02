@@ -1,45 +1,63 @@
 {
   "domain": "transfer",
   "champion_model": "xgboost",
-  "feature_count": 38,
-  "raw_domain_only_pr_auc": 0.8761881672355528,
-  "raw_augmented_cross_domain_pr_auc": 0.8357755964532656,
-  "raw_pr_auc_lift": -0.040412570782287216,
-  "calibrated_domain_only_pr_auc": 0.8350500533113405,
-  "calibrated_augmented_cross_domain_pr_auc": 0.8001666603489548,
-  "calibrated_pr_auc_lift": -0.03488339296238574,
-  "test_roc_auc": 0.9996684941104886,
-  "test_brier_calibrated": 0.0007432501879520714,
+  "feature_count": 20,
+  "features": [
+    "amount",
+    "log_amount",
+    "hour_of_day",
+    "day_of_week",
+    "sender_avg_amount",
+    "sender_std_amount",
+    "sender_max_amount",
+    "amount_to_avg_ratio",
+    "sender_amount_zscore",
+    "is_new_recipient",
+    "pair_transfer_count",
+    "recipient_share",
+    "days_since_last_pair_transfer",
+    "distinct_recipients_30d",
+    "recipient_inbound_count_24h",
+    "recipient_unique_senders_24h",
+    "sender_txn_count_1h",
+    "sender_txn_count_24h",
+    "amount_to_balance_ratio",
+    "history_length"
+  ],
+  "calibrated_pr_auc": 0.8350500533113405,
+  "raw_pr_auc": 0.8761881672355528,
+  "test_roc_auc": 0.9997180471345292,
+  "test_brier_calibrated": 0.0006533596315421164,
   "candidates": {
     "logreg": {
-      "val_pr_auc": 0.19153252690668532,
-      "val_roc_auc": 0.9191532973984413,
-      "val_brier": 0.12595810972699065,
-      "fit_time_s": 0.7014622688293457
+      "val_pr_auc": 0.1688091342659759,
+      "val_roc_auc": 0.9204584356627223,
+      "val_brier": 0.318083879910198,
+      "fit_time_s": 0.19149541854858398
     },
     "rf": {
-      "val_pr_auc": 0.7737447568336623,
-      "val_roc_auc": 0.992995460296197,
-      "val_brier": 0.0038085555555555555,
-      "fit_time_s": 3.827969551086426
+      "val_pr_auc": 0.7813189396917581,
+      "val_roc_auc": 0.989383046811044,
+      "val_brier": 0.0029886540814228106,
+      "fit_time_s": 3.0358777046203613
     },
     "xgboost": {
-      "val_pr_auc": 0.97607824179541,
-      "val_roc_auc": 0.9998881553067756,
-      "val_brier": 0.0008111704373732209,
-      "fit_time_s": 1.0330047607421875
+      "val_pr_auc": 0.9766666193988863,
+      "val_roc_auc": 0.9998915574267215,
+      "val_brier": 0.0008267547818832099,
+      "fit_time_s": 0.9377286434173584
     },
     "svm": {
-      "val_pr_auc": 0.1789797589160612,
-      "val_roc_auc": 0.9184911598039529,
-      "val_brier": 0.1445368576765612,
-      "fit_time_s": 3.1961779594421387
+      "val_pr_auc": 0.1622058805056518,
+      "val_roc_auc": 0.9187943737441394,
+      "val_brier": 0.22902561667633764,
+      "fit_time_s": 0.8093903064727783
     },
     "mlp": {
-      "val_pr_auc": 0.0460783094362781,
-      "val_roc_auc": 0.8703941143324935,
-      "val_brier": 0.0046693350142714245,
-      "fit_time_s": 7.446134328842163
+      "val_pr_auc": 0.1507915804664074,
+      "val_roc_auc": 0.8869845522491202,
+      "val_brier": 0.004666066862602823,
+      "fit_time_s": 8.998165607452393
     }
   }
 }

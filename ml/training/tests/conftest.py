@@ -13,7 +13,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from config import ARTIFACTS_DIR
-from cross_domain_features import PURCHASE_COLUMNS_48, TRANSFER_COLUMNS_38
+from cross_domain_features import PURCHASE_COLUMNS_29, TRANSFER_COLUMNS_20
 
 
 def _artifacts_missing() -> bool:
@@ -31,8 +31,8 @@ def synthetic_artifacts():
         return
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     for domain, cols in [
-        ("purchase", PURCHASE_COLUMNS_48),
-        ("transfer", TRANSFER_COLUMNS_38),
+        ("purchase", PURCHASE_COLUMNS_29),
+        ("transfer", TRANSFER_COLUMNS_20),
     ]:
         X = pd.DataFrame(np.random.randn(250, len(cols)), columns=cols)
         y = np.random.randint(0, 2, 250)

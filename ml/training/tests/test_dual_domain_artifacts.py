@@ -23,7 +23,7 @@ SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from cross_domain_features import PURCHASE_COLUMNS_48, TRANSFER_COLUMNS_38
+from cross_domain_features import PURCHASE_COLUMNS_29, TRANSFER_COLUMNS_20
 from calibrated_wrapper import CalibratedModelWrapper
 from config import ARTIFACTS_DIR
 
@@ -75,14 +75,14 @@ def test_feature_spec_counts_and_keys(feature_spec):
     purchase_items = feature_spec["purchase"]["features"]
     transfer_items = feature_spec["transfer"]["features"]
 
-    assert len(purchase_items) == 48, f"Expected 48 purchase features, got {len(purchase_items)}"
-    assert len(transfer_items) == 38, f"Expected 38 transfer features, got {len(transfer_items)}"
+    assert len(purchase_items) == 29, f"Expected 29 purchase features, got {len(purchase_items)}"
+    assert len(transfer_items) == 20, f"Expected 20 transfer features, got {len(transfer_items)}"
 
     purchase_names = [f["name"] for f in purchase_items]
     transfer_names = [f["name"] for f in transfer_items]
 
-    assert purchase_names == PURCHASE_COLUMNS_48
-    assert transfer_names == TRANSFER_COLUMNS_38
+    assert purchase_names == PURCHASE_COLUMNS_29
+    assert transfer_names == TRANSFER_COLUMNS_20
 
 
 def test_golden_rows_counts_and_keys(golden_purchase, golden_transfer):
@@ -91,11 +91,11 @@ def test_golden_rows_counts_and_keys(golden_purchase, golden_transfer):
 
     # Check first row has expected feature schema
     row_p = golden_purchase[0]
-    for col in PURCHASE_COLUMNS_48:
+    for col in PURCHASE_COLUMNS_29:
         assert col in row_p, f"Missing {col} in purchase golden row"
 
     row_t = golden_transfer[0]
-    for col in TRANSFER_COLUMNS_38:
+    for col in TRANSFER_COLUMNS_20:
         assert col in row_t, f"Missing {col} in transfer golden row"
 
 
@@ -134,11 +134,11 @@ def test_benchmark_summaries_exist_and_valid():
         t_sum = json.load(f)
 
     assert p_sum["domain"] == "purchase"
-    assert p_sum["feature_count"] == 48
+    assert p_sum["feature_count"] == 29
     assert p_sum["champion_model"] == "xgboost"
-    assert "calibrated_pr_auc_lift" in p_sum
+    assert "calibrated_pr_auc" in p_sum
 
     assert t_sum["domain"] == "transfer"
-    assert t_sum["feature_count"] == 38
+    assert t_sum["feature_count"] == 20
     assert t_sum["champion_model"] == "xgboost"
-    assert "calibrated_pr_auc_lift" in t_sum
+    assert "calibrated_pr_auc" in t_sum
