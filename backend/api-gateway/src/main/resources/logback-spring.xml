@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="api-gateway"/>
+
+    <!-- ======================================================================
+         PROFILE: dev — Human-readable console output with correlation ID
+         ====================================================================== -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [${SERVICE_NAME}] [%X{correlationId:-N/A}] %cyan(%logger{36}) — %msg%n</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <!-- Réduction du bruit en développement -->
+        <logger name="org.springframework.cloud.gateway" level="DEBUG"/>
+        <logger name="org.springframework.web" level="DEBUG"/>
+        <logger name="com.vigilia" level="DEBUG"/>
+    </springProfile>
+
+    <!-- ======================================================================
+         PROFILE: default (non-dev) — Structured JSON output for production
+         ====================================================================== -->
+    <springProfile name="!dev">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Include MDC fields (correlationId) automatically -->
+                <includeMdcKeyName>correlationId</includeMdcKeyName>
+
+                <!-- Custom static fields -->
+                <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+
+                <!-- ISO-8601 timestamp -->
+                <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSZ</timestampPattern>
+
+                <!-- Include caller info only for ERROR level -->
+                <includeCallerData>false</includeCallerData>
+
+                <!-- Short logger name -->
+                <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+
+        <!-- Application logging -->
+        <logger name="com.vigilia" level="INFO"/>
+
+        <!-- Reduce framework noise in production -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.springframework.cloud.gateway" level="INFO"/>
+        <logger name="io.micrometer" level="WARN"/>
+        <logger name="reactor.netty" level="WARN"/>
+        <logger name="io.netty" level="WARN"/>
+        <logger name="io.github.resilience4j" level="INFO"/>
+    </springProfile>
+
+</configuration>
