@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
     <groupId>com.vigilia</groupId>
@@ -16,8 +16,8 @@
     <description>Authentication and authorization service for Vigilia</description>
     <properties>
         <java.version>21</java.version>
-        <springdoc.version>2.6.0</springdoc.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <springdoc.version>3.2.0</springdoc.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
     <dependencies>
         <!-- Sécurité Spring Security -->
@@ -91,7 +91,7 @@
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
+            <version>9.0</version>
         </dependency>
 
         <!-- Santé et métriques -->
@@ -130,7 +130,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.16</version>
                 <executions>
                     <execution>
                         <goals>
