@@ -63,6 +63,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final WalletService walletService;
     private final IdempotencyService idempotencyService;
     private final RiskEvaluationClient riskEvaluationClient;
+    private final TransactionOutboxService transactionOutboxService;
 
     public TransactionServiceImpl(
             TransactionRepository transactionRepository,
@@ -73,7 +74,8 @@ public class TransactionServiceImpl implements TransactionService {
             MerchantRepository merchantRepository,
             WalletService walletService,
             IdempotencyService idempotencyService,
-            RiskEvaluationClient riskEvaluationClient) {
+            RiskEvaluationClient riskEvaluationClient,
+            TransactionOutboxService transactionOutboxService) {
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
         this.transferRepository = transferRepository;
@@ -83,6 +85,7 @@ public class TransactionServiceImpl implements TransactionService {
         this.walletService = walletService;
         this.idempotencyService = idempotencyService;
         this.riskEvaluationClient = riskEvaluationClient;
+        this.transactionOutboxService = transactionOutboxService;
     }
 
     @Override
@@ -293,6 +296,7 @@ public class TransactionServiceImpl implements TransactionService {
                 txn.setStatus(RiskStatus.APPROVED.name());
                 txn.setFinalizedAt(Instant.now());
                 recordStatusHistory(txn.getId(), "PENDING", "APPROVED", reason, "SYSTEM", "system");
+                transactionOutboxService.publishTransactionCompleted(txn, RiskStatus.APPROVED, null);
                 log.info("Transaction validée et réglée [id={}, type={}, amount={}]", txn.getId(), txn.getTransactionType(), amount);
             }
             case REJECTED -> {
@@ -303,6 +307,7 @@ public class TransactionServiceImpl implements TransactionService {
                 txn.setStatus(RiskStatus.REJECTED.name());
                 txn.setFinalizedAt(Instant.now());
                 recordStatusHistory(txn.getId(), "PENDING", "REJECTED", reason, "SYSTEM", "system");
+                transactionOutboxService.publishTransactionCompleted(txn, RiskStatus.REJECTED, null);
                 log.warn("Transaction rejetée et fonds restitués [id={}, type={}, reason={}]", txn.getId(), txn.getTransactionType(), reason);
             }
             case PENDING_REVIEW -> {
@@ -359,6 +364,7 @@ public class TransactionServiceImpl implements TransactionService {
         TransactionEntity saved = transactionRepository.save(txn);
 
         recordStatusHistory(txn.getId(), fromStatus, decision.name(), reason, "ANALYST", analystId);
+        transactionOutboxService.publishTransactionResolved(saved, decision, reason, analystId, null);
         log.info("Décision analyste appliquée [txnId={}, fromStatus={}, toStatus={}, analyst={}]",
                 txn.getId(), fromStatus, decision.name(), analystId);
 
