@@ -161,11 +161,15 @@ class AuthPostgresIntegrationTest {
         assertThatThrownBy(() -> authService.login(badLoginRequest, "192.168.1.100", "trace-bad-login"))
                 .isInstanceOf(AuthenticationFailedException.class);
 
-        // Audit de tentative échouée enregistré
+        // Audit des tentatives (1 réussie + 1 échouée) enregistré
         List<LoginAttemptEntity> attempts = loginAttemptRepository.findAll();
-        assertThat(attempts).isNotEmpty();
-        assertThat(attempts.get(0).getEmail()).isEqualTo(email);
-        assertThat(attempts.get(0).getWasSuccessful()).isFalse();
+        assertThat(attempts).hasSize(2);
+        LoginAttemptEntity failedAttempt = attempts.stream()
+                .filter(a -> !a.getWasSuccessful())
+                .findFirst()
+                .orElseThrow();
+        assertThat(failedAttempt.getEmail()).isEqualTo(email);
+        assertThat(failedAttempt.getFailureReason()).isEqualTo("INVALID_CREDENTIALS");
     }
 
     @Test
