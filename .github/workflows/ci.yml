@@ -60,7 +60,7 @@ jobs:
 
     steps:
       - name: Checkout (full history to catch secrets in all commits)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -92,7 +92,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -134,7 +134,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -180,7 +180,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -225,7 +225,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -266,12 +266,12 @@ jobs:
 
     steps:
       - name: Checkout (full history for blame & SCM info)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download all backend JAR artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           # Pattern matches all <service>-jar artifacts uploaded by the backend job
           pattern: "*-jar"
@@ -286,21 +286,21 @@ jobs:
           path: backend-coverage
 
       - name: Download Python ML training coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: ml-training-coverage
           path: ml/training
 
       - name: Download Python ML serving coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: ml-serving-coverage
           path: ml/serving
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarcloud-github-action@v5
         with:
           # Strict gate (wait=true) ONLY for main branch (production baseline)
           # Relaxed/informative mode (wait=false) on develop and feature branches
@@ -353,7 +353,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -451,7 +451,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

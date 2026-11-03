@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
@@ -112,7 +112,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run Trivy config scan
         uses: aquasecurity/trivy-action@v0.36.0
