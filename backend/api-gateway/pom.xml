@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
     <groupId>com.vigilia</groupId>
@@ -17,9 +17,9 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-cloud.version>2023.0.3</spring-cloud.version>
-        <springdoc.version>2.6.0</springdoc.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <spring-cloud.version>2025.1.4</spring-cloud.version>
+        <springdoc.version>3.2.0</springdoc.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <dependencyManagement>
@@ -83,7 +83,7 @@
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
+            <version>9.0</version>
         </dependency>
 
         <!-- Santé et métriques Actuator -->
@@ -118,7 +118,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.16</version>
                 <executions>
                     <execution>
                         <goals>
