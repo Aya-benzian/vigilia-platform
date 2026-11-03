@@ -58,7 +58,7 @@ public class OutboxEventRelayService {
         }
 
         List<OutboxEventEntity> pendingEvents = outboxEventRepository
-                .findByStatusAndNextAttemptAtBeforeOrderByCreatedAtAsc("PENDING", Instant.now());
+                .findByStatusAndNextAttemptAtBeforeOrderByCreatedAtAsc("PENDING", Instant.now().plusMillis(500));
 
         if (pendingEvents.isEmpty()) {
             return;
