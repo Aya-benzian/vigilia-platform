@@ -24,6 +24,11 @@
 16. [Master Conception & Cahier des Charges Roadmap](#16-master-conception--cahier-des-charges-roadmap)
 17. [Pipeline Verification vs Heavy Training Execution](#17-pipeline-verification-vs-heavy-training-execution)
 18. [Understanding MLflow, Docker & The Live Results Dashboard](#18-understanding-mlflow-docker--the-live-results-dashboard)
+19. [Session 4 Progress Log — Phase 2 Optuna Tuning Complete & Frozen Parameters](#19-session-4-progress-log--phase-2-optuna-tuning-complete--frozen-parameters-2026-10-18)
+20. [Session 5 Progress Log — Phases 3–7 Complete: Full Training Pipeline, Champion Elected & MLflow Registry](#20-session-5-progress-log--phases-37-complete-full-training-pipeline-champion-elected--mlflow-registry-2026-10-18)
+21. [Sparkov Feature Engineering & 22-Column Breakdown](#21-sparkov-feature-engineering--22-column-breakdown)
+22. [Dual-Domain ML Architecture & Cross-Domain Feature Benchmark](#22-dual-domain-ml-architecture--cross-domain-feature-benchmark-2026-10-26)
+23. [Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture](#23-academic-supervisor-directive-strict-domain-isolation--decoupled-model-architecture-2026-10-29)
 
 ---
 
@@ -590,6 +595,281 @@ This guarantees 100% containerized execution with direct network connection to `
 - Tracking URI verified active at `http://localhost:5000`.
 - MLflow web dashboard confirmed live in browser with `vigilia-smoke-test` experiment visible.
 - When `tune` is executed, the `fraud-sparkov-tuning` experiment appears in real-time with each model's trial results.
+
+---
+
+## 19. Session 4 Progress Log — Phase 2 Optuna Tuning Complete & Frozen Parameters (2026-10-18)
+
+### 1. Optuna Hyperparameter Optimization Execution
+- **Strategy**: 30 trials per model evaluated on 3-fold stratified cross-validation over the tuning subsample ($N=100,000$ transactions from Split A). Objective metric: PR-AUC (`average_precision`).
+- **All 5 Models Tuned and Logged to MLflow** (`fraud-sparkov-tuning`, Experiment ID 2):
+
+| Model | Optuna Best PR-AUC | Optimal Hyperparameters Selected | Execution Time |
+|---|:---:|---|:---:|
+| **XGBoost** | **0.9508** 🏆 | `learning_rate=0.0524`, `max_depth=7`, `n_estimators=415`, `subsample=0.741`, `colsample_bytree=0.681`, `reg_lambda=0.0130`, `scale_pos_weight=99.4` | ~2.2 h |
+| **Random Forest** | **0.9194** | `n_estimators=462`, `max_depth=24`, `min_samples_leaf=1`, `max_features=0.3` | ~11.3 h |
+| **MLP (Neural Net)** | **0.8785** | `hidden_layer_sizes=(128, 128, 128)`, `alpha=9.28e-5`, `learning_rate_init=0.00385` | ~8.0 h |
+| **SVM (RBF)** | **0.5965** | `C=29.94`, `gamma='scale'` (on $N=10,000$ subsample) | ~3.5 min |
+| **Logistic Regression** | **0.3379** | `penalty='l2'`, `C=0.00158`, `solver='lbfgs'` | ~26.7 min |
+
+### 2. Engineering Hardening & Bug Fixes
+- **Stratified Subsampling Fix**: In `src/tune.py`, the initial call `stratified_subsample(X_tune, ...)` threw a `KeyError: 'is_fraud'` because the target column had been extracted prior to passing features. Fixed cleanly using `sklearn.model_selection.train_test_split(..., stratify=y_tune)`.
+- **MLflow Resumption & Idempotence**: Added `_get_cached_params(model_name)` in `src/tune.py`. If a model's tuning run is already marked `FINISHED` in MLflow, its parameters are loaded directly from the tracking server without re-computing 20+ hours of CPU calculation.
+- **Artifact Export**: Generated and persisted `ml/training/artifacts/best_params.json` containing the frozen hyperparameter dictionary for all five models.
+
+### 3. Pipeline Status at End of Phase 2
+- Phase 1 (Data & Features): ✅ Complete
+- Phase 2 (Optuna Tuning): ✅ Complete (`artifacts/best_params.json` created)
+
+---
+
+## 20. Session 5 Progress Log — Phases 3–7 Complete: Full Training Pipeline, Champion Elected & MLflow Registry (2026-10-18)
+
+### 1. Phase 3: Cross-Validation & Model Comparison
+We executed both cross-validation regimes on the $N=150,000$ comparison subsample from Split A:
+1. **Repeated Stratified K-Fold (5 repeats × 10 folds = 50 folds total)**:
+   - Evaluates pure discriminative ability across distinct sample splits.
+2. **Stratified Group K-Fold (5 folds grouped by `cc_num`)**:
+   - Evaluates generalization to entirely unseen cardholders (zero credit card overlap between train and test folds).
+
+| Model | 50-Fold Repeated Stratified PR-AUC | 5-Fold Stratified Group PR-AUC (by `cc_num`) | Rank | Status |
+|---|:---:|:---:|:---:|:---:|
+| **XGBoost** | **0.9547 ± 0.0078** | **0.8719 ± 0.0312** | **1** 🏆 | Statistically superior |
+| **Random Forest** | **0.9199 ± 0.0105** | **0.8985 ± 0.0200** | 2 | Strong generalization |
+| **MLP (Neural Net)** | **0.8856 ± 0.0181** | **0.8707 ± 0.0193** | 3 | Competitive |
+| **Logistic Regression** | **0.2841 ± 0.0260** | **0.2673 ± 0.0464** | 4 | Linear limitation |
+| **SVM (LinearSVC)** | **0.2175 ± 0.0221** | **0.2023 ± 0.0350** | 5 | Linear baseline |
+| **Dummy (Prior)** | **0.0092 ± 0.0001** | **0.0092 ± 0.0001** | 6 | Naive baseline |
+
+*Logged to MLflow Experiment 3 (`fraud-sparkov-compare`). Results saved to `ml/training/artifacts/cv_results.pkl`.*
+
+### 2. Phase 4: Statistical Hypothesis Testing
+Rigorous statistical tests conducted following the Demšar (2006) protocol:
+- **Omnibus Friedman Test**:
+  - $\chi^2 = 250.0000$, $p = 5.50 \times 10^{-52} \ll 0.05$.
+  - Rejects the null hypothesis of equal performance across models with overwhelming confidence.
+- **Post-Hoc Pairwise Wilcoxon Signed-Rank Test with Holm-Bonferroni Correction**:
+  - Comparison between top-ranked XGBoost and all other candidates:
+    - XGBoost vs Random Forest: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs MLP: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs Logistic Regression: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs SVM: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+    - XGBoost vs Dummy: $p = 2.66 \times 10^{-14} < 0.05$ (Statistically Significant)
+- **Effect Sizes (Cohen's d relative to XGBoost)**:
+  - Random Forest: $d = -3.73$ (Very large practical gap)
+  - MLP: $d = -4.90$
+  - LogReg: $d = -34.54$
+  - SVM: $d = -44.03$
+  - Dummy: $d = -169.33$
+- **Artifacts Generated**:
+  - `reports/tables/ci_effect_sizes.csv`
+  - `reports/tables/wilcoxon_holm_pvalues.csv`
+  - `reports/figures/ci_barchart.png`
+  - `reports/figures/cv_distributions.png`
+  - *Logged to MLflow Experiment 4 (`stats_tests`).*
+
+### 3. Phase 5: Automated Model Selection Rule
+Applying the pre-committed multi-criteria selection rule:
+1. Candidate with highest mean PR-AUC: `xgboost` (mean = $0.9547$).
+2. Tied set: Models with Holm-adjusted $p \ge 0.05$ or $|PR\text{-}AUC - 0.9547| \le 0.005$:
+   - Tied set: `['xgboost']` (No other model is within margin or statistically tied).
+3. **Official Champion Elected**: **`xgboost`**. Persisted to `ml/training/artifacts/selected_model.txt`.
+
+### 4. Phase 6: Probability Calibration & Operating Threshold Selection
+- **Part A Retraining**: Fitted Champion XGBoost with frozen Optuna parameters on full Part A ($1,037,340$ transactions).
+- **Part B Calibration**:
+  - Applied Isotonic Regression via `CalibratedClassifierCV(FrozenEstimator(pipe), method="isotonic")` on Part B ($129,667$ transactions).
+  - **Brier Score on Part B**: **$0.0012$** (Near-perfect reliability curve).
+  - Figure generated: `reports/figures/reliability_curve.png`.
+- **Part C Threshold Selection**:
+  - Optimized threshold to maximize $F_2$ score (weighting Recall $2\times$ over Precision to penalize missed frauds) on Part C ($129,668$ transactions).
+  - **Optimal Operating Threshold**: **$0.1948$** ($F_2 = 0.8611$, $F_1 = 0.8313$).
+  - Figure generated: `reports/figures/pr_curve_part_c.png`.
+  - Saved: `ml/training/artifacts/calibrated_pipeline.pkl` and `ml/training/artifacts/threshold.txt`.
+
+### 5. Phase 7: Final Test Set Evaluation (`fraudTest.csv` — Run ONCE)
+Evaluated once on untouched test set ($555,719$ real transactions, $2,145$ frauds):
+
+| Metric | Test Set Value | Business Interpretation |
+|---|:---:|---|
+| **PR-AUC** | **0.8624** | Primary metric (~$223\times$ lift over random base rate $0.0039$) |
+| **ROC-AUC** | **0.9966** | Exceptional ranking discrimination |
+| **F1 Score** | **0.7593** | Harmonic mean of precision & recall |
+| **F2 Score** | **0.8025** | Prioritizes fraud capture ($2\times$ weight on recall) |
+| **Recall (Sensitivity)** | **83.40%** | Caught $1,789$ out of $2,145$ fraudulent transactions |
+| **Precision** | **69.69%** | Less than 1 in 3 flagged alerts are false alarms |
+| **Specificity** | **99.86%** | Extremely low customer friction for legitimate transactions |
+| **Matthews Corr (MCC)**| **0.7614** | Balanced correlation across severe imbalance |
+| **Brier Score** | **0.0011** | Superbly calibrated probabilities for downstream serving |
+| **Confusion Matrix** | **TP=1,789 \| FP=778 \| FN=356 \| TN=552,796** | Missed only 356 frauds out of 555k transactions |
+| **Serving Latency** | **35.83 ms / sample** | Sub-100ms real-time SLA satisfied |
+
+*Saved to `ml/training/artifacts/test_metrics.json`, `reports/tables/final_test_metrics.csv`, and `reports/figures/confusion_matrix_test.png`.*
+
+### 6. MLflow Model Registry Champion Export (Contract 10)
+- Registered Model Name: `fraud-model`
+- Version: `1`
+- Model Alias: `@champion`
+- Serialization Format: Cloudpickle (encapsulates XGBoost + Scikit-Learn CalibratedClassifierCV)
+- Verified Member 3 serving retrieval:
+  ```python
+  import mlflow.sklearn
+  model = mlflow.sklearn.load_model("models:/fraud-model@champion")
+  ```
+
+### 7. Complete Artifact Hand-off Inventory
+All artifacts required by Members 2, 3, 4, and 5 are fully generated and validated:
+
+| File | Size | Destination / Consumer | Description |
+|---|:---:|:---:|---|
+| `artifacts/calibrated_pipeline.pkl` | 2.89 MB | Member 3 (ML Serving) | Calibrated Champion XGBoost pipeline |
+| `artifacts/threshold.txt` | 19 B | Member 3 (ML Serving) | Operating threshold ($0.1948$) |
+| `artifacts/feature_spec.json` | 2.2 KB | Member 2 & 3 (Contract 1) | Raw fields, types, ranges & engineered features |
+| `artifacts/model_card.json` | 975 B | Member 2 & 4 (Doc §15) | Model card with performance, matrix & limitations |
+| `artifacts/test_metrics.json` | 497 B | Member 1 & Team | Final evaluation numbers on `fraudTest.csv` |
+| `artifacts/test_predictions.parquet` | 46.7 MB | Member 2 (Explainability) | 555k test rows + labels + calibrated scores + predictions for UMAP/t-SNE |
+| `artifacts/scores_part_b.parquet` | 12.1 MB | Member 2 (Explainability) | 129k rows Part B for Conformal Prediction |
+| `artifacts/scores_part_c.parquet` | 12.1 MB | Member 2 & 3 | 129k rows Part C for threshold & abstention studies |
+| `artifacts/best_params.json` | 687 B | Member 1 & Audit | Frozen Optuna hyperparameters for all 5 models |
+| `artifacts/cv_results.pkl` | 3.2 KB | Member 1 & Audit | 50-fold repeated CV & 5-fold group CV scores |
+| `artifacts/selected_model.txt` | 7 B | Member 1 & Audit | Contains `"xgboost"` |
+| `reports/figures/*.png` | ~250 KB | Team & Final Report | 5 publication-quality figures (CV, PR, Reliability, CM, Effect Sizes) |
+| `reports/tables/*.csv` | ~2 KB | Team & Final Report | 3 summary tables (Metrics, Wilcoxon p-values, Effect sizes) |
+
+---
+**Status**: Member 1 ML Training Pipeline is **100% COMPLETE**. Ready for commit and review!
+
+---
+
+## 21. Sparkov Feature Engineering & 22-Column Breakdown
+
+### 21.1 Overview: Logic vs. Memorization ("Stupid Training")
+A fundamental question in fraud detection ML is: **Why did we not use all 22 raw columns in the Sparkov dataset?**
+
+Dumping raw database columns into an ML model causes **noise memorization (overfitting)** rather than **behavioral learning (generalization)**:
+* If the model sees individual customer names or street addresses, it simply memorizes *"Alice on Oak Street is a fraudster"*, which is useless for detecting new, unseen fraud.
+* By dropping identifiers and engineering **behavioral features**, we force the model to learn **fraud logic**: anomalous transaction amounts, suspicious hours, uncharacteristic physical distances, and merchant category risks.
+
+### 21.2 The Exact Breakdown of the 22 Raw Columns
+
+| Category | Count | Columns | Role & Purpose |
+|---|:---:|---|---|
+| **Raw Columns Used to Engineer Features** | **10** | `trans_date_trans_time`, `amt`, `category`, `gender`, `dob`, `lat`, `long`, `city_pop`, `merch_lat`, `merch_long` | Transformed via `ColumnTransformer` into **9 clean behavioral features** ($X$). |
+| **Target Variable ($y$)** | **1** | `is_fraud` | Ground truth label ($0 = \text{Legitimate}, 1 = \text{Fraud}$). What the model learns to predict. |
+| **Cross-Validation Group Key** | **1** | `cc_num` | Credit card number. Used strictly in `StratifiedGroupKFold` so the same card never appears in both train and validation folds (prevents data leakage). Never fed as an input feature. |
+| **Completely Dropped Columns** | **10** | `trans_num`, `first`, `last`, `street`, `city`, `state`, `zip`, `job`, `merchant`, `unix_time` | Eliminated to prevent overfitting, high dimensionality, redundancy, and privacy violations. |
+| **Total Raw Columns** | **22** | | Full schema in `fraudTrain.csv` / `fraudTest.csv`. |
+
+### 21.3 The 9 Final Features Fed to the Models ($X$)
+
+From the 10 raw columns, the preprocessing pipeline (`src/preprocess.py`) constructs **7 numeric** and **2 categorical** features:
+
+1. **`amt_log`** ($\text{Numeric}$): $\log(1 + \text{amt})$. Compresses the heavy right-tail skew of monetary amounts.
+2. **`hour`** ($\text{Numeric}$): Extracted transaction hour ($0\text{--}23$) from `trans_date_trans_time`. Captures diurnal fraud spikes.
+3. **`dow`** ($\text{Numeric}$): Day of the week ($0 = \text{Monday}, 6 = \text{Sunday}$). Captures weekday vs. weekend patterns.
+4. **`is_night`** ($\text{Numeric}$): Binary flag ($1$ if hour $\in [0, 5]$, else $0$). High-risk overnight window.
+5. **`distance_km`** ($\text{Numeric}$): Great-circle distance (Haversine formula) computed from cardholder coordinates (`lat`, `long`) to merchant coordinates (`merch_lat`, `merch_long`). Highlights physically implausible transactions.
+6. **`age`** ($\text{Numeric}$): Cardholder age at transaction time: $(\text{trans\_date} - \text{dob}) / 365.25$.
+7. **`city_pop_log`** ($\text{Numeric}$): $\log(1 + \text{city\_pop})$. Proxy for population density (rural vs. major metro).
+8. **`category`** ($\text{Categorical}$): One-hot encoded spending category (e.g. `grocery_pos`, `shopping_net`, `gas_transport`) with `handle_unknown="ignore"`.
+9. **`gender`** ($\text{Categorical}$): Binary encoded cardholder gender (`M` / `F`).
+
+### 21.4 Why the 10 Columns Were Dropped
+
+1. **Personal Identifiers (PII) & Overfitting (`first`, `last`, `street`, `trans_num`)**:
+   - Unique identifiers have zero predictive power for new transactions. If left in, tree models split on names and addresses, producing severe overfitting.
+   - GDPR / privacy compliance: Real-time ML serving APIs should only consume minimal necessary transaction fields.
+2. **Cardinality Explosion (`merchant`, `job`)**:
+   - `merchant` contains thousands of individual shop names. One-hot encoding them creates a massive, sparse matrix that drastically slows down training and degrades generalization. The aggregated `category` captures the risk profile cleanly.
+   - `job` contains hundreds of free-text titles that do not generalize across cardholders.
+3. **Feature Redundancy (`city`, `state`, `zip`, `unix_time`)**:
+   - `city`, `state`, and `zip` are already represented more accurately and continuously by exact GPS coordinates (`lat`, `long`) and `city_pop`.
+   - `unix_time` is mathematically identical to `trans_date_trans_time`.
+
+---
+
+## 22. Dual-Domain ML Architecture & Cross-Domain Feature Benchmark (2026-10-26)
+
+### 22.1 Architecture Overview & Canonical Contracts
+To satisfy the updated Vigilia Conception architecture, the ML Training module was upgraded from single-domain purchase detection to **Dual-Domain Fraud Detection**:
+1. **Purchase Domain (`purchase-v2`)**: Evaluates point-of-sale and e-commerce card purchases using **48 canonical point-in-time features**, incorporating linked transfer behavior (inbound transfers, balance draining, cross-domain velocity).
+2. **Transfer Domain (`transfer-v2`)**: Evaluates peer-to-peer and bank transfers using **38 canonical point-in-time features**, incorporating linked purchase behavior (cross-domain purchase velocity, recent high-risk merchant purchases).
+3. **Machine-Readable Contract**: `artifacts/feature_spec.json` defines exact schemas, types, and cold-start sentinels ($2,592,000\,\text{s}$ / $30\,\text{days}$).
+4. **Java Parity Golden Rows**: Generated $250$ golden rows per domain (`golden_rows_purchase.json` & `golden_rows_transfer.json`) to verify that the Java backend engine matches Python feature calculations to within $10^{-6}$.
+
+### 22.2 Transfer Dataset (PaySim Integration & Leakage Elimination)
+- Streamed and filtered `theman10/paysim` from Hugging Face into `data/raw/paysim_transfer.csv`.
+- Filtered to $532,909$ clean `TRANSFER` rows with an authentic fraud prevalence of $0.7688\%$.
+- **Target Leakage Remediation**: Dropped post-transaction fields (`newbalanceOrig`, `newbalanceDest`) because the synthetic simulator creates arithmetic artifacts ($old - amt \neq new$) that trivialized fraud prediction. Kept only pre-transaction `oldbalanceOrg` and point-in-time ledger history.
+
+### 22.3 Candidate Model Benchmark Results
+
+Chronological split: $60\%$ Train ($90,000$), $10\%$ Calibration ($15,000$), $15\%$ Validation ($22,500$), $15\%$ Independent Test ($22,500$).
+
+#### Purchase Domain (48 Features)
+| Model | Val PR-AUC | Val ROC-AUC | Val Brier Score | Fit Time | Status |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **XGBoost (Gradient Boosting)** | **0.9633** | **0.9992** | **0.0008** | **1.40s** | **Elected Champion** |
+| Random Forest | 0.8972 | 0.9928 | 0.0030 | 4.73s | Candidate |
+| Multi-Layer Perceptron (MLP) | 0.8412 | 0.9440 | 0.0023 | 8.68s | Candidate |
+| Support Vector Machine (LinearSVC) | 0.4194 | 0.9338 | 0.0693 | 1.49s | Baseline |
+| Logistic Regression | 0.3678 | 0.9457 | 0.0170 | 0.64s | Baseline |
+
+#### Transfer Domain (38 Features)
+| Model | Val PR-AUC | Val ROC-AUC | Val Brier Score | Fit Time | Status |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **XGBoost (Gradient Boosting)** | **0.9761** | **0.9999** | **0.0008** | **1.32s** | **Elected Champion** |
+| Random Forest | 0.7737 | 0.9930 | 0.0038 | 3.91s | Candidate |
+| Logistic Regression | 0.1915 | 0.9192 | 0.1260 | 0.70s | Baseline |
+| Support Vector Machine (LinearSVC) | 0.1790 | 0.9185 | 0.1445 | 3.37s | Baseline |
+| Multi-Layer Perceptron (MLP) | 0.0461 | 0.8704 | 0.0047 | 7.67s | Candidate |
+
+### 22.4 Ablation Study & Cross-Domain Feature Lift (Independent Test Set)
+
+Evaluated the champion XGBoost model with domain-only baseline features vs. full augmented cross-domain features on the unseen $22,500$-row chronological test set:
+
+| Domain | Baseline Features | Augmented Features | Metric | Domain-Only | Cross-Domain Augmented | Net Lift |
+|---|:---:|:---:|---|:---:|:---:|:---:|
+| **Purchase** | 29 | 48 | **Raw PR-AUC** | 0.9531 | **0.9659** | **+1.28%** |
+| **Purchase** | 29 | 48 | **Calibrated PR-AUC** | 0.9293 | **0.9524** | **+2.32%** |
+| **Purchase** | 29 | 48 | **Brier Error** | 0.0016 | **0.0012** | **-25.0% error** |
+| **Transfer** | 20 | 38 | **Raw PR-AUC** | 0.8762 | **0.8358** | -4.04% |
+| **Transfer** | 20 | 38 | **Calibrated PR-AUC** | 0.8351 | **0.8002** | -3.49% |
+| **Transfer** | 20 | 38 | **ROC-AUC** | 0.9997 | **0.9997** | 0.00% |
+
+> **Key Finding**: In the Purchase domain, cross-domain transfer signals (such as incoming transfers followed rapidly by high-value purchases and wallet draining) provide a significant boost of **+2.32% in calibrated PR-AUC** and reduce Brier calibration loss by **25%**. In the Transfer domain, transfer-specific velocity and balance signals dominate prediction, with the dual model maintaining robust detection ($0.9997$ ROC-AUC, $0.8002$ PR-AUC).
+
+### 22.5 Saved Champion Pipelines & Contracts (Historical Baseline)
+- Previously benchmarked in ablation study.
+
+---
+
+## 23. Academic Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture (2026-10-29)
+
+### 23.1 Motivation & Supervisor Alignment
+Following direct instruction from the academic supervisor (*encadrant*), the platform enforces **Strict Domain Isolation**:
+1. **Zero Cross-Domain Communication**: The Purchase and Transfer models are completely decoupled. 
+   - `purchase-fraud-model` consumes strictly purchase transactions, merchant properties, and cardholder home geography (Sparkov).
+   - `transfer-fraud-model` consumes strictly transfer transactions, sender history, recipient/mule indicators, and liquid account balance ratios (PaySim).
+2. **Scientific Cleanliness**: Eliminates artificial entity linkage between two independent research datasets (Sparkov and PaySim).
+3. **Microservice Loose Coupling**: Simplifies backend Java feature calculation by eliminating cross-domain database queries and joins.
+
+### 23.2 Canonical Feature Breakdown (Strictly Decoupled)
+
+| Domain | Dataset | Isolated Features | Key Signals | Champion Model | Test PR-AUC | Test ROC-AUC |
+|---|---|:---:|---|:---:|:---:|:---:|
+| **Purchase** | Sparkov | **29** | Amount, diurnal/weekly time, Haversine distance to merchant, city population, merchant category, customer historical amount stats, rolling purchase velocity (1h, 24h, 7d), novelty flags. | **XGBoost (Calibrated)** | **0.9293** (Raw: 0.9531) | **0.9987** |
+| **Transfer** | PaySim | **20** | Amount, time step, sender historical amount stats, balance drainage ratio (`amount / oldbalanceOrg`), rolling sender velocity (1h, 24h), pair transfer history, money mule fan-in indicators (`recipient_unique_senders_24h`). | **XGBoost (Calibrated)** | **0.8351** (Raw: 0.8762) | **0.9997** |
+
+### 23.3 Updated Artifacts & Contracts
+- `artifacts/feature_spec.json`: Machine-readable schemas specifying exactly 29 purchase and 20 transfer features with cold-start sentinels.
+- `artifacts/purchase_champion_pipeline.pkl`: Serialized XGBoost pipeline with Isotonic probability calibration (29 features).
+- `artifacts/transfer_champion_pipeline.pkl`: Serialized XGBoost pipeline with Isotonic probability calibration (20 features).
+- `artifacts/golden_rows_purchase.json` & `artifacts/golden_rows_transfer.json`: 250 golden test fixtures per domain matching the exact 29 / 20 feature contracts for Java parity verification.
+- **Test Suite Status**: 70/70 passing tests across schema, preprocessing, model factories, and dual-domain artifacts.
+
+
+
 
 
 

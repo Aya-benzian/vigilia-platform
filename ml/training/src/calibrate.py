@@ -20,6 +20,11 @@ from typing import Optional
 import mlflow
 import numpy as np
 import pandas as pd
+import os
+import tempfile
+mpl_dir = os.path.join(tempfile.gettempdir(), "vigilia_matplotlib")
+os.makedirs(mpl_dir, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", mpl_dir)
 import matplotlib.pyplot as plt
 from sklearn.calibration import CalibratedClassifierCV, CalibrationDisplay
 from sklearn.frozen import FrozenEstimator
@@ -48,7 +53,6 @@ def calibrate_pipeline(
     X_b: pd.DataFrame,
     y_b: pd.Series,
     method: str = "isotonic",
-    cv: str = "prefit",
 ) -> Pipeline:
     """
     Wrap the champion pipeline with CalibratedClassifierCV on part B.
@@ -61,7 +65,6 @@ def calibrate_pipeline(
         X_b: Part B features (never seen by the pipeline during training).
         y_b: Part B target.
         method: "isotonic" (default) or "sigmoid" (Platt scaling).
-        cv: "prefit" — the pipeline is already fitted, only the calibrator is fit.
 
     Returns:
         A new sklearn Pipeline with calibration applied.
@@ -74,7 +77,6 @@ def calibrate_pipeline(
     calibrator = CalibratedClassifierCV(
         estimator=frozen,
         method=method,
-        cv=cv,
     )
     calibrator.fit(X_b, y_b)
 

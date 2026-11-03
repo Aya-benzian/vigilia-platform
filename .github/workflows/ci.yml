@@ -35,12 +35,21 @@ concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege baseline for all jobs in this workflow.
+# • contents: read   — required by actions/checkout
+# • pull-requests: read — required by gitleaks-action@v2 to list PR commits via
+#                         GET /repos/{owner}/{repo}/pulls/{pull_number}/commits
+#                         Without this the API returns 403 and the scan fails
+#                         before it can even inspect a single file.
+# Jobs that need broader access (docker-build, docker-push) declare their own
+# permissions block which overrides this workflow-level default for that job only.
+permissions:
+  contents: read
+  pull-requests: read
+
 env:
   REGISTRY: ghcr.io
 
-# ─────────────────────────────────────────────────────────────────────────────
-# JOB 1 — Backend (7 Spring Boot services via Maven)
-# ─────────────────────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 0 — Gitleaks secret scan (first gate — blocks all other jobs)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +60,7 @@ jobs:
 
     steps:
       - name: Checkout (full history to catch secrets in all commits)
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -83,7 +92,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -107,6 +116,14 @@ jobs:
           path: backend/${{ matrix.service }}/target/*.jar
           retention-days: 1
 
+      - name: Upload JaCoCo coverage report
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ matrix.service }}-coverage
+          path: backend/${{ matrix.service }}/target/site/jacoco/jacoco.xml
+          retention-days: 1
+
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 2 — ML Serving (FastAPI / Python 3.12)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -117,7 +134,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -138,7 +155,7 @@ jobs:
         run: |
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            python -m pytest -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=term
             # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
             sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
@@ -163,7 +180,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -183,7 +200,7 @@ jobs:
         run: |
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            python -m pytest -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=term
             # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
             sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
@@ -208,13 +225,20 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # cache: npm — skipped until frontend/package-lock.json exists (M4 will add it)
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json', 'frontend/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         working-directory: frontend
@@ -242,34 +266,41 @@ jobs:
 
     steps:
       - name: Checkout (full history for blame & SCM info)
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Download all backend JAR artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           # Pattern matches all <service>-jar artifacts uploaded by the backend job
           pattern: "*-jar"
           path: sonar-binaries
           merge-multiple: true
 
+      - name: Download Backend JaCoCo coverage reports
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: "*-coverage"
+          path: backend-coverage
+
       - name: Download Python ML training coverage
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: ml-training-coverage
           path: ml/training
 
       - name: Download Python ML serving coverage
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: ml-serving-coverage
           path: ml/serving
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v5
+        uses: SonarSource/sonarcloud-github-action@v3
         with:
           # Strict gate (wait=true) ONLY for main branch (production baseline)
           # Relaxed/informative mode (wait=false) on develop and feature branches
@@ -322,7 +353,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -420,7 +451,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

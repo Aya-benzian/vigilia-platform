@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Transaction Service API
+  version: 1.0.0
+  description: Ingestion, persistence, evaluation orchestration, and history of financial transactions.
+servers:
+  - url: http://localhost:8083
+    description: Direct local transaction-service instance
+  - url: http://localhost:8080/api/v1/transactions
+    description: Proxied via API Gateway
+
+paths:
+  /api/v1/transactions:
+    post:
+      summary: Ingest and evaluate transaction
+      description: Ingests a new financial transaction (purchase or transfer), requests synchronous risk evaluation from risk-management-service, persists the outcome, and returns the final decision.
+      operationId: createTransaction
+      tags:
+        - Transactions
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Unique client key to guarantee exactly-once transaction ingestion.
+          schema:
+            type: string
+            format: uuid
+            example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateRequest'
+      responses:
+        '201':
+          description: Transaction created and evaluated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Validation error or malformed transaction payload.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '409':
+          description: Idempotency conflict (transaction already exists with this key).
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '503':
+          description: Internal service dependency unavailable (e.g. risk evaluation fallback triggered).
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+    get:
+      summary: Query transaction history
+      description: Retrieves a paginated list of transactions, filterable by customer ID, status, type, and date range.
+      operationId: listTransactions
+      tags:
+        - Transactions
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - $ref: './common-schemas.yaml#/components/parameters/PageQuery'
+        - $ref: './common-schemas.yaml#/components/parameters/SizeQuery'
+        - name: customerId
+          in: query
+          required: false
+          description: Filter transactions by customer UUID.
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Filter by risk decision status.
+          schema:
+            $ref: './common-schemas.yaml#/components/schemas/RiskStatus'
+        - name: type
+          in: query
+          required: false
+          description: Filter by transaction domain type.
+          schema:
+            $ref: './common-schemas.yaml#/components/schemas/TransactionType'
+      responses:
+        '200':
+          description: Paginated transaction list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionPageResponse'
+        '400':
+          description: Invalid filter parameter.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/transactions/{id}:
+    get:
+      summary: Get transaction by ID
+      description: Returns complete details and risk decision summary for a specific transaction.
+      operationId: getTransactionById
+      tags:
+        - Transactions
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: id
+          in: path
+          required: true
+          description: Unique transaction UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '404':
+          description: Transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+components:
+  schemas:
+    TransactionCreateRequest:
+      type: object
+      required:
+        - customerId
+        - type
+        - amount
+        - currency
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        type:
+          $ref: './common-schemas.yaml#/components/schemas/TransactionType'
+        amount:
+          $ref: './common-schemas.yaml#/components/schemas/MoneyAmount'
+        currency:
+          $ref: './common-schemas.yaml#/components/schemas/Currency'
+        # Feature fields for PURCHASE
+        category:
+          type: string
+          description: Merchant category (mandatory for PURCHASE).
+          example: "shopping_net"
+        merchantName:
+          type: string
+          description: Name of merchant.
+          example: "fraud_Rippin_Toy"
+        merchantLatitude:
+          type: number
+          format: double
+          minimum: -90.0
+          maximum: 90.0
+          example: 36.0112
+        merchantLongitude:
+          type: number
+          format: double
+          minimum: -180.0
+          maximum: 180.0
+          example: -82.0450
+        # Feature fields for TRANSFER
+        recipientIban:
+          type: string
+          description: Beneficiary IBAN (mandatory for TRANSFER).
+          example: "FR7630006000011234567890189"
+        transferReference:
+          type: string
+          maxLength: 140
+          example: "Monthly rent payment"
+
+    TransactionResponse:
+      type: object
+      required:
+        - id
+        - customerId
+        - type
+        - amount
+        - currency
+        - status
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        type:
+          $ref: './common-schemas.yaml#/components/schemas/TransactionType'
+        amount:
+          $ref: './common-schemas.yaml#/components/schemas/MoneyAmount'
+        currency:
+          $ref: './common-schemas.yaml#/components/schemas/Currency'
+        status:
+          $ref: './common-schemas.yaml#/components/schemas/RiskStatus'
+        riskScore:
+          type: number
+          format: double
+          description: Calibrated fraud probability score between 0.0 and 1.0.
+          example: 0.1245
+        decisionReason:
+          type: string
+          description: Summary explanation of the decision or rule triggered.
+          example: "LOW_RISK_ACCEPTED"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-25T22:30:00Z"
+
+    TransactionPageResponse:
+      type: object
+      required:
+        - content
+        - meta
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+        meta:
+          $ref: './common-schemas.yaml#/components/schemas/PaginationMeta'

@@ -148,3 +148,43 @@ client.set_registered_model_alias(name=model_name, alias="champion", version=lat
 print(f"Version {latest_version} promoted to @champion")
 ```
 
+---
+
+## Dual-Domain ML Pipeline (`purchase-v2` & `transfer-v2`)
+
+Vigilia implements dual-domain fraud detection with linked cross-domain features:
+- **Purchase Domain (`purchase-v2`)**: 48 point-in-time features (evaluates POS & e-commerce card purchases).
+- **Transfer Domain (`transfer-v2`)**: 38 point-in-time features (evaluates peer-to-peer and wire transfers).
+
+### Running the End-to-End Pipeline
+
+1. **Prepare Transfer Dataset (PaySim extraction)**:
+   ```bash
+   python src/prepare_transfer_data.py
+   ```
+2. **Build Rolling Cross-Domain Parquet Datasets & Golden Rows**:
+   ```bash
+   python src/build_cross_domain_dataset.py
+   ```
+3. **Train Dual Champion Models, Run Ablation & Probability Calibration**:
+   ```bash
+   python src/train_dual_models.py
+   ```
+4. **Run Artifact Verification & Parity Test Suite**:
+   ```bash
+   pytest tests/test_dual_domain_artifacts.py -v
+   ```
+
+### Output Artifacts in `artifacts/`
+
+| Artifact | Size | Description |
+|---|:---:|---|
+| `feature_spec.json` | 6.5 KB | Canonical schema, types, and cold-start sentinels ($2,592,000$s) |
+| `golden_rows_purchase.json` | 406 KB | 250 purchase feature fixture rows for Java parity verification |
+| `golden_rows_transfer.json` | 325 KB | 250 transfer feature fixture rows for Java parity verification |
+| `purchase_champion_pipeline.pkl` | 275 KB | Calibrated XGBoost production pipeline (48 features) |
+| `transfer_champion_pipeline.pkl` | 195 KB | Calibrated XGBoost production pipeline (38 features) |
+| `purchase_benchmark_summary.json` | 1.5 KB | 5-candidate validation metrics and ablation lifts |
+| `transfer_benchmark_summary.json` | 1.5 KB | 5-candidate validation metrics and ablation lifts |
+
+

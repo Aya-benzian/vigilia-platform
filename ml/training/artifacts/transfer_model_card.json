@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "domain": "transfer",
+  "registered_name": "transfer-fraud-model",
+  "champion_alias": "champion",
+  "feature_count": 20,
+  "feature_columns": [
+    "amount",
+    "log_amount",
+    "hour_of_day",
+    "day_of_week",
+    "sender_avg_amount",
+    "sender_std_amount",
+    "sender_max_amount",
+    "amount_to_avg_ratio",
+    "sender_amount_zscore",
+    "is_new_recipient",
+    "pair_transfer_count",
+    "recipient_share",
+    "days_since_last_pair_transfer",
+    "distinct_recipients_30d",
+    "recipient_inbound_count_24h",
+    "recipient_unique_senders_24h",
+    "sender_txn_count_1h",
+    "sender_txn_count_24h",
+    "amount_to_balance_ratio",
+    "history_length"
+  ],
+  "performance": {
+    "feature_count": 20,
+    "calibrated_pr_auc": 0.8350500533113405,
+    "raw_pr_auc": 0.8761881672355528,
+    "test_roc_auc": 0.9997180471345292,
+    "test_brier_calibrated": 0.0006533596315421164
+  },
+  "dataset": "PaySim",
+  "seed": 42,
+  "note": "Domain-isolated \u2014 zero cross-domain features (supervisor directive)."
+}

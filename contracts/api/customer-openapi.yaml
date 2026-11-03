@@ -1,0 +1,879 @@
+openapi: 3.1.0
+info:
+  title: Vigilia Platform — Customer Service API
+  version: 1.0.0
+  description: Customer profile management, preferences, beneficiaries, demographics, and internal risk-profiling data.
+servers:
+  - url: http://localhost:8082
+    description: Direct local customer-service instance
+  - url: http://localhost:8080/api/v1/customers
+    description: Proxied via API Gateway
+
+paths:
+  /api/v1/customers/me:
+    get:
+      summary: Get authenticated customer profile
+      description: Retrieves complete profile information for the authenticated user.
+      operationId: getMyProfile
+      tags:
+        - Customer Profile
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      responses:
+        '200':
+          description: Customer profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerApiResponse'
+        '401':
+          description: Unauthorized. Missing or invalid Bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Customer profile not found for authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+    patch:
+      summary: Update authenticated customer profile
+      description: Partially updates editable fields (fullName, homeCity, homeCountry, homeLat, homeLon, cityPopulation) of the authenticated customer profile.
+      operationId: updateMyProfile
+      tags:
+        - Customer Profile
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerUpdateRequest'
+      responses:
+        '200':
+          description: Customer profile updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerApiResponse'
+        '400':
+          description: Validation error on input fields.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Customer profile not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers/me/preferences:
+    get:
+      summary: Get customer notification and language preferences
+      description: Retrieves notification channel preferences and preferred language for authenticated user.
+      operationId: getMyPreferences
+      tags:
+        - Preferences
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      responses:
+        '200':
+          description: Customer preferences retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPreferenceApiResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Customer profile not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+    put:
+      summary: Update customer notification and language preferences
+      description: Updates email/in-app notifications and language preferences.
+      operationId: updateMyPreferences
+      tags:
+        - Preferences
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerPreferenceUpdateRequest'
+      responses:
+        '200':
+          description: Customer preferences updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPreferenceApiResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers/me/beneficiaries:
+    get:
+      summary: List registered beneficiaries
+      description: Retrieves list of approved recipient accounts for P2P transfers.
+      operationId: getMyBeneficiaries
+      tags:
+        - Beneficiaries
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      responses:
+        '200':
+          description: Beneficiaries list retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeneficiaryListApiResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+    post:
+      summary: Add a new beneficiary
+      description: Registers a new recipient account after verifying existence and uniqueness.
+      operationId: addBeneficiary
+      tags:
+        - Beneficiaries
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BeneficiaryCreateRequest'
+      responses:
+        '201':
+          description: Beneficiary registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeneficiaryApiResponse'
+        '400':
+          description: Invalid account number format or attempting to add self.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Recipient account does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '409':
+          description: Beneficiary already registered.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers/me/beneficiaries/{id}:
+    delete:
+      summary: Delete a beneficiary
+      description: Removes an existing recipient beneficiary belonging to the authenticated customer.
+      operationId: deleteBeneficiary
+      tags:
+        - Beneficiaries
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: id
+          in: path
+          required: true
+          description: Unique beneficiary UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Beneficiary removed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoidApiResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Beneficiary not found or belongs to another user.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers/lookup:
+    get:
+      summary: Lookup destination account
+      description: Verifies existence of a recipient account number and returns masked display name.
+      operationId: lookupAccount
+      tags:
+        - Account Lookup
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: account_number
+          in: query
+          required: true
+          description: Account number to verify (6-34 alphanumeric chars).
+          schema:
+            type: string
+            example: "VGL0000000001"
+      responses:
+        '200':
+          description: Lookup query executed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerLookupApiResponse'
+        '400':
+          description: Missing or invalid account_number parameter.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers/{id}:
+    get:
+      summary: Get customer by ID (Admin/Analyst or Owner)
+      description: Retrieves complete customer profile. Restricted to profile owner or privileged roles (ANALYST, ADMIN).
+      operationId: getCustomerById
+      tags:
+        - Customers
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: id
+          in: path
+          required: true
+          description: Unique customer UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Customer profile found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '403':
+          description: Forbidden (Anti-IDOR - cannot view profile of another customer).
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Customer not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers/{id}/risk-profile:
+    get:
+      summary: Get customer risk demographic profile
+      description: Provides demographic feature context (age, location, city population) for fraud evaluation. Restricted to owner or privileged roles.
+      operationId: getCustomerRiskProfile
+      tags:
+        - Risk Profile
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+        - name: id
+          in: path
+          required: true
+          description: Unique customer UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Customer risk profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRiskProfileResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '404':
+          description: Customer not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /api/v1/customers:
+    post:
+      summary: Direct customer profile creation
+      description: Direct creation of customer profile (compatibility route).
+      operationId: createCustomerDirect
+      tags:
+        - Customers
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreateRequest'
+      responses:
+        '201':
+          description: Customer profile created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Invalid customer data.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+        '409':
+          description: Customer profile already exists for this user.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  # ============================================================================
+  # Internal Service-to-Service Endpoints (Docker Internal Network Only)
+  # ============================================================================
+  /internal/customers/events:
+    post:
+      summary: Ingest USER_REGISTERED event (Internal)
+      description: Strictly internal endpoint for asynchronous Outbox event ingestion from Auth Service. Idempotent via processed_events.
+      operationId: ingestUserRegisteredEvent
+      tags:
+        - Internal Event Ingestion
+      parameters:
+        - $ref: './common-schemas.yaml#/components/parameters/CorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisteredEventPayload'
+      responses:
+        '201':
+          description: Customer profile created or already processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerApiResponse'
+        '400':
+          description: Malformed event payload.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+  /internal/customers/{userId}/risk-profile:
+    get:
+      summary: Internal risk profile by userId
+      description: Internal endpoint used by Risk Management Service to fetch demographic features by userId.
+      operationId: getInternalRiskProfileByUserId
+      tags:
+        - Internal Risk Profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Demographic risk profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRiskProfileApiResponse'
+        '404':
+          description: Customer not found.
+          content:
+            application/json:
+              schema:
+                $ref: './common-schemas.yaml#/components/schemas/ProblemDetail'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Stateless JWT issued by auth-service.
+
+  schemas:
+    CustomerApiResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CustomerResponse'
+        meta:
+          type: object
+          additionalProperties: true
+
+    CustomerPreferenceApiResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CustomerPreferenceResponse'
+        meta:
+          type: object
+          additionalProperties: true
+
+    BeneficiaryApiResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/BeneficiaryResponse'
+        meta:
+          type: object
+          additionalProperties: true
+
+    BeneficiaryListApiResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BeneficiaryResponse'
+        meta:
+          type: object
+          additionalProperties: true
+
+    CustomerLookupApiResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CustomerLookupResponse'
+        meta:
+          type: object
+          additionalProperties: true
+
+    CustomerRiskProfileApiResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CustomerRiskProfileResponse'
+        meta:
+          type: object
+          additionalProperties: true
+
+    VoidApiResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          nullable: true
+        meta:
+          type: object
+          additionalProperties: true
+
+    CustomerResponse:
+      type: object
+      required:
+        - id
+        - userId
+        - fullName
+        - dateOfBirth
+        - homeCity
+        - homeCountry
+        - homeLat
+        - homeLon
+        - cityPopulation
+        - accountNumber
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        fullName:
+          type: string
+          example: "Sara Benali"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-01-01"
+        homeCity:
+          type: string
+          example: "Paris"
+        homeCountry:
+          type: string
+          example: "FR"
+        homeLat:
+          type: number
+          example: 48.856614
+        homeLon:
+          type: number
+          example: 2.352222
+        cityPopulation:
+          type: integer
+          example: 2161000
+        accountNumber:
+          type: string
+          example: "VGL0000000001"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-25T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CustomerUpdateRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: "Sara Benali"
+        homeCity:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Lyon"
+        homeCountry:
+          type: string
+          pattern: "^[A-Z]{2}$"
+          example: "FR"
+        homeLat:
+          type: number
+          minimum: -90.0
+          maximum: 90.0
+          example: 45.764043
+        homeLon:
+          type: number
+          minimum: -180.0
+          maximum: 180.0
+          example: 4.835659
+        cityPopulation:
+          type: integer
+          minimum: 1
+          example: 522969
+
+    CustomerCreateRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        fullName:
+          type: string
+          example: "Sara Benali"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-01-01"
+        homeCity:
+          type: string
+          example: "Paris"
+        homeCountry:
+          type: string
+          example: "FR"
+        homeLat:
+          type: number
+          example: 48.856614
+        homeLon:
+          type: number
+          example: 2.352222
+        cityPopulation:
+          type: integer
+          example: 2161000
+        accountNumber:
+          type: string
+          example: "VGL0000000001"
+
+    CustomerPreferenceResponse:
+      type: object
+      required:
+        - customerId
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        emailNotifications:
+          type: boolean
+          example: true
+        inAppNotifications:
+          type: boolean
+          example: true
+        language:
+          type: string
+          example: "fr"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CustomerPreferenceUpdateRequest:
+      type: object
+      properties:
+        emailNotifications:
+          type: boolean
+          example: true
+        inAppNotifications:
+          type: boolean
+          example: false
+        language:
+          type: string
+          pattern: "^[a-zA-Z_-]{2,10}$"
+          example: "en"
+
+    BeneficiaryCreateRequest:
+      type: object
+      required:
+        - recipientAccountNumber
+      properties:
+        recipientAccountNumber:
+          type: string
+          minLength: 6
+          maxLength: 34
+          pattern: "^[A-Z0-9]+$"
+          example: "VGL0000000002"
+        nickname:
+          type: string
+          maxLength: 100
+          example: "Yassine Perso"
+
+    BeneficiaryResponse:
+      type: object
+      required:
+        - id
+        - customerId
+        - recipientCustomerId
+        - recipientAccountNumber
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440003"
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        recipientCustomerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440004"
+        recipientAccountNumber:
+          type: string
+          example: "VGL0000000002"
+        nickname:
+          type: string
+          nullable: true
+          example: "Yassine Perso"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-25T11:00:00Z"
+
+    CustomerLookupResponse:
+      type: object
+      required:
+        - account_number
+        - exists
+      properties:
+        account_number:
+          type: string
+          example: "VGL0000000001"
+        display_name:
+          type: string
+          nullable: true
+          example: "S*** B***"
+        exists:
+          type: boolean
+          example: true
+
+    CustomerRiskProfileResponse:
+      type: object
+      required:
+        - customerId
+        - age
+        - latitude
+        - longitude
+        - cityPopulation
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        accountNumber:
+          type: string
+          example: "VGL0000000001"
+        age:
+          type: integer
+          example: 31
+        homeCity:
+          type: string
+          example: "Paris"
+        homeCountry:
+          type: string
+          example: "FR"
+        latitude:
+          type: number
+          example: 48.856614
+        longitude:
+          type: number
+          example: 2.352222
+        cityPopulation:
+          type: integer
+          example: 2161000
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    UserRegisteredEventPayload:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - userId
+        - email
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440010"
+        eventType:
+          type: string
+          example: "USER_REGISTERED"
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        email:
+          type: string
+          format: email
+          example: "sara@example.com"
+        fullName:
+          type: string
+          nullable: true
+          example: "Sara Benali"
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+          example: "1995-01-01"
+        homeCity:
+          type: string
+          nullable: true
+          example: "Paris"
+        homeCountry:
+          type: string
+          nullable: true
+          example: "FR"
+        homeLat:
+          type: number
+          nullable: true
+          example: 48.856614
+        homeLon:
+          type: number
+          nullable: true
+          example: 2.352222
+        cityPopulation:
+          type: integer
+          nullable: true
+          example: 2161000
+        traceId:
+          type: string
+          nullable: true
+          example: "trace-reg-123"

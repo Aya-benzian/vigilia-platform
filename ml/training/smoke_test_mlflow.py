@@ -62,7 +62,7 @@ def run_smoke_test():
         # Fit and log a minimal dummy model
         X_dummy = np.array([[1.0], [2.0], [3.0]])
         y_dummy = np.array([0, 1, 0])
-        clf = DummyClassifier(strategy="most_frequent")
+        clf = DummyClassifier(strategy="most_frequent", random_state=42)
         clf.fit(X_dummy, y_dummy)
 
         model_info = mlflow.sklearn.log_model(

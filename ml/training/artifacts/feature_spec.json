@@ -1,0 +1,259 @@
+{
+  "purchase": {
+    "version": "purchase-v2",
+    "feature_count": 29,
+    "features": [
+      {
+        "name": "amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "log_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "hour_of_day",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "day_of_week",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "is_weekend",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "is_night",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "customer_age",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "distance_home_merchant_km",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "city_pop_log",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "merchant_category",
+        "type": "string",
+        "cold_start": "unknown"
+      },
+      {
+        "name": "customer_avg_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "customer_std_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "customer_max_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "amount_to_avg_ratio",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "amount_zscore_customer",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "hour_share",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "category_share",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "merchant_visit_count",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "avg_distance_home_km",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "distance_zscore",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "txn_count_1h",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "txn_count_24h",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "txn_count_7d",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "amount_sum_24h",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "time_since_last_txn_s",
+        "type": "float",
+        "cold_start": 2592000.0
+      },
+      {
+        "name": "is_new_merchant",
+        "type": "int",
+        "cold_start": 1
+      },
+      {
+        "name": "is_new_category",
+        "type": "int",
+        "cold_start": 1
+      },
+      {
+        "name": "history_length",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "days_since_first_txn",
+        "type": "float",
+        "cold_start": 0.0
+      }
+    ]
+  },
+  "transfer": {
+    "version": "transfer-v2",
+    "feature_count": 20,
+    "features": [
+      {
+        "name": "amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "log_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "hour_of_day",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "day_of_week",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "sender_avg_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "sender_std_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "sender_max_amount",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "amount_to_avg_ratio",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "sender_amount_zscore",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "is_new_recipient",
+        "type": "int",
+        "cold_start": 1
+      },
+      {
+        "name": "pair_transfer_count",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "recipient_share",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "days_since_last_pair_transfer",
+        "type": "float",
+        "cold_start": 30.0
+      },
+      {
+        "name": "distinct_recipients_30d",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "recipient_inbound_count_24h",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "recipient_unique_senders_24h",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "sender_txn_count_1h",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "sender_txn_count_24h",
+        "type": "int",
+        "cold_start": 0
+      },
+      {
+        "name": "amount_to_balance_ratio",
+        "type": "float",
+        "cold_start": 0.0
+      },
+      {
+        "name": "history_length",
+        "type": "int",
+        "cold_start": 0
+      }
+    ]
+  }
+}
