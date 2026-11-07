@@ -24,6 +24,7 @@ infrastructure/kubernetes/secrets.yaml
 *.iml
 .DS_Store
 Thumbs.db
+desktop.ini
 *~
 
 # Java and Maven

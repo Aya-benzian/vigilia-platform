@@ -230,10 +230,13 @@ class RiskIntegrationTest {
     }
 
     @Test
-    @DisplayName("5. TRANSFER type → PENDING_REVIEW / FALLBACK_TRANSFER_MODEL_UNAVAILABLE")
-    void evaluate_TransferType_ReturnsPendingReview_ModelUnavailable() throws Exception {
+    @DisplayName("5. TRANSFER type → evaluated via ML model (transfer-v2)")
+    void evaluate_TransferType_ReturnsApproved_WhenMlLowRisk() throws Exception {
+        createActivePolicy("TRANSFER");
         UUID txId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
+
+        when(mlPredictionClient.predict(any())).thenReturn(mockMlResponse(0.08, 0.05));
 
         RiskEvaluationRequest req = new RiskEvaluationRequest();
         req.setTransactionId(txId);
@@ -242,15 +245,45 @@ class RiskIntegrationTest {
         req.setAmount(new BigDecimal("500.00"));
         req.setCurrency("EUR");
         req.setTimestamp(Instant.now());
+        req.setRecipientId("rec-555");
+        req.setSenderBalance(5000.0);
+
+        mockMvc.perform(post("/api/v1/risk/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision", is(RiskStatus.APPROVED.name())))
+                .andExpect(jsonPath("$.decisionReason", is("POLICY_APPROVE")));
+
+        assertThat(evaluationRepository.existsByTransactionId(txId)).isTrue();
+    }
+
+    @Test
+    @DisplayName("5b. TRANSFER type → ML failure returns PENDING_REVIEW / FALLBACK_ML_FAILURE")
+    void evaluate_TransferType_ReturnsPendingReview_WhenMlFails() throws Exception {
+        createActivePolicy("TRANSFER");
+        UUID txId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        when(mlPredictionClient.predict(any())).thenReturn(null);
+
+        RiskEvaluationRequest req = new RiskEvaluationRequest();
+        req.setTransactionId(txId);
+        req.setCustomerId(customerId);
+        req.setTransactionType(TransactionType.TRANSFER);
+        req.setAmount(new BigDecimal("500.00"));
+        req.setCurrency("EUR");
+        req.setTimestamp(Instant.now());
+        req.setRecipientId("rec-555");
+        req.setSenderBalance(5000.0);
 
         mockMvc.perform(post("/api/v1/risk/evaluate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.decision", is(RiskStatus.PENDING_REVIEW.name())))
-                .andExpect(jsonPath("$.decisionReason", is("FALLBACK_TRANSFER_MODEL_UNAVAILABLE")));
+                .andExpect(jsonPath("$.decisionReason", is("FALLBACK_ML_FAILURE")));
 
-        // Review case opened for TRANSFER fallback
         assertThat(reviewCaseRepository.count()).isEqualTo(1);
     }
 
