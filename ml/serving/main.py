@@ -11,7 +11,7 @@ Milestone 1 Implementation:
 
 from contextlib import asynccontextmanager
 import logging
-from typing import AsyncGenerator, Dict
+from typing import AsyncGenerator, Dict, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Response, status
 from fastapi.responses import JSONResponse
@@ -22,10 +22,13 @@ from auth import verify_admin_auth
 from config import get_settings
 from model_loader import (
     acquire_reload_guard,
+    explain_transaction,
     get_loaded_model_version,
     get_model_registry,
     is_model_loaded,
     is_startup_complete,
+    predict_fraud_probability,
+    prepare_inference_input,
     release_reload_guard,
     reload_family_model,
     start_background_model_loader,
@@ -37,14 +40,23 @@ from schemas import (
     ERROR_CODE_RELOAD_IN_PROGRESS,
     ERROR_CODE_UNAUTHORIZED,
     ERROR_CODE_VALIDATION_ERROR,
+    ExplanationResponse,
+    FeatureSpecMismatchError,
+    FeatureSpecValidator,
+    FeatureValidationError,
     HealthResponse,
+    InferenceError,
     ModelMetadata,
+    ModelNotReadyError,
     ModelsListResponse,
+    PredictionRequest,
+    PredictionResponse,
     ReloadResponse,
     ServingException,
     UnauthorizedError,
     ValidationErrorItem,
     register_error_handlers,
+    verify_feature_spec_version,
 )
 
 logger = logging.getLogger("ml_serving.main")
@@ -196,6 +208,196 @@ def get_models() -> ModelsListResponse:
         models=models_metadata,
         all_loaded=registry.are_all_models_loaded(),
     )
+
+
+def _handle_prediction(family: str, request: PredictionRequest) -> PredictionResponse:
+    """
+    Core prediction dispatcher for model families ('purchase', 'transfer').
+    Enforces independent model retrieval, feature validation, inference, and error handling.
+    """
+    registry = get_model_registry()
+
+    # 1. Retrieve active model entry
+    entry = registry.get_entry(family)
+    if entry is None or entry.model is None or not registry.is_family_loaded(family):
+        raise ModelNotReadyError(family=family)
+
+    # 2. Spec version verification against active model if model carries version metadata
+    if entry.feature_spec_version is not None:
+        verify_feature_spec_version(
+            family=family,
+            requested_spec_version=request.feature_spec_version,
+            active_model_spec_version=entry.feature_spec_version,
+        )
+
+    # 3. Input preparation & feature validation via Phase 1 validator
+    # Validates full feature vector (29 for purchase, 20 for transfer).
+    # Raises FeatureValidationError (422) or FeatureSpecMismatchError (409).
+    try:
+        input_df = prepare_inference_input(
+            family=family,
+            features=request.features,
+            feature_spec_version=request.feature_spec_version,
+        )
+    except (FeatureValidationError, FeatureSpecMismatchError):
+        raise
+    except Exception as exc:
+        clean_fam = str(family).replace("\r", "").replace("\n", "")
+        logger.error("Feature preparation failed for family '%s': %s", clean_fam, exc)
+        raise FeatureValidationError(detail=f"Feature validation failed for family '{clean_fam}': {exc}")
+
+    # 4. Model inference execution
+    try:
+        fraud_prob, inference_ms = predict_fraud_probability(
+            model=entry.model,
+            input_df=input_df,
+            family=family,
+        )
+    except ValueError as val_err:
+        clean_fam = str(family).replace("\r", "").replace("\n", "")
+        logger.error("Invalid model output for family '%s': %s", clean_fam, val_err)
+        raise InferenceError(detail=f"Model output validation failed for family '{clean_fam}'.")
+    except Exception as exc:
+        clean_fam = str(family).replace("\r", "").replace("\n", "")
+        logger.error("Inference execution error for family '%s': %s", clean_fam, exc)
+        raise InferenceError(detail=f"Inference execution failed for family '{clean_fam}'.")
+
+    # 5. Uncertainty & Threshold decisions:
+    # Do NOT assume 0.5 threshold, do NOT reuse 0.1948 legacy threshold, do NOT invent uncertainty formula.
+    # Unresolved values are safely kept as None (reported as blockers for full decisioning).
+    label: Optional[str] = None
+    uncertainty: Optional[float] = None
+
+    val = FeatureSpecValidator()
+    canonical_version = val.get_canonical_version(family)
+
+    return PredictionResponse(
+        request_id=request.request_id,
+        label=label,
+        fraud_probability=fraud_prob,
+        uncertainty=uncertainty,
+        model_name=entry.model_name,
+        model_version=entry.model_version,
+        feature_spec_version=canonical_version,
+        inference_ms=inference_ms,
+    )
+
+
+@app.post(
+    "/predict/purchase",
+    response_model=PredictionResponse,
+    responses={
+        200: {"description": "Fraud prediction successfully computed for purchase transaction"},
+        409: {"description": "Feature specification version mismatch"},
+        422: {"description": "Feature validation error or malformed request payload"},
+        503: {"description": "Purchase model not loaded or not ready"},
+        500: {"description": "Inference execution error"},
+    },
+    tags=["Prediction"],
+)
+def predict_purchase(request: PredictionRequest, response: Response) -> PredictionResponse:
+    """
+    Executes fraud prediction for card/merchant purchase transactions (Design 2 Section 15.3).
+    Validates complete 29-feature vector (purchase-v2) and invokes active purchase model.
+    """
+    response.headers["X-Request-Id"] = request.request_id
+    return _handle_prediction(family="purchase", request=request)
+
+
+@app.post(
+    "/predict/transfer",
+    response_model=PredictionResponse,
+    responses={
+        200: {"description": "Fraud prediction successfully computed for transfer transaction"},
+        409: {"description": "Feature specification version mismatch"},
+        422: {"description": "Feature validation error or malformed request payload"},
+        503: {"description": "Transfer model not loaded or not ready"},
+        500: {"description": "Inference execution error"},
+    },
+    tags=["Prediction"],
+)
+def predict_transfer(request: PredictionRequest, response: Response) -> PredictionResponse:
+    """
+    Executes fraud prediction for peer/account transfer transactions (Design 2 Section 15.3).
+    Validates complete 20-feature vector (transfer-v2) and invokes active transfer model.
+    """
+    response.headers["X-Request-Id"] = request.request_id
+    return _handle_prediction(family="transfer", request=request)
+
+
+def _handle_explanation(family: str, request: PredictionRequest) -> ExplanationResponse:
+    """
+    Common handler for explanation endpoints (Design 2 Section 15.3).
+    Validates features, verifies explainer readiness, computes SHAP attributions,
+    and returns ExplanationResponse.
+    """
+    clean_fam = str(family).replace("\r", "").replace("\n", "")
+
+    try:
+        entry, base_val, contributions = explain_transaction(
+            family=family,
+            features=request.features,
+            feature_spec_version=request.feature_spec_version,
+        )
+    except (FeatureValidationError, FeatureSpecMismatchError, ModelNotReadyError):
+        raise
+    except ValueError as val_err:
+        logger.error("Explanation validation failed for family '%s': %s", clean_fam, val_err)
+        raise InferenceError(detail=f"Explanation validation failed for family '{clean_fam}': {val_err}")
+    except Exception as exc:
+        logger.error("Explanation computation error for family '%s': %s", clean_fam, exc)
+        raise InferenceError(detail=f"Explanation computation failed for family '{clean_fam}'.")
+
+    return ExplanationResponse(
+        request_id=request.request_id,
+        model_name=entry.model_name,
+        model_version=entry.model_version,
+        base_value=base_val,
+        contributions=contributions,
+    )
+
+
+@app.post(
+    "/explain/purchase",
+    response_model=ExplanationResponse,
+    responses={
+        200: {"description": "SHAP feature contributions successfully computed for purchase transaction"},
+        409: {"description": "Feature specification version mismatch"},
+        422: {"description": "Feature validation error or malformed request payload"},
+        503: {"description": "Purchase model not loaded or not explainable"},
+        500: {"description": "Explanation computation error"},
+    },
+    tags=["Explainability"],
+)
+def explain_purchase(request: PredictionRequest, response: Response) -> ExplanationResponse:
+    """
+    Computes SHAP feature attributions for card/merchant purchase transactions (Design 2 Section 15.3).
+    Validates complete 29-feature vector (purchase-v2), aggregates OneHotEncoder dummy columns
+    belonging to merchant_category, and returns contributions ordered by absolute importance.
+    """
+    response.headers["X-Request-Id"] = request.request_id
+    return _handle_explanation(family="purchase", request=request)
+
+
+@app.post(
+    "/explain/transfer",
+    response_model=ExplanationResponse,
+    responses={
+        200: {"description": "SHAP feature contributions successfully computed for transfer transaction"},
+        409: {"description": "Feature specification version mismatch"},
+        422: {"description": "Feature validation error or malformed request payload"},
+        503: {"description": "Transfer model not loaded or not explainable"},
+        500: {"description": "Explanation computation error"},
+    },
+    tags=["Explainability"],
+)
+def explain_transfer(request: PredictionRequest, response: Response) -> ExplanationResponse:
+    """
+    Computes SHAP feature attributions for peer/account transfer transactions (Design 2 Section 15.3).
+    Validates complete 20-feature vector (transfer-v2) and returns contributions ordered by absolute importance.
+    """
+    response.headers["X-Request-Id"] = request.request_id
+    return _handle_explanation(family="transfer", request=request)
 
 
 def _background_reload_worker(target_family: str) -> None:

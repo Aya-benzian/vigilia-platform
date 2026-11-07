@@ -19,6 +19,7 @@ Design 2 Architecture (Final v4):
 """
 
 from datetime import date, datetime, timezone
+import math
 from typing import Any, Dict, List, Literal, Optional, Union
 import uuid
 
@@ -268,18 +269,21 @@ class PredictionResponse(BaseModel):
     )
 
     request_id: str = Field(..., description="Echoes the request_id from PredictionRequest.")
-    label: str = Field(..., min_length=1, description="Classification label (e.g. 'FRAUD' or 'LEGITIMATE').")
+    label: Optional[str] = Field(
+        default=None,
+        description="Classification label (e.g. 'FRAUD' or 'LEGITIMATE'). Blocked pending confirmed threshold.",
+    )
     fraud_probability: float = Field(
         ...,
         ge=0.0,
         le=1.0,
         description="Calibrated probability of fraud in range [0.0, 1.0].",
     )
-    uncertainty: float = Field(
-        ...,
+    uncertainty: Optional[float] = Field(
+        default=None,
         ge=0.0,
         le=1.0,
-        description="Uncertainty score of the prediction in range [0.0, 1.0].",
+        description="Uncertainty score of the prediction in range [0.0, 1.0]. Blocked pending confirmed method.",
     )
     model_name: str = Field(..., min_length=1, description="Registered name of the model in MLflow.")
     model_version: str = Field(..., min_length=1, description="Resolved version string of the loaded model.")
@@ -663,22 +667,288 @@ def verify_feature_spec_version(
         )
 
 
-class BaseFeatureSpecValidator:
-    """
-    Abstract boundary interface for family-specific feature validation.
+CANONICAL_FEATURE_SPECS: Dict[str, Dict[str, Any]] = {
+    "purchase": {
+        "version": "purchase-v2",
+        "feature_count": 29,
+        "features": [
+            {"name": "amount", "type": "float", "cold_start": 0.0},
+            {"name": "log_amount", "type": "float", "cold_start": 0.0},
+            {"name": "hour_of_day", "type": "int", "cold_start": 0},
+            {"name": "day_of_week", "type": "int", "cold_start": 0},
+            {"name": "is_weekend", "type": "int", "cold_start": 0},
+            {"name": "is_night", "type": "int", "cold_start": 0},
+            {"name": "customer_age", "type": "float", "cold_start": 0.0},
+            {"name": "distance_home_merchant_km", "type": "float", "cold_start": 0.0},
+            {"name": "city_pop_log", "type": "float", "cold_start": 0.0},
+            {"name": "merchant_category", "type": "string", "cold_start": "unknown"},
+            {"name": "customer_avg_amount", "type": "float", "cold_start": 0.0},
+            {"name": "customer_std_amount", "type": "float", "cold_start": 0.0},
+            {"name": "customer_max_amount", "type": "float", "cold_start": 0.0},
+            {"name": "amount_to_avg_ratio", "type": "float", "cold_start": 0.0},
+            {"name": "amount_zscore_customer", "type": "float", "cold_start": 0.0},
+            {"name": "hour_share", "type": "float", "cold_start": 0.0},
+            {"name": "category_share", "type": "float", "cold_start": 0.0},
+            {"name": "merchant_visit_count", "type": "int", "cold_start": 0},
+            {"name": "avg_distance_home_km", "type": "float", "cold_start": 0.0},
+            {"name": "distance_zscore", "type": "float", "cold_start": 0.0},
+            {"name": "txn_count_1h", "type": "int", "cold_start": 0},
+            {"name": "txn_count_24h", "type": "int", "cold_start": 0},
+            {"name": "txn_count_7d", "type": "int", "cold_start": 0},
+            {"name": "amount_sum_24h", "type": "float", "cold_start": 0.0},
+            {"name": "time_since_last_txn_s", "type": "float", "cold_start": 2592000.0},
+            {"name": "is_new_merchant", "type": "int", "cold_start": 1},
+            {"name": "is_new_category", "type": "int", "cold_start": 1},
+            {"name": "history_length", "type": "int", "cold_start": 0},
+            {"name": "days_since_first_txn", "type": "float", "cold_start": 0.0},
+        ],
+    },
+    "transfer": {
+        "version": "transfer-v2",
+        "feature_count": 20,
+        "features": [
+            {"name": "amount", "type": "float", "cold_start": 0.0},
+            {"name": "log_amount", "type": "float", "cold_start": 0.0},
+            {"name": "hour_of_day", "type": "int", "cold_start": 0},
+            {"name": "day_of_week", "type": "int", "cold_start": 0},
+            {"name": "sender_avg_amount", "type": "float", "cold_start": 0.0},
+            {"name": "sender_std_amount", "type": "float", "cold_start": 0.0},
+            {"name": "sender_max_amount", "type": "float", "cold_start": 0.0},
+            {"name": "amount_to_avg_ratio", "type": "float", "cold_start": 0.0},
+            {"name": "sender_amount_zscore", "type": "float", "cold_start": 0.0},
+            {"name": "is_new_recipient", "type": "int", "cold_start": 1},
+            {"name": "pair_transfer_count", "type": "int", "cold_start": 0},
+            {"name": "recipient_share", "type": "float", "cold_start": 0.0},
+            {"name": "days_since_last_pair_transfer", "type": "float", "cold_start": 30.0},
+            {"name": "distinct_recipients_30d", "type": "int", "cold_start": 0},
+            {"name": "recipient_inbound_count_24h", "type": "int", "cold_start": 0},
+            {"name": "recipient_unique_senders_24h", "type": "int", "cold_start": 0},
+            {"name": "sender_txn_count_1h", "type": "int", "cold_start": 0},
+            {"name": "sender_txn_count_24h", "type": "int", "cold_start": 0},
+            {"name": "amount_to_balance_ratio", "type": "float", "cold_start": 0.0},
+            {"name": "history_length", "type": "int", "cold_start": 0},
+        ],
+    },
+}
 
-    NOTE ON DEPENDENCY ON M1:
-    The authoritative schema, types, and range rules for Purchase ('purchase-fraud-model') and
-    Transfer ('transfer-fraud-model') depend on M1's unpublished `feature_spec.json` artifacts.
-    This boundary defines the contract that will be plugged in once M1 publishes those specs.
+
+class FeatureSpecValidator:
+    """
+    Authoritative V2 feature specification validator for Vigilia M2 ML Serving.
+    Enforces canonical M1 V2 specifications (purchase-v2: 29 features, transfer-v2: 20 features).
     """
 
-    def validate(self, family: str, features: Dict[str, Any]) -> None:
+    def __init__(self, specs: Optional[Dict[str, Dict[str, Any]]] = None) -> None:
+        self._specs = specs or CANONICAL_FEATURE_SPECS
+
+    def get_canonical_version(self, family: str) -> str:
+        """Returns the canonical feature spec version for a family."""
+        if family not in self._specs:
+            raise FeatureValidationError(
+                detail=f"Unsupported model family: '{family}'. Supported families: {list(self._specs.keys())}.",
+                errors=[ValidationErrorItem(field="family", message=f"Unsupported model family '{family}'")],
+            )
+        return self._specs[family]["version"]
+
+    def get_feature_count(self, family: str) -> int:
+        """Returns the expected feature count for a family."""
+        if family not in self._specs:
+            raise FeatureValidationError(
+                detail=f"Unsupported model family: '{family}'. Supported families: {list(self._specs.keys())}.",
+                errors=[ValidationErrorItem(field="family", message=f"Unsupported model family '{family}'")],
+            )
+        return self._specs[family]["feature_count"]
+
+    def get_expected_features(self, family: str) -> List[Dict[str, Any]]:
+        """Returns the list of expected feature metadata for a family."""
+        if family not in self._specs:
+            raise FeatureValidationError(
+                detail=f"Unsupported model family: '{family}'. Supported families: {list(self._specs.keys())}.",
+                errors=[ValidationErrorItem(field="family", message=f"Unsupported model family '{family}'")],
+            )
+        return self._specs[family]["features"]
+
+    def validate(
+        self,
+        family: str,
+        features: Dict[str, Any],
+        feature_spec_version: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Validates feature keys, types, and ranges for the given family.
-        Raises FeatureValidationError (HTTP 422) if validation fails.
+        Validates feature keys, count, types, and values for the specified model family.
+
+        Validation rules:
+        1. family must be one of the supported families ('purchase', 'transfer').
+        2. feature_spec_version, if supplied, must match canonical version ('purchase-v2', 'transfer-v2').
+           Raises FeatureSpecMismatchError (HTTP 409) if mismatched.
+        3. features must be a dictionary.
+        4. Exactly the expected features must be present (no missing, no extra unexpected features).
+        5. Value types must strictly match the canonical spec ('int', 'float', 'string'):
+           - Booleans are rejected for numeric types.
+           - Strings are not silently converted to numbers.
+           - None / null values are rejected.
+           - Float values must not be NaN or infinite (+/- inf).
+           - String values must be non-empty strings.
+        6. Features are returned as an ordered dictionary matching canonical M1 order.
+
+        Raises:
+            FeatureSpecMismatchError (HTTP 409): When feature_spec_version does not match.
+            FeatureValidationError (HTTP 422): When family, counts, keys, or types fail validation.
         """
-        raise NotImplementedError("Authoritative feature specification validator pending M1 artifacts.")
+        # 1. Family validation
+        if family not in self._specs:
+            raise FeatureValidationError(
+                detail=f"Unsupported model family: '{family}'. Supported families: {list(self._specs.keys())}.",
+                errors=[ValidationErrorItem(field="family", message=f"Unsupported model family '{family}'")],
+            )
+
+        spec = self._specs[family]
+        expected_version = spec["version"]
+        expected_features_list = spec["features"]
+        expected_count = spec["feature_count"]
+
+        # 2. Spec version validation (HTTP 409)
+        if feature_spec_version is not None and feature_spec_version != expected_version:
+            raise FeatureSpecMismatchError(
+                requested_version=feature_spec_version,
+                expected_version=expected_version,
+                family=family,
+            )
+
+        # 3. Features container validation
+        if not isinstance(features, dict):
+            raise FeatureValidationError(
+                detail=f"Features payload must be a JSON object (dictionary), but received {type(features).__name__}.",
+                errors=[ValidationErrorItem(field="features", message="Must be a dictionary")],
+            )
+
+        errors: List[ValidationErrorItem] = []
+        expected_names = [f["name"] for f in expected_features_list]
+        expected_set = set(expected_names)
+        provided_set = set(features.keys())
+
+        # 4. Check for unexpected additional features
+        unexpected = sorted(provided_set - expected_set)
+        for u in unexpected:
+            errors.append(
+                ValidationErrorItem(
+                    field=f"features.{u}",
+                    message=f"Unexpected feature '{u}' not in '{expected_version}' specification for family '{family}'",
+                )
+            )
+
+        # 5. Check for missing features
+        missing = [name for name in expected_names if name not in provided_set]
+        for m in missing:
+            errors.append(
+                ValidationErrorItem(
+                    field=f"features.{m}",
+                    message=f"Missing required feature '{m}' for '{expected_version}' specification",
+                )
+            )
+
+        # 6. Type and value validation for present expected features
+        validated_ordered: Dict[str, Any] = {}
+        for feat in expected_features_list:
+            name = feat["name"]
+            expected_type = feat["type"]
+
+            if name not in features:
+                continue
+
+            val = features[name]
+
+            # Null / None check
+            if val is None:
+                errors.append(
+                    ValidationErrorItem(
+                        field=f"features.{name}",
+                        message=f"Feature '{name}' cannot be null (None)",
+                    )
+                )
+                continue
+
+            # Boolean check (in Python, isinstance(True, int) is True, so must check bool explicitly)
+            if isinstance(val, bool):
+                errors.append(
+                    ValidationErrorItem(
+                        field=f"features.{name}",
+                        message=f"Feature '{name}' expects {expected_type}, but received boolean: {val}",
+                    )
+                )
+                continue
+
+            if expected_type == "int":
+                if not isinstance(val, int):
+                    errors.append(
+                        ValidationErrorItem(
+                            field=f"features.{name}",
+                            message=f"Feature '{name}' expects integer, but received {type(val).__name__}",
+                        )
+                    )
+                    continue
+                validated_ordered[name] = val
+
+            elif expected_type == "float":
+                if not isinstance(val, (int, float)):
+                    errors.append(
+                        ValidationErrorItem(
+                            field=f"features.{name}",
+                            message=f"Feature '{name}' expects float/number, but received {type(val).__name__}",
+                        )
+                    )
+                    continue
+                if math.isnan(val) or math.isinf(val):
+                    errors.append(
+                        ValidationErrorItem(
+                            field=f"features.{name}",
+                            message=f"Feature '{name}' cannot be NaN or infinite",
+                        )
+                    )
+                    continue
+                validated_ordered[name] = float(val)
+
+            elif expected_type == "string":
+                if not isinstance(val, str):
+                    errors.append(
+                        ValidationErrorItem(
+                            field=f"features.{name}",
+                            message=f"Feature '{name}' expects string, but received {type(val).__name__}",
+                        )
+                    )
+                    continue
+                if not val.strip():
+                    errors.append(
+                        ValidationErrorItem(
+                            field=f"features.{name}",
+                            message=f"Feature '{name}' string cannot be empty",
+                        )
+                    )
+                    continue
+                validated_ordered[name] = val
+
+        # If any validation errors occurred, raise FeatureValidationError (HTTP 422)
+        if errors:
+            detail = (
+                f"Feature validation failed for family '{family}' ({expected_version}) with {len(errors)} error(s): "
+                + "; ".join(f"{e.field}: {e.message}" for e in errors[:5])
+            )
+            if len(errors) > 5:
+                detail += f" ... and {len(errors) - 5} more."
+            raise FeatureValidationError(detail=detail, errors=errors)
+
+        # 7. Exact feature count check
+        if len(validated_ordered) != expected_count:
+            raise FeatureValidationError(
+                detail=f"Expected exactly {expected_count} features for '{family}', but validated {len(validated_ordered)}.",
+                errors=errors,
+            )
+
+        return validated_ordered
+
+
+# Backwards compatibility alias
+BaseFeatureSpecValidator = FeatureSpecValidator
 
 
 # =====================================================================

@@ -510,10 +510,12 @@ def test_verify_feature_spec_version_matching() -> None:
     assert exc.value.code == ERROR_CODE_FEATURE_SPEC_MISMATCH
 
 
-def test_base_feature_spec_validator_raises_not_implemented() -> None:
+def test_base_feature_spec_validator_validates_features() -> None:
     validator = BaseFeatureSpecValidator()
-    with pytest.raises(NotImplementedError, match="pending M1 artifacts"):
+    with pytest.raises(FeatureValidationError) as exc:
         validator.validate("purchase", {"amount": 10.0})
+    assert exc.value.status_code == 422
+    assert exc.value.code == ERROR_CODE_FEATURE_VALIDATION
 
 
 # =====================================================================
