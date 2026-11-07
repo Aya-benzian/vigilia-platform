@@ -155,7 +155,7 @@ jobs:
         run: |
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            python -m pytest -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=term
             # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
             sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else
@@ -200,7 +200,7 @@ jobs:
         run: |
           pip install pytest-cov
           if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
-            python -m pytest -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+            python -m pytest -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=term
             # Rewrite runner host paths to /github/workspace so Docker SonarCloud can resolve files
             sed -i 's|/home/runner/work/[^/]*/[^/]*|/github/workspace|g' coverage.xml || true
           else

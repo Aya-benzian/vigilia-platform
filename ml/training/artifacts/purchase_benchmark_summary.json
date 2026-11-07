@@ -1,72 +1,21 @@
 {
   "domain": "purchase",
-  "champion_model": "xgboost",
   "feature_count": 29,
-  "features": [
-    "amount",
-    "log_amount",
-    "hour_of_day",
-    "day_of_week",
-    "is_weekend",
-    "is_night",
-    "customer_age",
-    "distance_home_merchant_km",
-    "city_pop_log",
-    "merchant_category",
-    "customer_avg_amount",
-    "customer_std_amount",
-    "customer_max_amount",
-    "amount_to_avg_ratio",
-    "amount_zscore_customer",
-    "hour_share",
-    "category_share",
-    "merchant_visit_count",
-    "avg_distance_home_km",
-    "distance_zscore",
-    "txn_count_1h",
-    "txn_count_24h",
-    "txn_count_7d",
-    "amount_sum_24h",
-    "time_since_last_txn_s",
-    "is_new_merchant",
-    "is_new_category",
-    "history_length",
-    "days_since_first_txn"
-  ],
-  "calibrated_pr_auc": 0.9292571121974292,
-  "raw_pr_auc": 0.9531350349541577,
-  "test_roc_auc": 0.9987461567051483,
-  "test_brier_calibrated": 0.0015930113149806857,
-  "candidates": {
-    "logreg": {
-      "val_pr_auc": 0.3617969665132507,
-      "val_roc_auc": 0.952152125279642,
-      "val_brier": 0.03168993680527532,
-      "fit_time_s": 0.7568058967590332
-    },
-    "rf": {
-      "val_pr_auc": 0.9121172598072217,
-      "val_roc_auc": 0.9953166293810589,
-      "val_brier": 0.0026327511111111108,
-      "fit_time_s": 4.735296964645386
-    },
-    "xgboost": {
-      "val_pr_auc": 0.9653648400826463,
-      "val_roc_auc": 0.9984748695003728,
-      "val_brier": 0.0007351641543209553,
-      "fit_time_s": 1.255964756011963
-    },
-    "svm": {
-      "val_pr_auc": 0.4118400646699753,
-      "val_roc_auc": 0.9351889634601044,
-      "val_brier": 0.0938012751721992,
-      "fit_time_s": 0.8859529495239258
-    },
-    "mlp": {
-      "val_pr_auc": 0.8522440252952268,
-      "val_roc_auc": 0.9434076062639821,
-      "val_brier": 0.0019783752459092358,
-      "fit_time_s": 8.931006669998169
-    }
+  "champion_model": "xgboost",
+  "optimal_threshold": 0.12000000000000001,
+  "calibrated_pr_auc": 0.9229385519739906,
+  "test_pr_auc": 0.9229385519739906,
+  "test_roc_auc": 0.9981017099290779,
+  "test_f1": 0.882494004796163,
+  "test_f2": 0.9126984126984127,
+  "test_precision": 0.8363636363636363,
+  "test_recall": 0.934010152284264,
+  "test_specificity": 0.9983858673721024,
+  "test_brier_calibrated": 0.0013437881134450436,
+  "confusion_matrix": {
+    "tp": 184,
+    "fp": 36,
+    "tn": 22267,
+    "fn": 13
   }
 }
