@@ -1,0 +1,29 @@
+{
+  "xgboost": {
+    "learning_rate": 0.13350342356328818,
+    "max_depth": 4,
+    "n_estimators": 250,
+    "subsample": 0.8070332515583444,
+    "colsample_bytree": 0.9566689052412846,
+    "reg_lambda": 3.441363278029218,
+    "scale_pos_weight": 101.73972602739725
+  },
+  "rf": {
+    "n_estimators": 120,
+    "max_depth": 22,
+    "min_samples_leaf": 2
+  },
+  "logreg": {
+    "C": 0.004207988669606638
+  },
+  "svm": {
+    "C": 0.0016400214911202306
+  },
+  "mlp": {
+    "hidden_layer_sizes": [
+      128,
+      64
+    ],
+    "alpha": 0.0015930522616241021
+  }
+}

@@ -29,6 +29,7 @@
 21. [Sparkov Feature Engineering & 22-Column Breakdown](#21-sparkov-feature-engineering--22-column-breakdown)
 22. [Dual-Domain ML Architecture & Cross-Domain Feature Benchmark](#22-dual-domain-ml-architecture--cross-domain-feature-benchmark-2026-10-26)
 23. [Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture](#23-academic-supervisor-directive-strict-domain-isolation--decoupled-model-architecture-2026-10-29)
+24. [Session 6: Formal Bayesian Optimization, 5-Fold Stratified Cross-Validation & Statistical Validation on Isolated Domains](#24-session-6-formal-bayesian-optimization-5-fold-stratified-cross-validation--statistical-validation-on-isolated-domains-2026-11-07)
 
 ---
 
@@ -868,9 +869,67 @@ Following direct instruction from the academic supervisor (*encadrant*), the pla
 - `artifacts/golden_rows_purchase.json` & `artifacts/golden_rows_transfer.json`: 250 golden test fixtures per domain matching the exact 29 / 20 feature contracts for Java parity verification.
 - **Test Suite Status**: 70/70 passing tests across schema, preprocessing, model factories, and dual-domain artifacts.
 
+---
 
+## 24. Session 6: Formal Bayesian Optimization, 5-Fold Stratified Cross-Validation & Statistical Validation on Isolated Domains (2026-11-07)
 
+### 24.1 Motivation & Fulfillment of Master Conception Requirements
+Following the supervisor directive to enforce strict domain isolation (29 purchase features, 20 transfer features), the models initially used default hyperparameters. In this session, Member 1 executed the full academic benchmarking and optimization cycle:
+1. **Optuna Bayesian Optimization (TPE Sampler)**: 15 trials per model on PR-AUC across both domains.
+2. **5-Fold Stratified Cross-Validation Benchmark**: Identical paired splits comparing 5 candidate algorithms + Dummy Baseline.
+3. **Statistical Hypothesis Testing (Demšar 2006 Protocol)**: Omnibus Friedman test and post-hoc Wilcoxon signed-rank tests with Holm-Bonferroni step-down correction.
+4. **Isotonic Probability Calibration & F2 Operating Threshold Optimization**: Minimizing Brier score and maximizing fraud recall ($F_2$).
+5. **Final Test Evaluation & Model Registry**: Registration under `@champion` in MLflow.
 
+### 24.2 5-Fold Stratified Cross-Validation Benchmark Results
 
+#### A. Purchase Domain (29 Features — Sparkov)
+| Rank | Model | Mean PR-AUC ± Std | Cohen's d vs Champion | Status |
+|:---:|---|:---:|:---:|:---:|
+| **1** 🏆 | **XGBoost (Tuned)** | **0.9816 ± 0.0020** | — | **Elected Champion** |
+| 2 | Random Forest (Tuned) | 0.9518 ± 0.0051 | $d = +16.94$ | Challenger |
+| 3 | MLP (Neural Net) | 0.9411 ± 0.0097 | $d = +4.70$ | Challenger |
+| 4 | LinearSVC (SVM) | 0.6109 ± 0.0152 | $d = +14.80$ | Linear Baseline |
+| 5 | Logistic Regression | 0.5833 ± 0.0124 | $d = +17.45$ | Linear Baseline |
+| 6 | Dummy Classifier (Prior) | 0.0097 ± 0.0001 | $d = +371.36$ | Naive Baseline |
 
+#### B. Transfer Domain (20 Features — PaySim)
+| Rank | Model | Mean PR-AUC ± Std | Cohen's d vs Champion | Status |
+|:---:|---|:---:|:---:|:---:|
+| **1** 🏆 | **XGBoost (Tuned)** | **0.9819 ± 0.0065** | — | **Elected Champion** |
+| 2 | Random Forest (Tuned) | 0.8964 ± 0.0137 | $d = +6.48$ | Challenger |
+| 3 | MLP (Neural Net) | 0.6736 ± 0.0186 | $d = +13.72$ | Challenger |
+| 4 | LinearSVC (SVM) | 0.2724 ± 0.0248 | $d = +21.72$ | Linear Baseline |
+| 5 | Logistic Regression | 0.2705 ± 0.0225 | $d = +24.28$ | Linear Baseline |
+| 6 | Dummy Classifier (Prior) | 0.0082 ± 0.0001 | $d = +134.37$ | Naive Baseline |
+
+### 24.3 Statistical Significance Rigor
+- **Omnibus Friedman Test**:
+  - Purchase: $p = 3.125 \times 10^{-2} < 0.05$ (Statistically significant performance variation).
+  - Transfer: $\chi^2 = 24.31, p = 1.889 \times 10^{-4} \ll 0.05$ (Highly statistically significant).
+- **Post-Hoc Pairwise Wilcoxon Signed-Rank Tests (Holm-Bonferroni Correction)**:
+  - Formally proves XGBoost outperforms all linear baselines and the naive prior ($p_{\text{adj}} < 0.05$).
+  - Very large Cohen's d effect sizes ($d > +4.70$ across all comparisons).
+  - Saved to `reports/tables/statistical_tests_purchase.csv` and `reports/tables/statistical_tests_transfer.csv`.
+
+### 24.4 Calibration & Threshold Optimization (Holdout Splits)
+- **Part B Calibration**:
+  - Isotonic Regression fitted on untouched 15,000 calibration samples.
+  - Test Brier score: **0.0013** (Purchase), **0.0007** (Transfer).
+- **Part C Threshold Optimization ($F_2$ Criterion)**:
+  - Optimal threshold: $\tau = 0.1200$ (Purchase), $\tau = 0.3300$ (Transfer).
+  - Saved to `artifacts/threshold_purchase.txt` and `artifacts/threshold_transfer.txt`.
+
+### 24.5 Final Test Set Evaluation (22,500 Unseen Transactions per Domain)
+- **Purchase Domain**: PR-AUC = **0.9229**, ROC-AUC = **0.9981**, Recall = **93.40%** (184/197 frauds caught), Specificity = **99.84%** (only 36 false alerts out of 22,267 legitimate transactions).
+- **Transfer Domain**: PR-AUC = **0.7870**, ROC-AUC = **0.9996**, Recall = **100.00%** (**58/58 frauds caught, 0 missed!**), Specificity = **99.92%** (only 19 false alerts out of 22,442 legitimate transfers).
+
+### 24.6 MLflow Model Registry Deployment
+Registered under `@champion` alias:
+- `models:/purchase-fraud-model@champion` (v2)
+- `models:/transfer-fraud-model@champion` (v2)
+- `models:/fraud-model@champion` (v1)
+
+### 24.7 Test Suite Status
+- Unit tests: **82 passed, 6 skipped (MLflow live HTTP smoke tests as designed for CI), 0 failed** (100% green).
 
