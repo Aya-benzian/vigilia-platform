@@ -1,63 +1,21 @@
 {
   "domain": "transfer",
-  "champion_model": "xgboost",
   "feature_count": 20,
-  "features": [
-    "amount",
-    "log_amount",
-    "hour_of_day",
-    "day_of_week",
-    "sender_avg_amount",
-    "sender_std_amount",
-    "sender_max_amount",
-    "amount_to_avg_ratio",
-    "sender_amount_zscore",
-    "is_new_recipient",
-    "pair_transfer_count",
-    "recipient_share",
-    "days_since_last_pair_transfer",
-    "distinct_recipients_30d",
-    "recipient_inbound_count_24h",
-    "recipient_unique_senders_24h",
-    "sender_txn_count_1h",
-    "sender_txn_count_24h",
-    "amount_to_balance_ratio",
-    "history_length"
-  ],
-  "calibrated_pr_auc": 0.8350500533113405,
-  "raw_pr_auc": 0.8761881672355528,
-  "test_roc_auc": 0.9997180471345292,
-  "test_brier_calibrated": 0.0006533596315421164,
-  "candidates": {
-    "logreg": {
-      "val_pr_auc": 0.1688091342659759,
-      "val_roc_auc": 0.9204584356627223,
-      "val_brier": 0.318083879910198,
-      "fit_time_s": 0.19149541854858398
-    },
-    "rf": {
-      "val_pr_auc": 0.7813189396917581,
-      "val_roc_auc": 0.989383046811044,
-      "val_brier": 0.0029886540814228106,
-      "fit_time_s": 3.0358777046203613
-    },
-    "xgboost": {
-      "val_pr_auc": 0.9766666193988863,
-      "val_roc_auc": 0.9998915574267215,
-      "val_brier": 0.0008267547818832099,
-      "fit_time_s": 0.9377286434173584
-    },
-    "svm": {
-      "val_pr_auc": 0.1622058805056518,
-      "val_roc_auc": 0.9187943737441394,
-      "val_brier": 0.22902561667633764,
-      "fit_time_s": 0.8093903064727783
-    },
-    "mlp": {
-      "val_pr_auc": 0.1507915804664074,
-      "val_roc_auc": 0.8869845522491202,
-      "val_brier": 0.004666066862602823,
-      "fit_time_s": 8.998165607452393
-    }
+  "champion_model": "xgboost",
+  "optimal_threshold": 0.33,
+  "calibrated_pr_auc": 0.7870402180190506,
+  "test_pr_auc": 0.7870402180190506,
+  "test_roc_auc": 0.9996293126496194,
+  "test_f1": 0.8592592592592593,
+  "test_f2": 0.9385113268608414,
+  "test_precision": 0.7532467532467533,
+  "test_recall": 1.0,
+  "test_specificity": 0.9991533731396489,
+  "test_brier_calibrated": 0.0007222700514830649,
+  "confusion_matrix": {
+    "tp": 58,
+    "fp": 19,
+    "tn": 22423,
+    "fn": 0
   }
 }

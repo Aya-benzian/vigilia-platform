@@ -79,6 +79,13 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- Structured JSON Logging (Logstash Logback Encoder) -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Santé et métriques Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
