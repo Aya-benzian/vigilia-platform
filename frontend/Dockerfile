@@ -1,17 +1,11 @@
-# Stage 1: Build
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package.json .
-# RUN npm install (mocked for now)
-COPY . .
-RUN npm run build
-
-# Stage 2: Serve
 # Using the official unprivileged NGINX image
 FROM nginxinc/nginx-unprivileged:alpine
 
-# Copy built assets
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy static web assets directly from public/
+COPY public/ /usr/share/nginx/html
+
+# Custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the runtime environment injection script
 COPY --chown=nginx:nginx entrypoint.sh /docker-entrypoint.d/99-envsubst.sh

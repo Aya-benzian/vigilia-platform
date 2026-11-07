@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — Vigilia</title>
+  <meta name="description" content="Sign in to your Vigilia account — Resilient FinTech Fraud and Risk Detection Platform." />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      background: none;
+    }
+
+    :root {
+      --navy:          #0d2137;
+      --navy-light:    #163352;
+      --copper:        #c67a52;
+      --copper-hover:  #b36942;
+      --bg:            #fdfbf7;
+      --card-bg:       #ffffff;
+      --text-main:     #0d2137;
+      --text-muted:    #56687a;
+      --text-subtle:   #728394;
+      --border-color:  #ece4d9;
+      --font-display:  'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+      --font-body:     'Inter', -apple-system, sans-serif;
+    }
+
+    html, body {
+      min-height: 100vh;
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Ambient background organic accents matching reference */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -120px;
+      right: -120px;
+      width: 550px;
+      height: 550px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(243, 230, 215, 0.55) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -150px;
+      left: -150px;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(243, 230, 215, 0.6) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Back to Home Pill ─── */
+    .back-home-link {
+      position: absolute;
+      top: clamp(1.2rem, 2.5vh, 2rem);
+      right: clamp(1.5rem, 3.5vw, 3rem);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-subtle);
+      text-decoration: none;
+      padding: 0.45rem 0.95rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 2px 8px rgba(13, 33, 55, 0.04);
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .back-home-link:hover {
+      color: var(--navy);
+      background: #ffffff;
+      border-color: var(--copper);
+    }
+
+    /* ─── Main Unified Stage ─── */
+    .login-stage {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1540px;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: clamp(1.5rem, 3vh, 3rem) clamp(1.5rem, 3.5vw, 4rem);
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(480px, 565px);
+      justify-content: space-between;
+      align-items: center;
+      gap: clamp(2.5rem, 4.5vw, 5.5rem);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       LEFT PANEL
+       ═══════════════════════════════════════════════════════════════════ */
+    .left-section {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      max-width: 680px;
+      gap: 0;
+    }
+
+    /* Brand Header Row */
+    .brand-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: calc(100% + 2.5rem);
+      margin-left: -2.5rem;
+      margin-bottom: clamp(2.2rem, 4.5vh, 4rem);
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.1rem;
+      text-decoration: none;
+      color: var(--navy);
+    }
+
+    .brand-logo-img {
+      height: clamp(70px, 8vh, 88px);
+      width: auto;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+      margin-top: -0.5rem;
+      transition: transform 0.2s ease;
+    }
+
+    .brand-block:hover .brand-logo-img {
+      transform: scale(1.05);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.9rem, 2.6vw, 2.3rem);
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 0.55rem;
+    }
+
+    .brand-desc {
+      font-size: clamp(0.78rem, 1.05vh, 0.86rem);
+      color: var(--text-subtle);
+      line-height: 1.42;
+      font-weight: 400;
+      letter-spacing: 0.005em;
+    }
+
+    .tagline-container {
+      text-align: right;
+      padding-top: 0.2rem;
+    }
+
+    .tagline-text {
+      font-size: clamp(0.68rem, 1vh, 0.76rem);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      line-height: 1.4;
+      display: block;
+    }
+
+    .tagline-underline {
+      display: block;
+      width: 32px;
+      height: 2px;
+      background: var(--copper);
+      margin-top: 5px;
+      margin-left: auto;
+      border-radius: 2px;
+    }
+
+    /* Hero Text */
+    .hero-heading {
+      font-family: var(--font-display);
+      font-size: clamp(2.3rem, 3.4vw, 3.15rem);
+      font-weight: 800;
+      line-height: 1.12;
+      color: var(--navy);
+      letter-spacing: -0.035em;
+      margin-bottom: clamp(0.6rem, 1.2vh, 1rem);
+    }
+
+    .hero-heading .caramel-text {
+      color: var(--copper);
+      display: block;
+    }
+
+    .hero-subtext {
+      font-size: clamp(0.92rem, 1.25vw, 1.02rem);
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 540px;
+      margin-bottom: clamp(1.3rem, 2.6vh, 2.2rem);
+    }
+
+    /* 4 Feature Badges */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      width: 100%;
+      max-width: 650px;
+      margin-bottom: clamp(1.5rem, 3vh, 2.5rem);
+    }
+
+    .feature-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      text-align: center;
+      padding: 0.6rem 0.5rem;
+      border-right: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+
+    .feature-card:last-child {
+      border-right: none;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .feature-icon-circle {
+      width: clamp(42px, 4.8vh, 48px);
+      height: clamp(42px, 4.8vh, 48px);
+      border-radius: 50%;
+      background: #edf0f5;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--navy);
+      transition: all 0.2s ease;
+    }
+
+    .feature-card:hover .feature-icon-circle {
+      background: #e8ecf3;
+      color: var(--copper);
+    }
+
+    .feature-icon-circle svg {
+      width: clamp(17px, 2vh, 20px);
+      height: clamp(17px, 2vh, 20px);
+    }
+
+    .feature-label {
+      font-size: clamp(0.72rem, 1.05vh, 0.8rem);
+      font-weight: 500;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    /* 3D Glass Shield Illustration - Directly below features, prominent & wide */
+    .illustration-stage {
+      position: relative;
+      width: 100%;
+      max-width: 660px;
+      margin: clamp(0.1rem, 0.4vh, 0.5rem) 0 clamp(0.6rem, 1.4vh, 1.2rem);
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .shield-image {
+      width: 100%;
+      height: auto;
+      max-height: clamp(260px, 38vh, 380px);
+      object-fit: contain;
+      filter: drop-shadow(0 14px 28px rgba(13, 33, 55, 0.06));
+      animation: gentleFloat 7s ease-in-out infinite;
+      user-select: none;
+      -webkit-user-drag: none;
+      display: block;
+    }
+
+    @keyframes gentleFloat {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    /* Left Footer Tagline */
+    .left-footer-note {
+      font-size: clamp(0.82rem, 1.2vh, 0.9rem);
+      color: var(--text-subtle);
+      margin-top: 0;
+      letter-spacing: 0.01em;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       RIGHT PANEL (FLOATING CARD FORM - Vertically Centered & Elegant)
+       ═══════════════════════════════════════════════════════════════════ */
+    .right-section {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    /* Floating Card */
+    .form-card {
+      background: #ffffff;
+      border-radius: 24px;
+      border: 1px solid rgba(226, 218, 205, 0.85);
+      box-shadow:
+        0 28px 64px -14px rgba(13, 33, 55, 0.10),
+        0 6px 20px rgba(13, 33, 55, 0.04);
+      width: 100%;
+      max-width: 565px;
+      padding: clamp(3rem, 4.8vh, 4rem) clamp(2.6rem, 3.8vw, 3.5rem);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.25s ease;
+    }
+
+    /* Segmented Tabs Switcher (Sleek FinTech Pill Control) */
+    .card-tabs {
+      display: flex;
+      background: #f2ede5;
+      border: 1px solid rgba(226, 218, 205, 0.75);
+      border-radius: 14px;
+      padding: 5px;
+      margin-bottom: clamp(1.8rem, 2.8vh, 2.4rem);
+      gap: 6px;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 0.82rem 1.4rem;
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      text-align: center;
+    }
+
+    .tab-button:hover {
+      color: var(--navy);
+    }
+
+    .tab-button.active {
+      color: var(--navy);
+      background: #ffffff;
+      font-weight: 700;
+      box-shadow: 0 3px 10px rgba(13, 33, 55, 0.09), 0 1px 3px rgba(13, 33, 55, 0.04);
+    }
+
+    /* Form Heading */
+    .form-header-block {
+      margin-bottom: clamp(1.8rem, 2.8vh, 2.4rem);
+    }
+
+    .form-main-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.1rem, 3.2vh, 2.45rem);
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -0.035em;
+      margin-bottom: 0.5rem;
+      line-height: 1.18;
+    }
+
+    .form-sub-title {
+      font-size: clamp(0.98rem, 1.4vh, 1.06rem);
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Form Fields */
+    .field-group {
+      margin-bottom: clamp(1.35rem, 2vh, 1.65rem);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 0.55rem;
+      letter-spacing: -0.01em;
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      background: #fdfcfb;
+      border: 1.5px solid #e3dcce;
+      border-radius: 13px;
+      height: 56px;
+      padding: 0 1.25rem;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .input-wrapper:focus-within {
+      background: #ffffff;
+      border-color: var(--copper);
+      box-shadow: 0 0 0 4px rgba(198, 122, 82, 0.14);
+    }
+
+    .input-icon-svg {
+      color: #7d8f9f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 0.95rem;
+      flex-shrink: 0;
+    }
+
+    .input-icon-svg svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    .input-wrapper input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 1.02rem;
+      color: var(--navy);
+    }
+
+    .input-wrapper input::placeholder {
+      color: #9cb0c2;
+    }
+
+    .toggle-password-btn {
+      color: #7d8f9f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0.35rem;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      background: none;
+      border: none;
+    }
+
+    .toggle-password-btn:hover {
+      color: var(--navy);
+      background: rgba(13, 33, 55, 0.04);
+    }
+
+    .toggle-password-btn svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    /* Options Row (Remember & Forgot) */
+    .options-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1.15rem;
+      margin-bottom: 0.25rem;
+      font-size: 0.93rem;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--navy);
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      display: none;
+    }
+
+    .custom-box {
+      width: 21px;
+      height: 21px;
+      border-radius: 6px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .custom-box svg {
+      width: 13px;
+      height: 13px;
+      color: #ffffff;
+    }
+
+    .forgot-password-link {
+      color: var(--copper);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .forgot-password-link:hover {
+      color: var(--copper-hover);
+      text-decoration: underline;
+    }
+
+    /* Primary Submit Button */
+    .btn-primary-auth {
+      width: 100%;
+      height: 56px;
+      margin-top: clamp(1.8rem, 2.8vh, 2.4rem);
+      background: var(--navy);
+      color: #ffffff;
+      border-radius: 13px;
+      border: none;
+      outline: none;
+      font-family: var(--font-display);
+      font-size: 1.08rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7rem;
+      box-shadow: 0 4px 18px rgba(13, 33, 55, 0.16);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .btn-primary-auth:hover {
+      background: #142a42;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 26px rgba(13, 33, 55, 0.24);
+    }
+
+    .btn-primary-auth:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary-auth svg {
+      width: 20px;
+      height: 20px;
+      transition: transform 0.2s ease;
+    }
+
+    .btn-primary-auth:hover svg {
+      transform: translateX(4px);
+    }
+
+    /* Sign-up hint box */
+    .footer-switch-hint {
+      text-align: center;
+      margin-top: clamp(1.8rem, 2.8vh, 2.4rem);
+      font-size: 0.96rem;
+      color: var(--text-subtle);
+    }
+
+    .footer-switch-hint a {
+      color: var(--copper);
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .footer-switch-hint a:hover {
+      color: var(--copper-hover);
+      text-decoration: underline;
+    }
+
+    .btn-primary-auth:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Auth Alert Notification */
+    .auth-alert {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1.15rem;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      margin-bottom: 1.35rem;
+      animation: alertSlideIn 0.22s ease-out;
+    }
+
+    .auth-alert-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .auth-alert.error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .auth-alert.success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+
+    @keyframes alertSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ─── Responsive Breakpoints ─── */
+    @media (max-width: 1100px) {
+      .login-stage {
+        grid-template-columns: 1fr;
+        justify-content: center;
+        gap: 3rem;
+        padding: 3.5rem 2rem 2.5rem;
+        min-height: auto;
+      }
+      .left-section {
+        max-width: 580px;
+        margin: 0 auto;
+      }
+      .illustration-stage {
+        justify-content: center;
+      }
+      .right-section {
+        justify-content: center;
+        max-width: 565px;
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .login-stage {
+        padding: 2.5rem 1.25rem 2rem;
+        gap: 2rem;
+      }
+      .brand-header-row {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .tagline-container {
+        text-align: left;
+      }
+      .tagline-underline {
+        margin-left: 0;
+      }
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+      .shield-image {
+        max-height: 220px;
+      }
+      .form-card {
+        padding: 2rem 1.4rem;
+        border-radius: 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Floating Shortcut to Return Home -->
+  <a href="/" class="back-home-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+    Back to Home
+  </a>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       CENTRALIZED STAGE (Aligned with reference proportions & wide spread)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <main class="login-stage">
+
+    <!-- ─── LEFT COLUMN ─── -->
+    <section class="left-section">
+
+      <!-- Brand Row -->
+      <div class="brand-header-row">
+        <a href="/" class="brand-block">
+          <img src="assets/vigilia-logo-mark.png" alt="Vigilia Logo" class="brand-logo-img" />
+          <div>
+            <h1 class="brand-title">Vigilia</h1>
+            <p class="brand-desc">Resilient FinTech Fraud and Risk Detection Platform</p>
+          </div>
+        </a>
+
+        <div class="tagline-container">
+          <span class="tagline-text">SAFER PAYMENTS.<br/>SMARTER DECISIONS.</span>
+          <span class="tagline-underline"></span>
+        </div>
+      </div>
+
+      <!-- Hero Headline -->
+      <h2 class="hero-heading">
+        Your security,
+        <span class="caramel-text">our priority.</span>
+      </h2>
+
+      <!-- Subtext -->
+      <p class="hero-subtext">
+        Advanced fraud detection, intelligent risk analysis and real-time monitoring — for safer payments and greater peace of mind.
+      </p>
+
+      <!-- 4 Feature Badges -->
+      <div class="features-grid">
+        
+        <div class="feature-card">
+          <div class="feature-icon-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+          </div>
+          <span class="feature-label">Fraud<br/>Detection</span>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="3"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="18" r="3"/>
+              <line x1="12" y1="8" x2="6" y2="15"/>
+              <line x1="12" y1="8" x2="18" y2="15"/>
+            </svg>
+          </div>
+          <span class="feature-label">Risk<br/>Analysis</span>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <span class="feature-label">Real-time<br/>Decisions</span>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <span class="feature-label">Your Data,<br/>Protected</span>
+        </div>
+
+      </div>
+
+      <!-- 3D Glass Shield Illustration Stage (Directly below features, prominent & centered) -->
+      <div class="illustration-stage">
+        <img 
+          src="assets/login-shield-illustration.png" 
+          alt="Vigilia 3D Security Shield & Pedestal" 
+          class="shield-image"
+        />
+      </div>
+
+      <!-- Left Footer Tagline -->
+      <div class="left-footer-note">
+        Build a safer financial future. Together.
+      </div>
+
+    </section>
+
+    <!-- ─── RIGHT COLUMN (CARD) ─── -->
+    <section class="right-section">
+      <div class="form-card">
+
+        <!-- Tabs Nav (Segmented Switcher) -->
+        <div class="card-tabs">
+          <button type="button" class="tab-button active" id="tab-login" onclick="switchTab('login')">Log in</button>
+          <button type="button" class="tab-button" id="tab-signup" onclick="switchTab('signup')">Sign up</button>
+        </div>
+
+        <!-- Form Head -->
+        <div class="form-header-block">
+          <h3 class="form-main-title" id="form-heading">Welcome back</h3>
+          <p class="form-sub-title" id="form-subheading">Sign in to your Vigilia account</p>
+        </div>
+
+        <!-- Feedback Alert -->
+        <div id="auth-alert" class="auth-alert" style="display: none;" role="alert">
+          <span class="auth-alert-icon" id="auth-alert-icon"></span>
+          <span class="auth-alert-text" id="auth-alert-text"></span>
+        </div>
+
+        <!-- Form -->
+        <form id="auth-form" onsubmit="handleAuthSubmit(event)" autocomplete="on">
+
+          <!-- Email Field -->
+          <div class="field-group">
+            <label class="field-label" for="email">Email address</label>
+            <div class="input-wrapper">
+              <span class="input-icon-svg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </span>
+              <input id="email" name="email" type="email" placeholder="you@company.com" autocomplete="email" required />
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div class="field-group">
+            <label class="field-label" for="password">Password</label>
+            <div class="input-wrapper">
+              <span class="input-icon-svg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </span>
+              <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+              <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility()" aria-label="Toggle password visibility">
+                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Remember me & Forgot Password -->
+          <div class="options-row" id="remember-row">
+            <label class="checkbox-label">
+              <input type="checkbox" checked id="remember" onchange="toggleCheckboxUI(this)" />
+              <div class="custom-box">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="2,6 5,9 10,3"/>
+                </svg>
+              </div>
+              <span id="remember-text">Remember me</span>
+            </label>
+            <a href="#" class="forgot-password-link" id="forgot-link">Forgot password?</a>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-primary-auth" id="btn-submit">
+            <span>Log in</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+
+        </form>
+
+        <!-- Sign-up Hint -->
+        <div class="footer-switch-hint" id="signup-hint-container">
+          Don't have an account? <a href="#" onclick="switchTab('signup'); return false;">Create an account</a>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       INTERACTIVE JAVASCRIPT & BACKEND INTEGRATION
+       ═══════════════════════════════════════════════════════════════════ -->
+  <script>
+    let currentRole = null;
+    let currentTab = 'login';
+    const API_BASE_URL = window.VIGILIA_API_URL || 'http://localhost:8080';
+
+    function togglePasswordVisibility() {
+      const pw = document.getElementById('password');
+      const icon = document.getElementById('eye-icon');
+      if (pw.type === 'password') {
+        pw.type = 'text';
+        icon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>`;
+      } else {
+        pw.type = 'password';
+        icon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>`;
+      }
+    }
+
+    function toggleCheckboxUI(el) {
+      const box = el.nextElementSibling;
+      if (el.checked) {
+        box.style.background = 'var(--navy)';
+        box.style.border = 'none';
+        box.querySelector('svg').style.display = 'block';
+      } else {
+        box.style.background = '#ffffff';
+        box.style.border = '1.5px solid var(--border-color)';
+        box.querySelector('svg').style.display = 'none';
+      }
+    }
+
+    function showAlert(type, message) {
+      const alertEl = document.getElementById('auth-alert');
+      const alertText = document.getElementById('auth-alert-text');
+      const alertIcon = document.getElementById('auth-alert-icon');
+      if (!alertEl || !alertText) return;
+
+      alertEl.className = `auth-alert ${type}`;
+      alertText.innerText = message;
+      alertIcon.innerHTML = type === 'success'
+        ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+        : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      alertEl.style.display = 'flex';
+    }
+
+    function clearAlert() {
+      const alertEl = document.getElementById('auth-alert');
+      if (alertEl) {
+        alertEl.style.display = 'none';
+      }
+    }
+
+    function switchTab(tab) {
+      // Internal staff roles only log in
+      if ((currentRole === 'analyst' || currentRole === 'monitor') && tab === 'signup') {
+        return;
+      }
+
+      currentTab = tab;
+      clearAlert();
+
+      const tabLogin = document.getElementById('tab-login');
+      const tabSignup = document.getElementById('tab-signup');
+      const heading = document.getElementById('form-heading');
+      const subheading = document.getElementById('form-subheading');
+      const btnSubmit = document.getElementById('btn-submit');
+      const signupHint = document.getElementById('signup-hint-container');
+      const forgotLink = document.getElementById('forgot-link');
+      const rememberText = document.getElementById('remember-text');
+
+      tabLogin.classList.toggle('active', tab === 'login');
+      tabSignup.classList.toggle('active', tab === 'signup');
+
+      if (tab === 'signup') {
+        heading.innerText = 'Create account';
+        subheading.innerHTML = 'Open your Vigilia intelligent customer account';
+        btnSubmit.innerHTML = `<span>Create Account</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>`;
+        if (forgotLink) forgotLink.style.display = 'none';
+        if (rememberText) rememberText.innerText = 'I accept Terms & Conditions';
+        if (signupHint) {
+          signupHint.innerHTML = 'Already have an account? <a href="#" onclick="switchTab(\'login\'); return false;">Log in</a>';
+        }
+      } else {
+        heading.innerText = 'Welcome back';
+        if (currentRole === 'customer') {
+          subheading.innerHTML = 'Sign in to <strong>Customer Portal</strong>';
+        } else if (currentRole === 'analyst') {
+          subheading.innerHTML = 'Sign in to <strong>Analyst Console</strong>';
+        } else if (currentRole === 'monitor') {
+          subheading.innerHTML = 'Sign in to <strong>Platform Monitor</strong>';
+        } else {
+          subheading.innerHTML = 'Sign in to your Vigilia account';
+        }
+        btnSubmit.innerHTML = `<span>Log in</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>`;
+        if (forgotLink) forgotLink.style.display = 'inline-block';
+        if (rememberText) rememberText.innerText = 'Remember me';
+        if (signupHint) {
+          if (currentRole === 'analyst' || currentRole === 'monitor') {
+            signupHint.innerHTML = '<span style="color:var(--text-subtle);font-size:0.75rem;">Internal staff accounts are pre-provisioned by administration.</span>';
+          } else {
+            signupHint.innerHTML = 'Don\'t have an account? <a href="#" onclick="switchTab(\'signup\'); return false;">Create an account</a>';
+          }
+        }
+      }
+    }
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+      clearAlert();
+
+      const emailInput = document.getElementById('email');
+      const passwordInput = document.getElementById('password');
+      const rememberCheckbox = document.getElementById('remember');
+      const btnSubmit = document.getElementById('btn-submit');
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) {
+        showAlert('error', 'Please provide both email address and password.');
+        return;
+      }
+
+      if (currentTab === 'signup') {
+        if (!rememberCheckbox.checked) {
+          showAlert('error', 'Please accept the Terms & Conditions to create an account.');
+          return;
+        }
+        if (password.length < 8) {
+          showAlert('error', 'Password must contain at least 8 characters.');
+          return;
+        }
+      }
+
+      // Enter loading state
+      btnSubmit.disabled = true;
+      const originalHtml = btnSubmit.innerHTML;
+      btnSubmit.innerHTML = `<span>${currentTab === 'signup' ? 'Creating account...' : 'Signing in...'}</span>`;
+
+      const endpoint = currentTab === 'signup'
+        ? `${API_BASE_URL}/api/v1/auth/register`
+        : `${API_BASE_URL}/api/v1/auth/login`;
+
+      const payload = currentTab === 'signup'
+        ? { email: email, password: password, role: 'CUSTOMER' }
+        : { email: email, password: password };
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data && (data.success || data.data)) {
+          const authData = data.data || data;
+
+          // Store auth state
+          if (authData.accessToken) {
+            localStorage.setItem('vigilia_access_token', authData.accessToken);
+          }
+          if (authData.refreshToken) {
+            localStorage.setItem('vigilia_refresh_token', authData.refreshToken);
+          }
+          localStorage.setItem('vigilia_user', JSON.stringify({
+            userId: authData.userId,
+            email: authData.email,
+            role: authData.role
+          }));
+
+          showAlert('success', currentTab === 'signup'
+            ? 'Account created successfully! Connecting to platform...'
+            : 'Authentication successful! Redirecting...');
+
+          setTimeout(() => {
+            if (currentRole === 'analyst') {
+              window.location.href = '/index.html?portal=analyst';
+            } else if (currentRole === 'monitor') {
+              window.location.href = '/index.html?portal=monitor';
+            } else {
+              window.location.href = '/index.html?portal=customer';
+            }
+          }, 1000);
+
+        } else {
+          let errorMsg = 'Authentication failed. Please verify your credentials.';
+          if (data && data.message) {
+            errorMsg = data.message;
+          } else if (response.status === 401) {
+            errorMsg = 'Invalid email or password. Please try again.';
+          } else if (response.status === 403 || response.status === 423) {
+            errorMsg = 'This account is temporarily locked due to multiple failed attempts. Please try again in 15 minutes.';
+          } else if (response.status === 409) {
+            errorMsg = 'An account with this email already exists. Please log in instead.';
+          } else if (response.status === 400) {
+            errorMsg = data?.message || 'Invalid form input. Password must be at least 8 characters.';
+          }
+
+          showAlert('error', errorMsg);
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalHtml;
+        }
+      } catch (err) {
+        console.error('Authentication request error:', err);
+        showAlert('error', 'Unable to reach authentication gateway at ' + API_BASE_URL + '. Please ensure backend services are running.');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = originalHtml;
+      }
+    }
+
+    // Role detection and query parameter routing
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const role = params.get('role');
+      const mode = params.get('mode');
+      const emailInput = document.getElementById('email');
+      const tabSignup = document.getElementById('tab-signup');
+      const signupHint = document.getElementById('signup-hint-container');
+
+      currentRole = role;
+
+      // Restrict Analysts and Monitors to Login only
+      if (role === 'analyst' || role === 'monitor') {
+        if (tabSignup) tabSignup.style.display = 'none';
+        if (signupHint) {
+          signupHint.innerHTML = '<span style="color:var(--text-subtle);font-size:0.75rem;">Internal staff accounts are pre-provisioned by administration.</span>';
+        }
+      }
+
+      if (role && emailInput) {
+        if (role === 'customer') {
+          emailInput.value = 'customer@vigilia.ma';
+        } else if (role === 'analyst') {
+          emailInput.value = 'analyst@vigilia.ma';
+        } else if (role === 'monitor') {
+          emailInput.value = 'monitor@vigilia.ma';
+        }
+      }
+
+      if (mode === 'signup' && role !== 'analyst' && role !== 'monitor') {
+        switchTab('signup');
+      } else {
+        switchTab('login');
+      }
+    });
+  </script>
+
+</body>
+</html>
