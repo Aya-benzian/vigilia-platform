@@ -23,23 +23,20 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 # Matplotlib cache isolation for Sonar / multi-environment safety
 mpl_dir = os.path.join(tempfile.gettempdir(), "vigilia_matplotlib")
 os.makedirs(mpl_dir, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", mpl_dir)
 
-import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import pandas as pd
-from scipy import stats
 from scipy.stats import friedmanchisquare, wilcoxon
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -55,7 +52,6 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import LinearSVC
 from xgboost import XGBClassifier
 
@@ -67,6 +63,8 @@ if str(_SRC_DIR) not in sys.path:
 from calibrated_wrapper import CalibratedModelWrapper
 from config import ARTIFACTS_DIR, DATA_INT_DIR, REPORTS_DIR, SEED
 from cross_domain_features import PURCHASE_COLUMNS_29, TRANSFER_COLUMNS_20
+from stats_tests import _cohen_d
+from train_isolated_domains import build_preprocessor, split_chronological
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -78,40 +76,27 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 TABLES_DIR = REPORTS_DIR / "tables"
 
 
-def ensure_output_directories():
-    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    TABLES_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_output_directories() -> None:
+    for path in (ARTIFACTS_DIR, FIGURES_DIR, TABLES_DIR):
+        path.mkdir(parents=True, exist_ok=True)
 
 
-def build_preprocessor(numeric_cols: List[str], cat_cols: List[str]) -> ColumnTransformer:
-    num_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-    ])
-    transformers = [("num", num_pipe, numeric_cols)]
-    if cat_cols:
-        cat_pipe = Pipeline([
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-        ])
-        transformers.append(("cat", cat_pipe, cat_cols))
-    return ColumnTransformer(transformers=transformers, remainder="drop")
+def _extract_scores(estimator: Any, features: np.ndarray) -> np.ndarray:
+    """Safely extracts risk probabilities or sigmoidal decision values."""
+    if hasattr(estimator, "predict_proba"):
+        return estimator.predict_proba(features)[:, 1]
+    decision = estimator.decision_function(features)
+    return 1.0 / (1.0 + np.exp(-decision))
 
 
-def split_chronological(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Strict chronological split: 60% Train, 10% Calibration, 15% Validation, 15% Test."""
-    df = df.sort_values("timestamp").reset_index(drop=True)
-    n = len(df)
-    n_train = int(n * 0.60)
-    n_cal = int(n * 0.70)
-    n_val = int(n * 0.85)
-
-    train_df = df.iloc[:n_train]
-    cal_df = df.iloc[n_train:n_cal]
-    val_df = df.iloc[n_cal:n_val]
-    test_df = df.iloc[n_val:]
-    return train_df, cal_df, val_df, test_df
+def _evaluate_trial(estimator: Any, x_data: np.ndarray, y_data: np.ndarray, cv: StratifiedKFold) -> float:
+    """Helper executing cross-validated PR-AUC evaluation for an Optuna trial."""
+    fold_scores = []
+    for tr_idx, val_idx in cv.split(x_data, y_data):
+        estimator.fit(x_data[tr_idx], y_data[tr_idx])
+        probs = _extract_scores(estimator, x_data[val_idx])
+        fold_scores.append(average_precision_score(y_data[val_idx], probs))
+    return float(np.mean(fold_scores))
 
 
 # ==============================================================================
@@ -120,8 +105,8 @@ def split_chronological(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, p
 
 def tune_domain_models(
     domain_name: str,
-    X_train_sub: np.ndarray,
-    y_train_sub: np.ndarray,
+    x_sub: np.ndarray,
+    y_sub: np.ndarray,
     scale_pos_weight: float,
     n_trials: int = 15,
 ) -> Dict[str, Dict[str, Any]]:
@@ -131,7 +116,7 @@ def tune_domain_models(
     best_params: Dict[str, Dict[str, Any]] = {}
 
     # --- 1. XGBoost ---
-    def obj_xgb(trial):
+    def obj_xgb(trial: optuna.Trial) -> float:
         params = {
             "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.25, log=True),
             "max_depth": trial.suggest_int("max_depth", 4, 8),
@@ -144,13 +129,7 @@ def tune_domain_models(
             "random_state": SEED,
             "n_jobs": -1,
         }
-        scores = []
-        for tr_idx, val_idx in cv.split(X_train_sub, y_train_sub):
-            clf = XGBClassifier(**params)
-            clf.fit(X_train_sub[tr_idx], y_train_sub[tr_idx])
-            p = clf.predict_proba(X_train_sub[val_idx])[:, 1]
-            scores.append(average_precision_score(y_train_sub[val_idx], p))
-        return float(np.mean(scores))
+        return _evaluate_trial(XGBClassifier(**params), x_sub, y_sub, cv)
 
     study_xgb = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
     study_xgb.optimize(obj_xgb, n_trials=n_trials)
@@ -160,24 +139,16 @@ def tune_domain_models(
     logger.info(f"[{domain_name.upper()}] XGBoost Tuned PR-AUC: {study_xgb.best_value:.4f}")
 
     # --- 2. Random Forest ---
-    def obj_rf(trial):
-        n_estimators = trial.suggest_int("n_estimators", 80, 200, step=40)
-        max_depth = trial.suggest_int("max_depth", 10, 25)
-        min_samples_leaf = trial.suggest_int("min_samples_leaf", 1, 8)
-        scores = []
-        for tr_idx, val_idx in cv.split(X_train_sub, y_train_sub):
-            clf = RandomForestClassifier(
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-                min_samples_leaf=min_samples_leaf,
-                class_weight="balanced_subsample",
-                random_state=SEED,
-                n_jobs=-1,
-            )
-            clf.fit(X_train_sub[tr_idx], y_train_sub[tr_idx])
-            p = clf.predict_proba(X_train_sub[val_idx])[:, 1]
-            scores.append(average_precision_score(y_train_sub[val_idx], p))
-        return float(np.mean(scores))
+    def obj_rf(trial: optuna.Trial) -> float:
+        clf = RandomForestClassifier(
+            n_estimators=trial.suggest_int("n_estimators", 80, 200, step=40),
+            max_depth=trial.suggest_int("max_depth", 10, 25),
+            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 8),
+            class_weight="balanced_subsample",
+            random_state=SEED,
+            n_jobs=-1,
+        )
+        return _evaluate_trial(clf, x_sub, y_sub, cv)
 
     study_rf = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
     study_rf.optimize(obj_rf, n_trials=n_trials)
@@ -185,15 +156,14 @@ def tune_domain_models(
     logger.info(f"[{domain_name.upper()}] Random Forest Tuned PR-AUC: {study_rf.best_value:.4f}")
 
     # --- 3. Logistic Regression ---
-    def obj_lr(trial):
-        c_val = trial.suggest_float("C", 1e-3, 10.0, log=True)
-        scores = []
-        for tr_idx, val_idx in cv.split(X_train_sub, y_train_sub):
-            clf = LogisticRegression(C=c_val, class_weight="balanced", max_iter=400, random_state=SEED)
-            clf.fit(X_train_sub[tr_idx], y_train_sub[tr_idx])
-            p = clf.predict_proba(X_train_sub[val_idx])[:, 1]
-            scores.append(average_precision_score(y_train_sub[val_idx], p))
-        return float(np.mean(scores))
+    def obj_lr(trial: optuna.Trial) -> float:
+        clf = LogisticRegression(
+            C=trial.suggest_float("C", 1e-3, 10.0, log=True),
+            class_weight="balanced",
+            max_iter=400,
+            random_state=SEED,
+        )
+        return _evaluate_trial(clf, x_sub, y_sub, cv)
 
     study_lr = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
     study_lr.optimize(obj_lr, n_trials=min(10, n_trials))
@@ -201,16 +171,15 @@ def tune_domain_models(
     logger.info(f"[{domain_name.upper()}] Logistic Regression Tuned PR-AUC: {study_lr.best_value:.4f}")
 
     # --- 4. LinearSVC ---
-    def obj_svm(trial):
-        c_val = trial.suggest_float("C", 1e-3, 5.0, log=True)
-        scores = []
-        for tr_idx, val_idx in cv.split(X_train_sub, y_train_sub):
-            clf = LinearSVC(C=c_val, class_weight="balanced", max_iter=1000, random_state=SEED, dual=False)
-            clf.fit(X_train_sub[tr_idx], y_train_sub[tr_idx])
-            df = clf.decision_function(X_train_sub[val_idx])
-            p = 1.0 / (1.0 + np.exp(-df))
-            scores.append(average_precision_score(y_train_sub[val_idx], p))
-        return float(np.mean(scores))
+    def obj_svm(trial: optuna.Trial) -> float:
+        clf = LinearSVC(
+            C=trial.suggest_float("C", 1e-3, 5.0, log=True),
+            class_weight="balanced",
+            max_iter=1000,
+            random_state=SEED,
+            dual=False,
+        )
+        return _evaluate_trial(clf, x_sub, y_sub, cv)
 
     study_svm = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
     study_svm.optimize(obj_svm, n_trials=min(10, n_trials))
@@ -218,26 +187,25 @@ def tune_domain_models(
     logger.info(f"[{domain_name.upper()}] LinearSVC Tuned PR-AUC: {study_svm.best_value:.4f}")
 
     # --- 5. MLP Classifier ---
-    def obj_mlp(trial):
-        hidden = trial.suggest_categorical("hidden", ["(64, 32)", "(128, 64)"])
-        hidden_tuple = eval(hidden)
-        alpha = trial.suggest_float("alpha", 1e-4, 1e-2, log=True)
-        scores = []
-        for tr_idx, val_idx in cv.split(X_train_sub, y_train_sub):
-            clf = MLPClassifier(hidden_layer_sizes=hidden_tuple, alpha=alpha, max_iter=25, random_state=SEED)
-            clf.fit(X_train_sub[tr_idx], y_train_sub[tr_idx])
-            p = clf.predict_proba(X_train_sub[val_idx])[:, 1]
-            scores.append(average_precision_score(y_train_sub[val_idx], p))
-        return float(np.mean(scores))
+    def obj_mlp(trial: optuna.Trial) -> float:
+        hidden_str = trial.suggest_categorical("hidden", ["(64, 32)", "(128, 64)"])
+        clf = MLPClassifier(
+            hidden_layer_sizes=eval(hidden_str),
+            alpha=trial.suggest_float("alpha", 1e-4, 1e-2, log=True),
+            max_iter=25,
+            random_state=SEED,
+        )
+        return _evaluate_trial(clf, x_sub, y_sub, cv)
 
     study_mlp = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
     study_mlp.optimize(obj_mlp, n_trials=min(8, n_trials))
     best_mlp_raw = study_mlp.best_params
-    best_mlp = {"hidden_layer_sizes": eval(best_mlp_raw["hidden"]), "alpha": best_mlp_raw["alpha"]}
-    best_params["mlp"] = best_mlp
+    best_params["mlp"] = {
+        "hidden_layer_sizes": eval(best_mlp_raw["hidden"]),
+        "alpha": best_mlp_raw["alpha"],
+    }
     logger.info(f"[{domain_name.upper()}] MLP Tuned PR-AUC: {study_mlp.best_value:.4f}")
 
-    # Save best parameters
     params_file = ARTIFACTS_DIR / f"best_params_{domain_name}.json"
     with open(params_file, "w") as f:
         json.dump(best_params, f, indent=2)
@@ -251,8 +219,8 @@ def tune_domain_models(
 
 def run_cross_validation_benchmark(
     domain_name: str,
-    X_train: np.ndarray,
-    y_train: np.ndarray,
+    x_matrix: np.ndarray,
+    y_vector: np.ndarray,
     best_params: Dict[str, Dict[str, Any]],
     scale_pos_weight: float,
     n_splits: int = 5,
@@ -297,20 +265,15 @@ def run_cross_validation_benchmark(
 
     fold_scores: Dict[str, List[float]] = {m: [] for m in models_map}
 
-    for fold_i, (tr_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
+    for fold_i, (tr_idx, val_idx) in enumerate(cv.split(x_matrix, y_vector)):
         logger.info(f"  Fold {fold_i + 1}/{n_splits} evaluation...")
-        X_tr, y_tr = X_train[tr_idx], y_train[tr_idx]
-        X_v, y_v = X_train[val_idx], y_train[val_idx]
+        x_tr, y_tr = x_matrix[tr_idx], y_vector[tr_idx]
+        x_v, y_v = x_matrix[val_idx], y_vector[val_idx]
 
         for m_name, model in models_map.items():
-            model.fit(X_tr, y_tr)
-            if hasattr(model, "predict_proba"):
-                probs = model.predict_proba(X_v)[:, 1]
-            else:
-                df = model.decision_function(X_v)
-                probs = 1.0 / (1.0 + np.exp(-df))
-            score = average_precision_score(y_v, probs)
-            fold_scores[m_name].append(score)
+            model.fit(x_tr, y_tr)
+            probs = _extract_scores(model, x_v)
+            fold_scores[m_name].append(average_precision_score(y_v, probs))
 
     cv_results = {m: np.array(scores) for m, scores in fold_scores.items()}
     for m, arr in cv_results.items():
@@ -326,11 +289,6 @@ def run_cross_validation_benchmark(
 # 3. Statistical Hypothesis Testing (Demšar 2006 Protocol)
 # ==============================================================================
 
-def cohen_d(x: np.ndarray, y: np.ndarray) -> float:
-    diff = x - y
-    return float(np.mean(diff) / (np.std(diff, ddof=1) + 1e-12))
-
-
 def run_statistical_validation(
     domain_name: str,
     cv_results: Dict[str, np.ndarray],
@@ -341,22 +299,19 @@ def run_statistical_validation(
     model_list = list(cv_results.keys())
     scores_list = [cv_results[m] for m in model_list]
 
-    # Friedman test
     chi2, p_friedman = friedmanchisquare(*scores_list)
     logger.info(f"  Friedman Test: Chi2={chi2:.4f}, p={p_friedman:.4e} (Significant: {p_friedman < 0.05})")
 
-    # Pairwise Wilcoxon tests vs Champion
     champ_scores = cv_results[champion_name]
     raw_p_values = {}
     effect_sizes = {}
 
     other_models = [m for m in model_list if m != champion_name]
     for m in other_models:
-        stat, p = wilcoxon(champ_scores, cv_results[m], alternative="greater")
-        raw_p_values[m] = float(p)
-        effect_sizes[m] = cohen_d(champ_scores, cv_results[m])
+        _, p_val = wilcoxon(champ_scores, cv_results[m], alternative="greater")
+        raw_p_values[m] = float(p_val)
+        effect_sizes[m] = _cohen_d(champ_scores, cv_results[m])
 
-    # Holm-Bonferroni step-down adjustment
     sorted_pairs = sorted(raw_p_values.items(), key=lambda x: x[1])
     m_count = len(sorted_pairs)
     adj_results = []
@@ -375,7 +330,10 @@ def run_statistical_validation(
             "champion_mean_pr_auc": float(champ_scores.mean()),
             "competitor_mean_pr_auc": float(cv_results[m_name].mean()),
         })
-        logger.info(f"  {champion_name.upper()} vs {m_name.upper()}: p={p_val:.4e} | Holm-Adj={adj_p:.4e} | Sig={is_sig} | d={effect_sizes[m_name]:.2f}")
+        logger.info(
+            f"  {champion_name.upper()} vs {m_name.upper()}: p={p_val:.4e} | "
+            f"Holm-Adj={adj_p:.4e} | Sig={is_sig} | d={effect_sizes[m_name]:.2f}"
+        )
 
     stat_df = pd.DataFrame(adj_results)
     table_path = TABLES_DIR / f"statistical_tests_{domain_name}.csv"
@@ -391,10 +349,7 @@ def run_statistical_validation(
 def calibrate_and_select_threshold(
     domain_name: str,
     preprocessor: ColumnTransformer,
-    train_df: pd.DataFrame,
-    cal_df: pd.DataFrame,
-    val_df: pd.DataFrame,
-    test_df: pd.DataFrame,
+    dataset_splits: Dict[str, Tuple[np.ndarray, np.ndarray]],
     feature_cols: List[str],
     best_params: Dict[str, Dict[str, Any]],
     champion_name: str = "xgboost",
@@ -402,14 +357,10 @@ def calibrate_and_select_threshold(
     """Trains tuned champion on full train set, calibrates on cal slice, optimizes threshold on val slice (F2)."""
     logger.info(f"[{domain_name.upper()}] Fitting final {champion_name.upper()} champion and optimizing F2 threshold...")
 
-    X_train = preprocessor.transform(train_df[feature_cols])
-    y_train = train_df["is_fraud"].values
-    X_cal = preprocessor.transform(cal_df[feature_cols])
-    y_cal = cal_df["is_fraud"].values
-    X_val = preprocessor.transform(val_df[feature_cols])
-    y_val = val_df["is_fraud"].values
-    X_test = preprocessor.transform(test_df[feature_cols])
-    y_test = test_df["is_fraud"].values
+    x_train, y_train = dataset_splits["train"]
+    x_cal, y_cal = dataset_splits["cal"]
+    x_val, y_val = dataset_splits["val"]
+    x_test, y_test = dataset_splits["test"]
 
     raw_model = XGBClassifier(
         **best_params[champion_name],
@@ -417,17 +368,17 @@ def calibrate_and_select_threshold(
         random_state=SEED,
         n_jobs=-1,
     )
-    raw_model.fit(X_train, y_train)
+    raw_model.fit(x_train, y_train)
 
     # Calibration on holdout Part B
-    raw_cal_probs = raw_model.predict_proba(X_cal)[:, 1]
+    raw_cal_probs = raw_model.predict_proba(x_cal)[:, 1]
     iso = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
     iso.fit(raw_cal_probs, y_cal)
 
     calibrated_model = CalibratedModelWrapper(raw_model, iso)
 
     # Threshold search on Validation slice (Part C) prioritizing F2 score (fraud recall)
-    val_probs = calibrated_model.predict_proba(X_val)[:, 1]
+    val_probs = calibrated_model.predict_proba(x_val)[:, 1]
     threshold_candidates = np.linspace(0.02, 0.90, 89)
     best_f2 = -1.0
     optimal_tau = 0.50
@@ -442,7 +393,7 @@ def calibrate_and_select_threshold(
     logger.info(f"[{domain_name.upper()}] Optimal Operating Threshold: tau={optimal_tau:.4f} (Val F2={best_f2:.4f})")
 
     # Final evaluation on untouched Test slice
-    test_probs = calibrated_model.predict_proba(X_test)[:, 1]
+    test_probs = calibrated_model.predict_proba(x_test)[:, 1]
     test_preds = (test_probs >= optimal_tau).astype(int)
 
     pr_auc = average_precision_score(y_test, test_probs)
@@ -483,7 +434,6 @@ def calibrate_and_select_threshold(
         f"  TP={tp} | FP={fp} | TN={tn} | FN={fn}"
     )
 
-    # Save Pipeline artifact
     full_pipe = Pipeline([
         ("preprocessor", preprocessor),
         ("model", calibrated_model),
@@ -506,7 +456,12 @@ def calibrate_and_select_threshold(
 # 5. Main Orchestration
 # ==============================================================================
 
-def run_isolated_domain_pipeline(domain_name: str, data_path: Path, feature_cols: List[str], cat_cols: List[str]):
+def run_isolated_domain_pipeline(
+    domain_name: str,
+    data_path: Path,
+    feature_cols: List[str],
+    cat_cols: List[str],
+) -> None:
     logger.info(f"\n=======================================================")
     logger.info(f"  STARTING PIPELINE: {domain_name.upper()} ({len(feature_cols)} ISOLATED FEATURES)")
     logger.info(f"=======================================================")
@@ -518,38 +473,39 @@ def run_isolated_domain_pipeline(domain_name: str, data_path: Path, feature_cols
     preprocessor = build_preprocessor(numeric_cols, cat_cols)
     preprocessor.fit(train_df[feature_cols])
 
-    X_train_full = preprocessor.transform(train_df[feature_cols])
-    y_train_full = train_df["is_fraud"].values
+    dataset_splits = {
+        "train": (preprocessor.transform(train_df[feature_cols]), train_df["is_fraud"].values),
+        "cal": (preprocessor.transform(cal_df[feature_cols]), cal_df["is_fraud"].values),
+        "val": (preprocessor.transform(val_df[feature_cols]), val_df["is_fraud"].values),
+        "test": (preprocessor.transform(test_df[feature_cols]), test_df["is_fraud"].values),
+    }
 
+    x_train_full, y_train_full = dataset_splits["train"]
     pos_count = (y_train_full == 1).sum()
     neg_count = (y_train_full == 0).sum()
     spw = max(1.0, float(neg_count) / max(1.0, float(pos_count)))
 
-    # Use a stratified subsample of 30,000 for fast, deep Bayesian optimization
     sub_n = min(30000, len(y_train_full))
     skf = StratifiedKFold(n_splits=max(2, len(y_train_full) // sub_n), shuffle=True, random_state=SEED)
-    _, tune_idx = next(skf.split(X_train_full, y_train_full))
-    X_tune, y_tune = X_train_full[tune_idx], y_train_full[tune_idx]
+    _, tune_idx = next(skf.split(x_train_full, y_train_full))
+    x_tune, y_tune = x_train_full[tune_idx], y_train_full[tune_idx]
 
     # 1. Optuna Tuning
-    best_params = tune_domain_models(domain_name, X_tune, y_tune, scale_pos_weight=spw, n_trials=15)
+    best_params = tune_domain_models(domain_name, x_tune, y_tune, scale_pos_weight=spw, n_trials=15)
 
     # 2. Cross-Validation
     cv_results = run_cross_validation_benchmark(
-        domain_name, X_train_full, y_train_full, best_params, scale_pos_weight=spw, n_splits=5
+        domain_name, x_train_full, y_train_full, best_params, scale_pos_weight=spw, n_splits=5
     )
 
     # 3. Statistical Testing
-    stat_df = run_statistical_validation(domain_name, cv_results, champion_name="xgboost")
+    _ = run_statistical_validation(domain_name, cv_results, champion_name="xgboost")
 
     # 4. Calibration & Final Evaluation
-    metrics = calibrate_and_select_threshold(
+    _ = calibrate_and_select_threshold(
         domain_name=domain_name,
         preprocessor=preprocessor,
-        train_df=train_df,
-        cal_df=cal_df,
-        val_df=val_df,
-        test_df=test_df,
+        dataset_splits=dataset_splits,
         feature_cols=feature_cols,
         best_params=best_params,
         champion_name="xgboost",
@@ -557,7 +513,7 @@ def run_isolated_domain_pipeline(domain_name: str, data_path: Path, feature_cols
     logger.info(f"[{domain_name.upper()}] PIPELINE COMPLETE!")
 
 
-def main():
+def main() -> None:
     ensure_output_directories()
     start_time = time.time()
 
@@ -583,4 +539,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
