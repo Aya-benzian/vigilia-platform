@@ -27,11 +27,15 @@
     "history_length"
   ],
   "performance": {
-    "feature_count": 20,
-    "calibrated_pr_auc": 0.8350500533113405,
-    "raw_pr_auc": 0.8761881672355528,
-    "test_roc_auc": 0.9997180471345292,
-    "test_brier_calibrated": 0.0006533596315421164
+    "optimal_threshold": 0.33,
+    "test_pr_auc": 0.7870402180190506,
+    "test_roc_auc": 0.9996293126496194,
+    "test_f1": 0.8592592592592593,
+    "test_f2": 0.9385113268608414,
+    "test_precision": 0.7532467532467533,
+    "test_recall": 1.0,
+    "test_specificity": 0.9991533731396489,
+    "test_brier_calibrated": 0.0007222700514830649
   },
   "dataset": "PaySim",
   "seed": 42,
