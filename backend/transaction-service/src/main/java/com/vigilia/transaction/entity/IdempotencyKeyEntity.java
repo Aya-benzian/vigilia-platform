@@ -24,7 +24,7 @@ public class IdempotencyKeyEntity {
     private String scope;
 
     @Id
-    @Column(name = "key", nullable = false, length = 100)
+    @Column(name = "\"key\"", nullable = false, length = 100)
     private String key;
 
     @Column(name = "request_hash", nullable = false, length = 64)

@@ -140,18 +140,7 @@ public class RiskEvaluationService {
             }
         }
 
-        // 2b. Check if TRANSFER ML model is available
-        // Tant que le modèle TRANSFER n'est pas officiellement disponible :
-        // - ne pas appeler le endpoint ML TRANSFER
-        // - appliquer le fallback conservateur PENDING_REVIEW avec la raison FALLBACK_TRANSFER_MODEL_UNAVAILABLE
-        if ("TRANSFER".equalsIgnoreCase(txType)) {
-            log.info("[RISK] TRANSFER model unavailable; applying conservative fallback PENDING_REVIEW for transactionId={}",
-                    transactionId);
-            return persistAndOpenReview(request, policy, "MODEL_UNAVAILABLE", null, null,
-                    "FALLBACK_TRANSFER_MODEL_UNAVAILABLE", "MEDIUM");
-        }
-
-        // 3. ML prediction (PURCHASE)
+        // 3. ML prediction (PURCHASE or TRANSFER)
         MlPredictionResponse ml = mlClient.predict(request);
         if (ml == null) {
             log.warn("[RISK] ML failure → PENDING_REVIEW for transactionId={}", transactionId);
@@ -159,7 +148,7 @@ public class RiskEvaluationService {
                     "FALLBACK_ML_FAILURE", "HIGH");
         }
 
-        BigDecimal probability  = toBigDecimal(ml.getFraud_probability());
+        BigDecimal probability  = toBigDecimal(ml.getFraudProbability());
         BigDecimal uncertainty  = toBigDecimal(ml.getUncertainty());
         String mlStatus = "SUCCESS";
 
@@ -226,6 +215,29 @@ public class RiskEvaluationService {
         }
 
         publishOutboxEvent(entity, decision);
+
+        // Record this transaction in the customer_activity ledger so future evaluations
+        // can use it for point-in-time feature calculations (velocity, stats, novelty, etc.).
+        // We record for all decisions so the history is complete and accurate.
+        if (req.getCustomerId() != null) {
+            String txType = req.getTransactionType() != null ? req.getTransactionType().name() : "PURCHASE";
+            String counterparty = "TRANSFER".equalsIgnoreCase(txType) ? req.getRecipientId() : null;
+            Double lat  = req.getCustomerLatitude();
+            Double lon  = req.getCustomerLongitude();
+            customerActivityService.recordActivity(
+                    req.getCustomerId(),
+                    req.getTransactionId(),
+                    txType,
+                    req.getAmount(),
+                    counterparty,
+                    req.getMerchantCategory(),
+                    lat,
+                    lon,
+                    decision.name(),
+                    req.getTimestamp() != null ? req.getTimestamp() : java.time.Instant.now()
+            );
+        }
+
         return toResponse(entity);
     }
 
@@ -265,13 +277,13 @@ public class RiskEvaluationService {
         e.setFeatures(extractSanitizedFeaturesJson(req));
 
         if (ml != null) {
-            e.setModelName(ml.getModel_name());
-            e.setModelVersion(ml.getModel_version());
-            e.setPredictionLabel(ml.getPrediction());
+            e.setModelName(ml.getModelName());
+            e.setModelVersion(ml.getModelVersion());
+            e.setPredictionLabel(ml.getLabel());  // M2: label replaces prediction
             e.setFraudProbability(probability);
             e.setUncertainty(toBigDecimal(ml.getUncertainty()));
-            if (ml.getInference_ms() != null && ml.getInference_ms() >= 0) {
-                e.setInferenceMs(ml.getInference_ms());
+            if (ml.getInferenceMs() != null && ml.getInferenceMs() >= 0) {
+                e.setInferenceMs(ml.getInferenceMs());
             }
         }
         return e;

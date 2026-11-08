@@ -20,6 +20,8 @@ public class RiskEvaluationRequest {
     private String merchantCategory;
     private Double merchantLatitude;
     private Double merchantLongitude;
+    private String recipientId;
+    private Double senderBalance;
 
     public RiskEvaluationRequest() {
     }
@@ -103,5 +105,21 @@ public class RiskEvaluationRequest {
 
     public void setMerchantLongitude(Double merchantLongitude) {
         this.merchantLongitude = merchantLongitude;
+    }
+
+    public String getRecipientId() {
+        return recipientId;
+    }
+
+    public void setRecipientId(String recipientId) {
+        this.recipientId = recipientId;
+    }
+
+    public Double getSenderBalance() {
+        return senderBalance;
+    }
+
+    public void setSenderBalance(Double senderBalance) {
+        this.senderBalance = senderBalance;
     }
 }

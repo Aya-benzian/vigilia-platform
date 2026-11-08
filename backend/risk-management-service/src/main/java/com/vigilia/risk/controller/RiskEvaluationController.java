@@ -39,12 +39,12 @@ public class RiskEvaluationController {
      * @return 200 OK with the evaluation result
      */
     @PostMapping("/evaluate")
-    public ResponseEntity<ApiResponse<RiskEvaluationResponse>> evaluate(
+    public ResponseEntity<RiskEvaluationResponse> evaluate(
             @Valid @RequestBody RiskEvaluationRequest request) {
 
         log.info("[RISK] Evaluation request received for transactionId={}", request.getTransactionId());
         RiskEvaluationResponse response = evaluationService.evaluate(request);
-        return ResponseEntity.ok(ApiResponse.of(response));
+        return ResponseEntity.ok(response);
     }
 
     /**

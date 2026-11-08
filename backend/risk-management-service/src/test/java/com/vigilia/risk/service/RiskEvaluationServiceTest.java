@@ -93,12 +93,12 @@ class RiskEvaluationServiceTest {
 
     private MlPredictionResponse buildMlResponse(double probability, double uncertainty) {
         MlPredictionResponse ml = new MlPredictionResponse();
-        ml.setModel_name("purchase-fraud-model");
-        ml.setModel_version("1.0.0");
-        ml.setFraud_probability(probability);
+        ml.setModelName("purchase-fraud-model");
+        ml.setModelVersion("1.0.0");
+        ml.setFraudProbability(probability);
         ml.setUncertainty(uncertainty);
-        ml.setPrediction(probability >= 0.5 ? "FRAUD" : "LEGITIMATE");
-        ml.setInference_ms(150);
+        ml.setLabel(probability >= 0.5 ? "FRAUD" : "LEGITIMATE");
+        ml.setInferenceMs(150);
         return ml;
     }
 
@@ -413,8 +413,55 @@ class RiskEvaluationServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("E4: TRANSFER never calls ML model, applies fallback PENDING_REVIEW, creates review case and writes audit/outbox")
-    void evaluate_transfer_neverCallsMl_andAppliesFallbackPendingReview() {
+    @DisplayName("E4: TRANSFER calls ML model (transfer-v2), evaluates fraud probability, and writes audit/outbox")
+    void evaluate_transfer_callsMl_andEvaluatesNormally() {
+        RiskEvaluationRequest req = buildRequest(new BigDecimal("150.00"));
+        req.setTransactionType(TransactionType.TRANSFER);
+        req.setRecipientId("rec-999");
+        req.setSenderBalance(1000.0);
+
+        DecisionPolicyEntity policy = buildPolicy();
+        policy.setTransactionType("TRANSFER");
+
+        MlPredictionResponse ml = buildMlResponse(0.05, 0.05);
+        ml.setModelName("transfer-fraud-model");
+
+        when(evaluationRepository.existsByTransactionId(any())).thenReturn(false);
+        when(policyRepository.findByTransactionTypeAndIsActiveTrue("TRANSFER"))
+                .thenReturn(Optional.of(policy));
+        when(customerActivityService.countTransactionsInLastHour(any())).thenReturn(1L);
+        when(mlClient.predict(any())).thenReturn(ml);
+
+        ArgumentCaptor<RiskEvaluationEntity> evalCaptor = ArgumentCaptor.forClass(RiskEvaluationEntity.class);
+        when(evaluationRepository.save(evalCaptor.capture())).thenAnswer(inv -> {
+            RiskEvaluationEntity e = inv.getArgument(0);
+            e.setId(UUID.randomUUID());
+            e.setCreatedAt(Instant.now());
+            return e;
+        });
+
+        RiskEvaluationResponse response = service.evaluate(req);
+
+        // 1. Un TRANSFER déclenche maintenant un appel ML
+        verify(mlClient).predict(req);
+
+        // 2. Avec probabilité faible, la décision est APPROVED
+        assertThat(response.getDecision()).isEqualTo(RiskStatus.APPROVED);
+        assertThat(response.getDecisionReason()).isEqualTo("POLICY_APPROVE");
+
+        // 3. Écritures d'audit et d'outbox cohérentes
+        verify(outboxRepository).save(any());
+
+        RiskEvaluationEntity saved = evalCaptor.getValue();
+        assertThat(saved.getTransactionType()).isEqualTo("TRANSFER");
+        assertThat(saved.getMlStatus()).isEqualTo("SUCCESS");
+        assertThat(saved.getDecision()).isEqualTo(RiskStatus.APPROVED.name());
+        assertThat(saved.getDecisionReason()).isEqualTo("POLICY_APPROVE");
+    }
+
+    @Test
+    @DisplayName("E4: TRANSFER ML failure falls back to PENDING_REVIEW and opens review case")
+    void evaluate_transfer_mlFailure_fallsBackToPendingReview() {
         RiskEvaluationRequest req = buildRequest(new BigDecimal("150.00"));
         req.setTransactionType(TransactionType.TRANSFER);
 
@@ -425,6 +472,7 @@ class RiskEvaluationServiceTest {
         when(policyRepository.findByTransactionTypeAndIsActiveTrue("TRANSFER"))
                 .thenReturn(Optional.of(policy));
         when(customerActivityService.countTransactionsInLastHour(any())).thenReturn(1L);
+        when(mlClient.predict(any())).thenReturn(null);
 
         ArgumentCaptor<RiskEvaluationEntity> evalCaptor = ArgumentCaptor.forClass(RiskEvaluationEntity.class);
         when(evaluationRepository.save(evalCaptor.capture())).thenAnswer(inv -> {
@@ -437,23 +485,11 @@ class RiskEvaluationServiceTest {
 
         RiskEvaluationResponse response = service.evaluate(req);
 
-        // 1. Un TRANSFER ne déclenche aucun appel ML en l'absence de modèle
-        verify(mlClient, never()).predict(any());
-
-        // 2. Le fallback retourne PENDING_REVIEW et la raison attendue
+        verify(mlClient).predict(req);
         assertThat(response.getDecision()).isEqualTo(RiskStatus.PENDING_REVIEW);
-        assertThat(response.getDecisionReason()).isEqualTo("FALLBACK_TRANSFER_MODEL_UNAVAILABLE");
-
-        // 3. Écritures d'audit et d'outbox cohérentes
+        assertThat(response.getDecisionReason()).isEqualTo("FALLBACK_ML_FAILURE");
         verify(reviewCaseRepository).save(any());
         verify(outboxRepository).save(any());
-
-        RiskEvaluationEntity saved = evalCaptor.getValue();
-        assertThat(saved.getTransactionType()).isEqualTo("TRANSFER");
-        assertThat(saved.getMlStatus()).isEqualTo("MODEL_UNAVAILABLE");
-        assertThat(saved.getDecision()).isEqualTo("PENDING_REVIEW");
-        assertThat(saved.getDecisionReason()).isEqualTo("FALLBACK_TRANSFER_MODEL_UNAVAILABLE");
-        assertThat(saved.getFeatureSpecVersion()).isEqualTo(RiskEvaluationService.FEATURE_SPEC_VERSION);
     }
 
     @Test

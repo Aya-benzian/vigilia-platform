@@ -139,7 +139,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = {AuthenticationFailedException.class, AccountLockedException.class})
     public AuthResponse login(LoginRequest request, String ipAddress, String traceId) {
         String identifier = request.resolveIdentifier().toLowerCase();
         Instant now = Instant.now();
