@@ -44,6 +44,52 @@ except ImportError:
 
 logger = logging.getLogger("ml_serving.model_loader")
 
+_SHAP_PATCH_LOCK = threading.Lock()
+
+
+def _patch_shap_xgboost_parser() -> None:
+    """
+    Safely patches shap's internal XGBTreeModelLoader UBJSON decoder.
+
+    In XGBoost 3.0+ (xgboost==3.4.1), learner_model_param['base_score']
+    is serialized as a string with brackets (e.g. '[5E-1]'). SHAP 0.46.0's
+    XGBTreeModelLoader attempts float(base_score), raising:
+        ValueError: could not convert string to float: '[5E-1]'
+
+    This hook intercepts the decoded UBJSON dictionary and strips outer brackets
+    from 'base_score' if present, allowing float() conversion to succeed.
+    Unexpected decoding errors from orig_decode are preserved and propagate normally.
+    """
+    if shap is None or not hasattr(shap, "explainers"):
+        return
+    tree_mod = getattr(shap.explainers, "_tree", None)
+    if tree_mod is None or not hasattr(tree_mod, "decode_ubjson_buffer"):
+        return
+
+    with _SHAP_PATCH_LOCK:
+        orig_decode = tree_mod.decode_ubjson_buffer
+        if getattr(orig_decode, "_vigilia_patched", False):
+            return
+
+        def safe_decode_ubjson_buffer(fd: Any) -> Any:
+            jmodel = orig_decode(fd)
+            try:
+                learner = jmodel.get("learner")
+                if isinstance(learner, dict):
+                    param = learner.get("learner_model_param")
+                    if isinstance(param, dict) and "base_score" in param:
+                        raw_base = param["base_score"]
+                        if isinstance(raw_base, str):
+                            val = raw_base.strip()
+                            if val.startswith("[") and val.endswith("]"):
+                                param["base_score"] = val[1:-1].strip()
+            except Exception as patch_exc:
+                logger.debug("SHAP base_score unbracket hook encountered non-fatal error: %s", patch_exc)
+            return jmodel
+
+        safe_decode_ubjson_buffer._vigilia_patched = True  # type: ignore[attr-defined]
+        tree_mod.decode_ubjson_buffer = safe_decode_ubjson_buffer
+
 
 @dataclass
 class ModelEntry:
@@ -487,6 +533,8 @@ class ModelExplainer:
         if shap is None:
             raise RuntimeError("shap package is not installed.")
 
+        _patch_shap_xgboost_parser()
+
         try:
             self.explainer = shap.TreeExplainer(self.base_model, model_output="raw")
         except Exception:
@@ -506,8 +554,10 @@ class ModelExplainer:
                 self.base_value = float(arr[-1])
             else:
                 self.base_value = 0.0
-        else:
+        elif isinstance(exp_val, (int, float, np.floating)):
             self.base_value = float(exp_val)
+        else:
+            self.base_value = 0.0
 
         if math.isnan(self.base_value) or math.isinf(self.base_value):
             raise ValueError(f"TreeExplainer produced non-finite base_value: {self.base_value}")
@@ -546,6 +596,21 @@ class ModelExplainer:
             else:
                 raise ValueError(f"Unexpected SHAP values shape: {arr.shape}")
 
+        # Update dynamic base_value from explainer.expected_value post-computation
+        exp_val = getattr(self.explainer, "expected_value", self.base_value)
+        dyn_base = self.base_value
+        if isinstance(exp_val, (list, tuple, np.ndarray)):
+            arr = np.asarray(exp_val)
+            if arr.ndim > 0 and len(arr) > self.positive_class_index:
+                dyn_base = float(arr[self.positive_class_index])
+            elif arr.ndim > 0 and len(arr) > 0:
+                dyn_base = float(arr[-1])
+        elif isinstance(exp_val, (int, float, np.floating)):
+            dyn_base = float(exp_val)
+
+        if not (math.isnan(dyn_base) or math.isinf(dyn_base)):
+            self.base_value = dyn_base
+
         # 4. Map contributions back to raw features (aggregating OHE dummy columns)
         contributions: List[FeatureContribution] = []
         for raw_name in self.raw_feature_names:
@@ -568,7 +633,7 @@ class ModelExplainer:
         # 5. Sort contributions in descending order of absolute SHAP value
         contributions.sort(key=lambda c: abs(c.shap), reverse=True)
 
-        return self.base_value, contributions
+        return round(self.base_value, 6), contributions
 
 
 def create_model_explainer(

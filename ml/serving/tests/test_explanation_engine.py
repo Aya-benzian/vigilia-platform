@@ -22,6 +22,7 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -48,13 +49,22 @@ from schemas import (
 )
 
 
-class MockCalibratedModelWrapper:
+class MockCalibratedModelWrapper(BaseEstimator, ClassifierMixin):
     """Mock wrapper mimicking M1's CalibratedModelWrapper."""
 
-    def __init__(self, base_model: Any, calibrator: Any) -> None:
+    def __init__(self, base_model: Any = None, calibrator: Any = None) -> None:
         self.base_model = base_model
         self.calibrator = calibrator
         self.classes_ = getattr(base_model, "classes_", np.array([0, 1]))
+
+    def fit(self, X: Any = None, y: Any = None) -> "MockCalibratedModelWrapper":
+        """Fit stub to satisfy sklearn Pipeline contract."""
+        self.classes_ = np.array([0, 1])
+        return self
+
+    def __sklearn_is_fitted__(self) -> bool:
+        """Signal to sklearn check_is_fitted that wrapper is ready for inference."""
+        return self.base_model is not None and self.calibrator is not None
 
     def predict_proba(self, X: Any) -> np.ndarray:
         raw_p = self.base_model.predict_proba(X)[:, 1]
