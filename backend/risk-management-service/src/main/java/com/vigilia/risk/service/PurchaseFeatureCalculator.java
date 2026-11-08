@@ -100,7 +100,7 @@ public class PurchaseFeatureCalculator {
         // 3. Habits (5)
         double distKm = computeDistanceKm(req);
         double[] habitStats = computeHabitStats(history, amount, hourOfDay,
-                req.getMerchantCategory(), null /* merchantId */, distKm);
+                req.getMerchantCategory(), req.getMerchantId(), distKm, req);
         f.put("hour_share",                 habitStats[0]);
         f.put("category_share",             habitStats[1]);
         f.put("merchant_visit_count",       (int) habitStats[2]);
@@ -127,7 +127,8 @@ public class PurchaseFeatureCalculator {
 
         // 5. Novelty & reliability (4)
         String cat    = req.getMerchantCategory();
-        boolean isNewMerchant  = history.stream().noneMatch(h -> matchesMerchantId(h, null));
+        int merchantVisitCount = (int) habitStats[2];
+        boolean isNewMerchant  = (merchantVisitCount == 0);
         boolean isNewCategory  = cat == null || history.stream().noneMatch(h -> cat.equals(h.getCategory()));
         int historyLength      = history.size();
         double daysSinceFirst  = history.isEmpty() ? 0.0
@@ -156,10 +157,19 @@ public class PurchaseFeatureCalculator {
                 || req.getMerchantLatitude() == null || req.getMerchantLongitude() == null) {
             return 0.0;
         }
-        double lat1 = Math.toRadians(req.getCustomerLatitude());
-        double lon1 = Math.toRadians(req.getCustomerLongitude());
-        double lat2 = Math.toRadians(req.getMerchantLatitude());
-        double lon2 = Math.toRadians(req.getMerchantLongitude());
+        return haversineKm(
+                req.getCustomerLatitude(),
+                req.getCustomerLongitude(),
+                req.getMerchantLatitude(),
+                req.getMerchantLongitude()
+        );
+    }
+
+    private double haversineKm(double lat1Deg, double lon1Deg, double lat2Deg, double lon2Deg) {
+        double lat1 = Math.toRadians(lat1Deg);
+        double lon1 = Math.toRadians(lon1Deg);
+        double lat2 = Math.toRadians(lat2Deg);
+        double lon2 = Math.toRadians(lon2Deg);
 
         double dlat = lat2 - lat1;
         double dlon = lon2 - lon1;
@@ -191,14 +201,15 @@ public class PurchaseFeatureCalculator {
 
     /**
      * Computes [hour_share, category_share, merchant_visit_count, avg_distance_home_km, distance_zscore].
-     * merchantId is currently null (not tracked in CustomerActivityEntity) so merchant_visit_count defaults to 0.
+     * All calculations mirror cross_domain_features.py exactly to prevent training-serving skew.
      */
     private double[] computeHabitStats(List<CustomerActivityEntity> history,
                                        double amount,
                                        int currentHour,
                                        String currentCategory,
                                        String merchantId,
-                                       double currentDistKm) {
+                                       double currentDistKm,
+                                       RiskEvaluationRequest req) {
         if (history.isEmpty()) {
             return new double[]{0.0, 0.0, 0.0, 0.0, 0.0};
         }
@@ -216,18 +227,36 @@ public class PurchaseFeatureCalculator {
                 history.stream().filter(h -> currentCategory.equals(h.getCategory())).count();
         double catShare = (double) sameCat / n;
 
-        // merchant_visit_count — merchantId not stored separately; kept as 0
+        // merchant_visit_count: count of past purchases at the same merchant
         int merchantVisitCount = 0;
+        if (merchantId != null) {
+            merchantVisitCount = (int) history.stream()
+                    .filter(h -> matchesMerchantId(h, merchantId))
+                    .count();
+        }
 
-        // avg_distance_home_km and distance_zscore (using stored lat/lon; cold-start=0)
+        // avg_distance_home_km and distance_zscore
+        // Calculate distance from customer home (lat, lon) to each past purchase's merchant coordinates (h.lat, h.lon)
+        double avgDist;
+        double distZscore;
         double[] dists = history.stream()
-                .filter(h -> h.getLat() != null && h.getLon() != null)
-                .mapToDouble(h -> h.getLat().doubleValue()) // placeholder; actual dist not stored
+                .mapToDouble(h -> {
+                    if (req.getCustomerLatitude() != null && req.getCustomerLongitude() != null
+                            && h.getLat() != null && h.getLon() != null) {
+                        return haversineKm(
+                                req.getCustomerLatitude(),
+                                req.getCustomerLongitude(),
+                                h.getLat().doubleValue(),
+                                h.getLon().doubleValue()
+                        );
+                    }
+                    return currentDistKm;
+                })
                 .toArray();
 
-        // Distance to merchant is not stored per-activity — use current distKm as proxy avg
-        double avgDist = currentDistKm;
-        double distZscore = 0.0;
+        avgDist = mean(dists);
+        double stdDist = std(dists);
+        distZscore = stdDist > 0.0 ? (currentDistKm - avgDist) / stdDist : 0.0;
 
         return new double[]{hourShare, catShare, merchantVisitCount, avgDist, distZscore};
     }

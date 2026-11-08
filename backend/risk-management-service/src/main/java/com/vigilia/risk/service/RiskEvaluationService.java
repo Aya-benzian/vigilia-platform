@@ -221,9 +221,11 @@ public class RiskEvaluationService {
         // We record for all decisions so the history is complete and accurate.
         if (req.getCustomerId() != null) {
             String txType = req.getTransactionType() != null ? req.getTransactionType().name() : "PURCHASE";
-            String counterparty = "TRANSFER".equalsIgnoreCase(txType) ? req.getRecipientId() : null;
-            Double lat  = req.getCustomerLatitude();
-            Double lon  = req.getCustomerLongitude();
+            String counterparty = "TRANSFER".equalsIgnoreCase(txType) ? req.getRecipientId() : req.getMerchantId();
+            Double lat  = "PURCHASE".equalsIgnoreCase(txType) && req.getMerchantLatitude() != null
+                    ? req.getMerchantLatitude() : req.getCustomerLatitude();
+            Double lon  = "PURCHASE".equalsIgnoreCase(txType) && req.getMerchantLongitude() != null
+                    ? req.getMerchantLongitude() : req.getCustomerLongitude();
             customerActivityService.recordActivity(
                     req.getCustomerId(),
                     req.getTransactionId(),
