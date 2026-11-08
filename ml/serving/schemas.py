@@ -20,7 +20,7 @@ Design 2 Architecture (Final v4):
 
 from datetime import date, datetime, timezone
 import math
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 import uuid
 
 from pydantic import (
@@ -667,68 +667,80 @@ def verify_feature_spec_version(
         )
 
 
+def _build_feature_spec(
+    version: str,
+    raw_features: List[Tuple[str, str, Any]],
+) -> Dict[str, Any]:
+    """Helper constructing authoritative feature specification dictionaries from compact tuples."""
+    features = [
+        {"name": name, "type": feature_type, "cold_start": cold_start}
+        for name, feature_type, cold_start in raw_features
+    ]
+    return {
+        "version": version,
+        "feature_count": len(features),
+        "features": features,
+    }
+
+
+_PURCHASE_RAW_FEATURES: List[Tuple[str, str, Any]] = [
+    ("amount", "float", 0.0),
+    ("log_amount", "float", 0.0),
+    ("hour_of_day", "int", 0),
+    ("day_of_week", "int", 0),
+    ("is_weekend", "int", 0),
+    ("is_night", "int", 0),
+    ("customer_age", "float", 0.0),
+    ("distance_home_merchant_km", "float", 0.0),
+    ("city_pop_log", "float", 0.0),
+    ("merchant_category", "string", "unknown"),
+    ("customer_avg_amount", "float", 0.0),
+    ("customer_std_amount", "float", 0.0),
+    ("customer_max_amount", "float", 0.0),
+    ("amount_to_avg_ratio", "float", 0.0),
+    ("amount_zscore_customer", "float", 0.0),
+    ("hour_share", "float", 0.0),
+    ("category_share", "float", 0.0),
+    ("merchant_visit_count", "int", 0),
+    ("avg_distance_home_km", "float", 0.0),
+    ("distance_zscore", "float", 0.0),
+    ("txn_count_1h", "int", 0),
+    ("txn_count_24h", "int", 0),
+    ("txn_count_7d", "int", 0),
+    ("amount_sum_24h", "float", 0.0),
+    ("time_since_last_txn_s", "float", 2592000.0),
+    ("is_new_merchant", "int", 1),
+    ("is_new_category", "int", 1),
+    ("history_length", "int", 0),
+    ("days_since_first_txn", "float", 0.0),
+]
+
+_TRANSFER_RAW_FEATURES: List[Tuple[str, str, Any]] = [
+    ("amount", "float", 0.0),
+    ("log_amount", "float", 0.0),
+    ("hour_of_day", "int", 0),
+    ("day_of_week", "int", 0),
+    ("sender_avg_amount", "float", 0.0),
+    ("sender_std_amount", "float", 0.0),
+    ("sender_max_amount", "float", 0.0),
+    ("amount_to_avg_ratio", "float", 0.0),
+    ("sender_amount_zscore", "float", 0.0),
+    ("is_new_recipient", "int", 1),
+    ("pair_transfer_count", "int", 0),
+    ("recipient_share", "float", 0.0),
+    ("days_since_last_pair_transfer", "float", 30.0),
+    ("distinct_recipients_30d", "int", 0),
+    ("recipient_inbound_count_24h", "int", 0),
+    ("recipient_unique_senders_24h", "int", 0),
+    ("sender_txn_count_1h", "int", 0),
+    ("sender_txn_count_24h", "int", 0),
+    ("amount_to_balance_ratio", "float", 0.0),
+    ("history_length", "int", 0),
+]
+
 CANONICAL_FEATURE_SPECS: Dict[str, Dict[str, Any]] = {
-    "purchase": {
-        "version": "purchase-v2",
-        "feature_count": 29,
-        "features": [
-            {"name": "amount", "type": "float", "cold_start": 0.0},
-            {"name": "log_amount", "type": "float", "cold_start": 0.0},
-            {"name": "hour_of_day", "type": "int", "cold_start": 0},
-            {"name": "day_of_week", "type": "int", "cold_start": 0},
-            {"name": "is_weekend", "type": "int", "cold_start": 0},
-            {"name": "is_night", "type": "int", "cold_start": 0},
-            {"name": "customer_age", "type": "float", "cold_start": 0.0},
-            {"name": "distance_home_merchant_km", "type": "float", "cold_start": 0.0},
-            {"name": "city_pop_log", "type": "float", "cold_start": 0.0},
-            {"name": "merchant_category", "type": "string", "cold_start": "unknown"},
-            {"name": "customer_avg_amount", "type": "float", "cold_start": 0.0},
-            {"name": "customer_std_amount", "type": "float", "cold_start": 0.0},
-            {"name": "customer_max_amount", "type": "float", "cold_start": 0.0},
-            {"name": "amount_to_avg_ratio", "type": "float", "cold_start": 0.0},
-            {"name": "amount_zscore_customer", "type": "float", "cold_start": 0.0},
-            {"name": "hour_share", "type": "float", "cold_start": 0.0},
-            {"name": "category_share", "type": "float", "cold_start": 0.0},
-            {"name": "merchant_visit_count", "type": "int", "cold_start": 0},
-            {"name": "avg_distance_home_km", "type": "float", "cold_start": 0.0},
-            {"name": "distance_zscore", "type": "float", "cold_start": 0.0},
-            {"name": "txn_count_1h", "type": "int", "cold_start": 0},
-            {"name": "txn_count_24h", "type": "int", "cold_start": 0},
-            {"name": "txn_count_7d", "type": "int", "cold_start": 0},
-            {"name": "amount_sum_24h", "type": "float", "cold_start": 0.0},
-            {"name": "time_since_last_txn_s", "type": "float", "cold_start": 2592000.0},
-            {"name": "is_new_merchant", "type": "int", "cold_start": 1},
-            {"name": "is_new_category", "type": "int", "cold_start": 1},
-            {"name": "history_length", "type": "int", "cold_start": 0},
-            {"name": "days_since_first_txn", "type": "float", "cold_start": 0.0},
-        ],
-    },
-    "transfer": {
-        "version": "transfer-v2",
-        "feature_count": 20,
-        "features": [
-            {"name": "amount", "type": "float", "cold_start": 0.0},
-            {"name": "log_amount", "type": "float", "cold_start": 0.0},
-            {"name": "hour_of_day", "type": "int", "cold_start": 0},
-            {"name": "day_of_week", "type": "int", "cold_start": 0},
-            {"name": "sender_avg_amount", "type": "float", "cold_start": 0.0},
-            {"name": "sender_std_amount", "type": "float", "cold_start": 0.0},
-            {"name": "sender_max_amount", "type": "float", "cold_start": 0.0},
-            {"name": "amount_to_avg_ratio", "type": "float", "cold_start": 0.0},
-            {"name": "sender_amount_zscore", "type": "float", "cold_start": 0.0},
-            {"name": "is_new_recipient", "type": "int", "cold_start": 1},
-            {"name": "pair_transfer_count", "type": "int", "cold_start": 0},
-            {"name": "recipient_share", "type": "float", "cold_start": 0.0},
-            {"name": "days_since_last_pair_transfer", "type": "float", "cold_start": 30.0},
-            {"name": "distinct_recipients_30d", "type": "int", "cold_start": 0},
-            {"name": "recipient_inbound_count_24h", "type": "int", "cold_start": 0},
-            {"name": "recipient_unique_senders_24h", "type": "int", "cold_start": 0},
-            {"name": "sender_txn_count_1h", "type": "int", "cold_start": 0},
-            {"name": "sender_txn_count_24h", "type": "int", "cold_start": 0},
-            {"name": "amount_to_balance_ratio", "type": "float", "cold_start": 0.0},
-            {"name": "history_length", "type": "int", "cold_start": 0},
-        ],
-    },
+    "purchase": _build_feature_spec("purchase-v2", _PURCHASE_RAW_FEATURES),
+    "transfer": _build_feature_spec("transfer-v2", _TRANSFER_RAW_FEATURES),
 }
 
 
