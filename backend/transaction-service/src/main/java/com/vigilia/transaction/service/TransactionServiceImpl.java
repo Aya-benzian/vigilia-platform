@@ -269,6 +269,8 @@ public class TransactionServiceImpl implements TransactionService {
                 request.getCurrency(),
                 Instant.now()
         );
+        riskReq.setRecipientId(recipientWallet.getCustomerId() != null ? recipientWallet.getCustomerId().toString() : null);
+        riskReq.setSenderBalance(senderWallet.getAvailableBalance() != null ? senderWallet.getAvailableBalance().doubleValue() : null);
 
         RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReq);
 

@@ -38,6 +38,12 @@ public class RiskEvaluationRequest {
     private Double merchantLatitude;
     private Double merchantLongitude;
 
+    // Transfer-specific fields
+    /** Recipient customer ID — required for Transfer feature engineering (counterparty). */
+    private String recipientId;
+    /** Sender account balance before the transfer — used to compute amount_to_balance_ratio. */
+    private Double senderBalance;
+
     public RiskEvaluationRequest() {}
 
     public UUID getTransactionId() { return transactionId; }
@@ -81,4 +87,10 @@ public class RiskEvaluationRequest {
 
     public Double getMerchantLongitude() { return merchantLongitude; }
     public void setMerchantLongitude(Double merchantLongitude) { this.merchantLongitude = merchantLongitude; }
+
+    public String getRecipientId() { return recipientId; }
+    public void setRecipientId(String recipientId) { this.recipientId = recipientId; }
+
+    public Double getSenderBalance() { return senderBalance; }
+    public void setSenderBalance(Double senderBalance) { this.senderBalance = senderBalance; }
 }

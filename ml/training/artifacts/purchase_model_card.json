@@ -36,11 +36,15 @@
     "days_since_first_txn"
   ],
   "performance": {
-    "feature_count": 29,
-    "calibrated_pr_auc": 0.9292571121974292,
-    "raw_pr_auc": 0.9531350349541577,
-    "test_roc_auc": 0.9987461567051483,
-    "test_brier_calibrated": 0.0015930113149806857
+    "optimal_threshold": 0.12000000000000001,
+    "test_pr_auc": 0.9229385519739906,
+    "test_roc_auc": 0.9981017099290779,
+    "test_f1": 0.882494004796163,
+    "test_f2": 0.9126984126984127,
+    "test_precision": 0.8363636363636363,
+    "test_recall": 0.934010152284264,
+    "test_specificity": 0.9983858673721024,
+    "test_brier_calibrated": 0.0013437881134450436
   },
   "dataset": "Sparkov",
   "seed": 42,
