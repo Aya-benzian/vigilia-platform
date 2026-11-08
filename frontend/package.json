@@ -1,8 +1,14 @@
 {
   "name": "vigilia-frontend",
   "version": "1.0.0",
+  "description": "Vigilia Platform — FinTech Monitoring & Risk Dashboard",
+  "type": "module",
   "scripts": {
-    "start": "echo 'Vite starts here'",
-    "build": "mkdir -p dist && cp -r public/. dist/"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
   }
 }

@@ -927,14 +927,19 @@
   <!-- ═══════════════════════════════════════════════════════════════════
        INTERACTIVE JAVASCRIPT & BACKEND INTEGRATION
        ═══════════════════════════════════════════════════════════════════ -->
-  <script>
+  <script type="module" src="js/auth.js"></script>
+  <script type="module">
+    import { apiClient, ENV } from '/js/api-client.js';
+
     let currentRole = null;
     let currentTab = 'login';
-    const API_BASE_URL = window.VIGILIA_API_URL || 'http://localhost:8080';
+    let targetRedirect = null;
 
-    function togglePasswordVisibility() {
+    // Expose helpers to window for inline onclick handlers
+    window.togglePasswordVisibility = function() {
       const pw = document.getElementById('password');
       const icon = document.getElementById('eye-icon');
+      if (!pw || !icon) return;
       if (pw.type === 'password') {
         pw.type = 'text';
         icon.innerHTML = `
@@ -946,20 +951,23 @@
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
           <circle cx="12" cy="12" r="3"/>`;
       }
-    }
+    };
 
-    function toggleCheckboxUI(el) {
+    window.toggleCheckboxUI = function(el) {
       const box = el.nextElementSibling;
+      if (!box) return;
       if (el.checked) {
         box.style.background = 'var(--navy)';
         box.style.border = 'none';
-        box.querySelector('svg').style.display = 'block';
+        const svg = box.querySelector('svg');
+        if (svg) svg.style.display = 'block';
       } else {
         box.style.background = '#ffffff';
         box.style.border = '1.5px solid var(--border-color)';
-        box.querySelector('svg').style.display = 'none';
+        const svg = box.querySelector('svg');
+        if (svg) svg.style.display = 'none';
       }
-    }
+    };
 
     function showAlert(type, message) {
       const alertEl = document.getElementById('auth-alert');
@@ -969,27 +977,39 @@
 
       alertEl.className = `auth-alert ${type}`;
       alertText.innerText = message;
-      alertIcon.innerHTML = type === 'success'
-        ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
-        : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      if (alertIcon) {
+        alertIcon.innerHTML = type === 'success'
+          ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      }
       alertEl.style.display = 'flex';
     }
 
     function clearAlert() {
       const alertEl = document.getElementById('auth-alert');
-      if (alertEl) {
-        alertEl.style.display = 'none';
-      }
+      if (alertEl) alertEl.style.display = 'none';
     }
 
-    function switchTab(tab) {
-      // Internal staff roles only log in
+    window.switchTab = function(tab) {
       if ((currentRole === 'analyst' || currentRole === 'monitor') && tab === 'signup') {
         return;
       }
 
       currentTab = tab;
       clearAlert();
+
+      // Clean up URL mode parameter dynamically so refresh / bookmarks stay accurate
+      if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        try {
+          const url = new URL(window.location.href);
+          if (tab === 'login') {
+            url.searchParams.delete('mode');
+          } else {
+            url.searchParams.set('mode', 'signup');
+          }
+          window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+        } catch (_) {}
+      }
 
       const tabLogin = document.getElementById('tab-login');
       const tabSignup = document.getElementById('tab-signup');
@@ -1000,190 +1020,181 @@
       const forgotLink = document.getElementById('forgot-link');
       const rememberText = document.getElementById('remember-text');
 
-      tabLogin.classList.toggle('active', tab === 'login');
-      tabSignup.classList.toggle('active', tab === 'signup');
+      if (tabLogin) tabLogin.classList.toggle('active', tab === 'login');
+      if (tabSignup) tabSignup.classList.toggle('active', tab === 'signup');
 
       if (tab === 'signup') {
-        heading.innerText = 'Create account';
-        subheading.innerHTML = 'Open your Vigilia intelligent customer account';
-        btnSubmit.innerHTML = `<span>Create Account</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-          </svg>`;
+        if (heading) heading.innerText = 'Create account';
+        if (subheading) subheading.innerHTML = 'Register your Vigilia customer account';
+        if (btnSubmit) {
+          btnSubmit.innerHTML = `<span>Create Account</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>`;
+        }
         if (forgotLink) forgotLink.style.display = 'none';
         if (rememberText) rememberText.innerText = 'I accept Terms & Conditions';
         if (signupHint) {
           signupHint.innerHTML = 'Already have an account? <a href="#" onclick="switchTab(\'login\'); return false;">Log in</a>';
         }
       } else {
-        heading.innerText = 'Welcome back';
-        if (currentRole === 'customer') {
-          subheading.innerHTML = 'Sign in to <strong>Customer Portal</strong>';
-        } else if (currentRole === 'analyst') {
-          subheading.innerHTML = 'Sign in to <strong>Analyst Console</strong>';
-        } else if (currentRole === 'monitor') {
-          subheading.innerHTML = 'Sign in to <strong>Platform Monitor</strong>';
-        } else {
-          subheading.innerHTML = 'Sign in to your Vigilia account';
+        if (heading) heading.innerText = 'Welcome back';
+        if (subheading) {
+          if (currentRole === 'customer') {
+            subheading.innerHTML = 'Sign in to <strong>Customer Portal</strong>';
+          } else if (currentRole === 'analyst') {
+            subheading.innerHTML = 'Sign in to <strong>Analyst Console</strong>';
+          } else if (currentRole === 'monitor') {
+            subheading.innerHTML = 'Sign in to <strong>Platform Monitor</strong>';
+          } else {
+            subheading.innerHTML = 'Sign in to your Vigilia account';
+          }
         }
-        btnSubmit.innerHTML = `<span>Log in</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-          </svg>`;
+        if (btnSubmit) {
+          btnSubmit.innerHTML = `<span>Log in</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>`;
+        }
         if (forgotLink) forgotLink.style.display = 'inline-block';
         if (rememberText) rememberText.innerText = 'Remember me';
         if (signupHint) {
           if (currentRole === 'analyst' || currentRole === 'monitor') {
-            signupHint.innerHTML = '<span style="color:var(--text-subtle);font-size:0.75rem;">Internal staff accounts are pre-provisioned by administration.</span>';
+            signupHint.innerHTML = '<span style="color:var(--text-subtle);font-size:0.75rem;">Internal accounts are provisioned by platform administrators.</span>';
           } else {
             signupHint.innerHTML = 'Don\'t have an account? <a href="#" onclick="switchTab(\'signup\'); return false;">Create an account</a>';
           }
         }
       }
-    }
+    };
 
-    async function handleAuthSubmit(event) {
-      event.preventDefault();
+    window.handleAuthSubmit = async function(event) {
+      if (event) event.preventDefault();
       clearAlert();
 
       const emailInput = document.getElementById('email');
       const passwordInput = document.getElementById('password');
-      const rememberCheckbox = document.getElementById('remember');
+      const rememberInput = document.getElementById('remember-me');
       const btnSubmit = document.getElementById('btn-submit');
 
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
+      const email = emailInput ? emailInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
+      const remember = rememberInput ? rememberInput.checked : true;
 
       if (!email || !password) {
-        showAlert('error', 'Please provide both email address and password.');
+        showAlert('error', 'Please enter your email and password.');
         return;
       }
 
-      if (currentTab === 'signup') {
-        if (!rememberCheckbox.checked) {
-          showAlert('error', 'Please accept the Terms & Conditions to create an account.');
-          return;
-        }
-        if (password.length < 8) {
-          showAlert('error', 'Password must contain at least 8 characters.');
-          return;
-        }
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        showAlert('error', 'Please enter a valid email address.');
+        return;
       }
 
-      // Enter loading state
+      if (currentTab === 'signup' && password.length < 8) {
+        showAlert('error', 'Password must contain at least 8 characters.');
+        return;
+      }
+
       btnSubmit.disabled = true;
       const originalHtml = btnSubmit.innerHTML;
-      btnSubmit.innerHTML = `<span>${currentTab === 'signup' ? 'Creating account...' : 'Signing in...'}</span>`;
-
-      const endpoint = currentTab === 'signup'
-        ? `${API_BASE_URL}/api/v1/auth/register`
-        : `${API_BASE_URL}/api/v1/auth/login`;
-
-      const payload = currentTab === 'signup'
-        ? { email: email, password: password, role: 'CUSTOMER' }
-        : { email: email, password: password };
+      btnSubmit.innerHTML = `<span>${currentTab === 'signup' ? 'Connecting...' : 'Authenticating...'}</span>`;
 
       try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json().catch(() => null);
-
-        if (response.ok && data && (data.success || data.data)) {
-          const authData = data.data || data;
-
-          // Store auth state
-          if (authData.accessToken) {
-            localStorage.setItem('vigilia_access_token', authData.accessToken);
-          }
-          if (authData.refreshToken) {
-            localStorage.setItem('vigilia_refresh_token', authData.refreshToken);
-          }
-          localStorage.setItem('vigilia_user', JSON.stringify({
-            userId: authData.userId,
-            email: authData.email,
-            role: authData.role
-          }));
-
-          showAlert('success', currentTab === 'signup'
-            ? 'Account created successfully! Connecting to platform...'
-            : 'Authentication successful! Redirecting...');
-
-          setTimeout(() => {
-            if (currentRole === 'analyst') {
-              window.location.href = '/index.html?portal=analyst';
-            } else if (currentRole === 'monitor') {
-              window.location.href = '/index.html?portal=monitor';
-            } else {
-              window.location.href = '/index.html?portal=customer';
-            }
-          }, 1000);
-
+        if (currentTab === 'signup') {
+          await apiClient.auth.register(email, password, email.split('@')[0], remember);
+          showAlert('success', 'Account created! Establishing session...');
         } else {
-          let errorMsg = 'Authentication failed. Please verify your credentials.';
-          if (data && data.message) {
-            errorMsg = data.message;
-          } else if (response.status === 401) {
-            errorMsg = 'Invalid email or password. Please try again.';
-          } else if (response.status === 403 || response.status === 423) {
-            errorMsg = 'This account is temporarily locked due to multiple failed attempts. Please try again in 15 minutes.';
-          } else if (response.status === 409) {
-            errorMsg = 'An account with this email already exists. Please log in instead.';
-          } else if (response.status === 400) {
-            errorMsg = data?.message || 'Invalid form input. Password must be at least 8 characters.';
+          await apiClient.auth.login(email, password, remember);
+          showAlert('success', 'Authentication verified. Redirecting...');
+        }
+
+        const user = apiClient.auth.getUser();
+
+        setTimeout(() => {
+          // If explicit redirect parameter was requested
+          if (targetRedirect && !targetRedirect.includes('login.html')) {
+            window.location.href = decodeURIComponent(targetRedirect);
+            return;
           }
 
-          showAlert('error', errorMsg);
-          btnSubmit.disabled = false;
-          btnSubmit.innerHTML = originalHtml;
-        }
+          // Role-based routing
+          const userRole = (user && user.role) ? user.role.toUpperCase() : '';
+          if (userRole === 'ADMIN' || currentRole === 'monitor') {
+            window.location.href = '/monitor-dashboard.html';
+          } else if (userRole === 'ANALYST' || currentRole === 'analyst') {
+            window.location.href = '/monitor-dashboard.html';
+          } else {
+            window.location.href = '/index.html?portal=customer';
+          }
+        }, 800);
+
       } catch (err) {
-        console.error('Authentication request error:', err);
-        showAlert('error', 'Unable to reach authentication gateway at ' + API_BASE_URL + '. Please ensure backend services are running.');
+        console.error('[VigiliaAuth] Authentication error:', err);
+        let errorMsg = err.message || 'Authentication failed. Please verify your credentials.';
+        if (err.status === 401) {
+          errorMsg = 'Invalid email or password.';
+        } else if (err.status === 403 || err.status === 423) {
+          errorMsg = 'Account locked due to consecutive failed attempts. Try again later.';
+        } else if (err.status === 409) {
+          errorMsg = 'An account with this email already exists. Please log in.';
+        } else if (err.status === 0 || err.name === 'TypeError') {
+          errorMsg = `Unable to connect to API Gateway at ${ENV.API_BASE}. Ensure backend services are running.`;
+        }
+        showAlert('error', errorMsg);
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = originalHtml;
       }
-    }
+    };
 
-    // Role detection and query parameter routing
-    window.addEventListener('DOMContentLoaded', () => {
+    // Initialize page context & verify gateway health
+    window.addEventListener('DOMContentLoaded', async () => {
       const params = new URLSearchParams(window.location.search);
-      const role = params.get('role');
+      currentRole = params.get('role');
+      targetRedirect = params.get('redirect');
       const mode = params.get('mode');
-      const emailInput = document.getElementById('email');
-      const tabSignup = document.getElementById('tab-signup');
-      const signupHint = document.getElementById('signup-hint-container');
 
-      currentRole = role;
+      // Professional clean form: NEVER hardcode fake credentials into inputs
+      const emailInput = document.getElementById('email');
+      const passwordInput = document.getElementById('password');
+      if (emailInput) {
+        emailInput.value = '';
+        emailInput.placeholder = 'name@company.com';
+      }
+      if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.placeholder = '••••••••••••';
+      }
 
       // Restrict Analysts and Monitors to Login only
-      if (role === 'analyst' || role === 'monitor') {
+      const tabSignup = document.getElementById('tab-signup');
+      const signupHint = document.getElementById('signup-hint-container');
+      if (currentRole === 'analyst' || currentRole === 'monitor') {
         if (tabSignup) tabSignup.style.display = 'none';
         if (signupHint) {
-          signupHint.innerHTML = '<span style="color:var(--text-subtle);font-size:0.75rem;">Internal staff accounts are pre-provisioned by administration.</span>';
+          signupHint.innerHTML = '<span style="color:var(--text-subtle);font-size:0.75rem;">Internal accounts are provisioned by platform administrators.</span>';
         }
       }
 
-      if (role && emailInput) {
-        if (role === 'customer') {
-          emailInput.value = 'customer@vigilia.ma';
-        } else if (role === 'analyst') {
-          emailInput.value = 'analyst@vigilia.ma';
-        } else if (role === 'monitor') {
-          emailInput.value = 'monitor@vigilia.ma';
-        }
-      }
-
-      if (mode === 'signup' && role !== 'analyst' && role !== 'monitor') {
+      if (mode === 'signup' && currentRole !== 'analyst' && currentRole !== 'monitor') {
         switchTab('signup');
       } else {
         switchTab('login');
+      }
+
+      // Live Backend Gateway Health Verification
+      try {
+        const health = await apiClient.health.check();
+        const headerRight = document.querySelector('.auth-header-right');
+        if (headerRight && health.online) {
+          const pill = document.createElement('div');
+          pill.className = 'backend-status-pill';
+          pill.style.cssText = 'display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#059669;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.22);padding:2px 8px;border-radius:999px;margin-right:8px;';
+          pill.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,0.25);"></span> Gateway Live';
+          headerRight.prepend(pill);
+        }
+      } catch (e) {
+        console.debug('[VigiliaAuth] Gateway health check:', e);
       }
     });
   </script>
