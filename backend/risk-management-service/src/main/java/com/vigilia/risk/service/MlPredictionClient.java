@@ -1,5 +1,6 @@
 package com.vigilia.risk.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vigilia.risk.dto.RiskEvaluationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,13 +10,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * HTTP client for the ML Serving prediction API (FastAPI, port 8000).
- * Contract: contracts/ml/prediction-contract-v1.yaml
+ * HTTP client for the ML Serving prediction API — M2 contract (FastAPI, port 8000).
+ *
+ * Supported domains:
+ *   - Purchase: POST /predict/purchase  — feature_spec version: purchase-v2 (29 features)
+ *   - Transfer: POST /predict/transfer  — feature_spec version: transfer-v2 (20 features)
  *
  * Timeouts are configurable via application.properties:
  *   risk.ml.url           → base URL (default: http://ml-serving:8000)
@@ -23,6 +25,16 @@ import java.util.Map;
  *
  * On any exception (timeout, 503, parse error) the caller handles the fallback
  * by returning PENDING_REVIEW. This client NEVER returns null on success.
+ *
+ * Response mapping (M2 contract):
+ *   request_id           → maps to our transactionId echo
+ *   label                → "FRAUD" | "LEGITIMATE"
+ *   fraud_probability    → calibrated probability [0, 1]
+ *   uncertainty          → model uncertainty [0, 1]
+ *   model_name           → registered model name
+ *   model_version        → MLflow model version
+ *   feature_spec_version → "purchase-v2" | "transfer-v2"
+ *   inference_ms         → server-side inference time
  */
 @Component
 public class MlPredictionClient {
@@ -30,34 +42,40 @@ public class MlPredictionClient {
     private static final Logger log = LoggerFactory.getLogger(MlPredictionClient.class);
 
     private final RestClient restClient;
+    private final PurchaseFeatureCalculator purchaseFeatureCalculator;
+    private final TransferFeatureCalculator transferFeatureCalculator;
 
     @Value("${risk.ml.url:http://ml-serving:8000}")
     private String mlBaseUrl;
 
-    public MlPredictionClient(RestClient.Builder restClientBuilder) {
+    public MlPredictionClient(RestClient.Builder restClientBuilder,
+                              PurchaseFeatureCalculator purchaseFeatureCalculator,
+                              TransferFeatureCalculator transferFeatureCalculator) {
         this.restClient = restClientBuilder.build();
+        this.purchaseFeatureCalculator = purchaseFeatureCalculator;
+        this.transferFeatureCalculator = transferFeatureCalculator;
     }
 
     /**
      * Calls the ML Serving endpoint appropriate to the transaction type.
      *
-     * @param request the full risk evaluation request
-     * @return the raw prediction response map, or null on any failure
+     * @param request the full risk evaluation request (must include computed features context)
+     * @return the ML prediction response, or null on any failure (timeout, 5xx, parse error)
      */
     public MlPredictionResponse predict(RiskEvaluationRequest request) {
         String transactionType = request.getTransactionType() != null
                 ? request.getTransactionType().name()
                 : "PURCHASE";
 
-        // TRANSFER model is not officially available yet.
-        // Do NOT call ML serving or send dummy UNKNOWN values.
-        if (!"PURCHASE".equalsIgnoreCase(transactionType)) {
-            log.info("[ML] No ML model officially available for transactionType={}; skipping ML call", transactionType);
-            return null;
-        }
-
         try {
-            return predictPurchase(request);
+            if ("PURCHASE".equalsIgnoreCase(transactionType)) {
+                return predictPurchase(request);
+            } else if ("TRANSFER".equalsIgnoreCase(transactionType)) {
+                return predictTransfer(request);
+            } else {
+                log.warn("[ML] Unknown transactionType={}; skipping ML call", transactionType);
+                return null;
+            }
         } catch (RestClientException ex) {
             log.warn("[ML] Call failed for transactionId={}, type={}: {}",
                     request.getTransactionId(), transactionType, ex.getMessage());
@@ -74,8 +92,15 @@ public class MlPredictionClient {
     // -------------------------------------------------------------------------
 
     private MlPredictionResponse predictPurchase(RiskEvaluationRequest req) {
-        Map<String, Object> body = buildPurchaseBody(req);
-        log.debug("[ML] POST /predict/purchase transactionId={}", req.getTransactionId());
+        Map<String, Object> features = purchaseFeatureCalculator.compute(req);
+        Map<String, Object> body = Map.of(
+                "request_id",           req.getTransactionId() != null ? req.getTransactionId().toString() : "",
+                "feature_spec_version", "purchase-v2",
+                "features",             features
+        );
+
+        log.debug("[ML] POST /predict/purchase transactionId={} featureCount={}",
+                req.getTransactionId(), features.size());
 
         return restClient.post()
                 .uri(mlBaseUrl + "/predict/purchase")
@@ -85,71 +110,104 @@ public class MlPredictionClient {
                 .body(MlPredictionResponse.class);
     }
 
-    /**
-     * Builds the PurchaseInferenceRequest per the ML contract (Sparkov dataset schema).
-     * Missing optional fields fall back to cold-start sentinel values.
-     */
-    private Map<String, Object> buildPurchaseBody(RiskEvaluationRequest req) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("transaction_id", req.getTransactionId() != null ? req.getTransactionId().toString() : null);
-        body.put("transaction_type", "PURCHASE");
-        body.put("trans_date_trans_time", req.getTimestamp() != null ? req.getTimestamp().toString() : null);
-        body.put("amt", req.getAmount());
-        body.put("category", req.getMerchantCategory() != null ? req.getMerchantCategory() : "misc_net");
-        body.put("gender", req.getCustomerGender() != null ? req.getCustomerGender() : "M");
-        // dob is derived from customerAge; if unavailable use a cold-start default (age 35)
-        body.put("dob", deriveDob(req.getCustomerAge()));
-        body.put("lat", req.getCustomerLatitude() != null ? req.getCustomerLatitude() : 0.0);
-        body.put("long", req.getCustomerLongitude() != null ? req.getCustomerLongitude() : 0.0);
-        body.put("city_pop", req.getCityPopulation() != null ? req.getCityPopulation() : 100000);
-        body.put("merch_lat", req.getMerchantLatitude() != null ? req.getMerchantLatitude() : 0.0);
-        body.put("merch_long", req.getMerchantLongitude() != null ? req.getMerchantLongitude() : 0.0);
-        return body;
-    }
+    private MlPredictionResponse predictTransfer(RiskEvaluationRequest req) {
+        Map<String, Object> features = transferFeatureCalculator.compute(req);
+        Map<String, Object> body = Map.of(
+                "request_id",           req.getTransactionId() != null ? req.getTransactionId().toString() : "",
+                "feature_spec_version", "transfer-v2",
+                "features",             features
+        );
 
-    /**
-     * Converts customerAge to a date-of-birth string for the ML contract.
-     * Falls back to age 35 if null.
-     */
-    private String deriveDob(Integer customerAge) {
-        int age = (customerAge != null && customerAge > 0) ? customerAge : 35;
-        return LocalDate.now().minusYears(age).toString();
+        log.debug("[ML] POST /predict/transfer transactionId={} featureCount={}",
+                req.getTransactionId(), features.size());
+
+        return restClient.post()
+                .uri(mlBaseUrl + "/predict/transfer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(MlPredictionResponse.class);
     }
 
     // -------------------------------------------------------------------------
-    // Inner response DTO (maps directly from ML contract PredictionResponse)
+    // Response DTO — M2 contract (replaces M1 transaction_id/prediction fields)
     // -------------------------------------------------------------------------
 
+    /**
+     * Maps directly from the ML Serving M2 PredictionResponse.
+     *
+     * M2 field changes vs M1:
+     *   - transaction_id  → request_id
+     *   - prediction      → label
+     *   + feature_spec_version (new)
+     */
     public static class MlPredictionResponse {
-        private String transaction_id;
-        private String model_name;
-        private String model_version;
-        private String prediction;       // "FRAUD" | "LEGITIMATE"
-        private Double fraud_probability;
+
+        /** Echo of the request_id sent in the request body. */
+        @JsonProperty("request_id")
+        private String requestId;
+
+        @JsonProperty("model_name")
+        private String modelName;
+
+        @JsonProperty("model_version")
+        private String modelVersion;
+
+        /** "FRAUD" | "LEGITIMATE" (was 'prediction' in M1). */
+        @JsonProperty("label")
+        private String label;
+
+        @JsonProperty("fraud_probability")
+        private Double fraudProbability;
+
+        @JsonProperty("uncertainty")
         private Double uncertainty;
-        private Integer inference_ms;
+
+        @JsonProperty("feature_spec_version")
+        private String featureSpecVersion;
+
+        @JsonProperty("inference_ms")
+        private Integer inferenceMs;
 
         public MlPredictionResponse() {}
 
-        public String getTransaction_id() { return transaction_id; }
-        public void setTransaction_id(String transaction_id) { this.transaction_id = transaction_id; }
+        public String getRequestId() { return requestId; }
+        public void setRequestId(String requestId) { this.requestId = requestId; }
 
-        public String getModel_name() { return model_name; }
-        public void setModel_name(String model_name) { this.model_name = model_name; }
+        public String getModelName() { return modelName; }
+        public void setModelName(String modelName) { this.modelName = modelName; }
 
-        public String getModel_version() { return model_version; }
-        public void setModel_version(String model_version) { this.model_version = model_version; }
+        public String getModelVersion() { return modelVersion; }
+        public void setModelVersion(String modelVersion) { this.modelVersion = modelVersion; }
 
-        public String getPrediction() { return prediction; }
-        public void setPrediction(String prediction) { this.prediction = prediction; }
+        /** Returns the prediction label ("FRAUD" | "LEGITIMATE"). Was getPrediction() in M1. */
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
 
-        public Double getFraud_probability() { return fraud_probability; }
-        public void setFraud_probability(Double fraud_probability) { this.fraud_probability = fraud_probability; }
+        public Double getFraudProbability() { return fraudProbability; }
+        public void setFraudProbability(Double fraudProbability) { this.fraudProbability = fraudProbability; }
 
         public Double getUncertainty() { return uncertainty; }
         public void setUncertainty(Double uncertainty) { this.uncertainty = uncertainty; }
 
-        public Integer getInference_ms() { return inference_ms; }
-        public void setInference_ms(Integer inference_ms) { this.inference_ms = inference_ms; }
+        public String getFeatureSpecVersion() { return featureSpecVersion; }
+        public void setFeatureSpecVersion(String featureSpecVersion) { this.featureSpecVersion = featureSpecVersion; }
+
+        public Integer getInferenceMs() { return inferenceMs; }
+        public void setInferenceMs(Integer inferenceMs) { this.inferenceMs = inferenceMs; }
+
+        // Backward-compatibility aliases for M1 callers and tests
+        public String getPrediction() { return getLabel(); }
+        public void setPrediction(String prediction) { setLabel(prediction); }
+        public String getTransaction_id() { return getRequestId(); }
+        public void setTransaction_id(String transactionId) { setRequestId(transactionId); }
+        public String getModel_name() { return getModelName(); }
+        public void setModel_name(String modelName) { setModelName(modelName); }
+        public String getModel_version() { return getModelVersion(); }
+        public void setModel_version(String modelVersion) { setModelVersion(modelVersion); }
+        public Double getFraud_probability() { return getFraudProbability(); }
+        public void setFraud_probability(Double fraudProbability) { setFraudProbability(fraudProbability); }
+        public Integer getInference_ms() { return getInferenceMs(); }
+        public void setInference_ms(Integer inferenceMs) { setInferenceMs(inferenceMs); }
     }
 }
