@@ -190,6 +190,7 @@ public class TransactionServiceImpl implements TransactionService {
                 request.getCurrency(),
                 Instant.now()
         );
+        riskReq.setMerchantId(merchant != null ? merchant.getId().toString() : null);
         riskReq.setMerchantCategory(merchantCategory);
         riskReq.setMerchantLatitude(request.getMerchantLatitude());
         riskReq.setMerchantLongitude(request.getMerchantLongitude());

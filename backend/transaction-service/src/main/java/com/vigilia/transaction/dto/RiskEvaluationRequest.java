@@ -17,6 +17,7 @@ public class RiskEvaluationRequest {
     private Instant timestamp;
 
     // Feature fields
+    private String merchantId;
     private String merchantCategory;
     private Double merchantLatitude;
     private Double merchantLongitude;
@@ -81,6 +82,14 @@ public class RiskEvaluationRequest {
 
     public void setTimestamp(Instant timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getMerchantId() {
+        return merchantId;
+    }
+
+    public void setMerchantId(String merchantId) {
+        this.merchantId = merchantId;
     }
 
     public String getMerchantCategory() {

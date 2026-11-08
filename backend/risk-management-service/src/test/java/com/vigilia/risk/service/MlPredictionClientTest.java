@@ -168,4 +168,34 @@ class MlPredictionClientTest {
         // The actual result depends on the mock setup (restClient.post() not stubbed → returns null from mock)
         assertThat(response).isNull();
     }
+
+    @Test
+    @DisplayName("Audit P1: When transactionId is null, generates a non-empty RFC 4122 UUID request_id")
+    void predict_nullTransactionId_generatesNonEmptyUuidRequestId() {
+        RiskEvaluationRequest req = buildPurchaseRequest();
+        req.setTransactionId(null);
+        when(purchaseFeatureCalculator.compute(any())).thenReturn(java.util.Map.of("amount", 100.0));
+
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+
+        org.mockito.ArgumentCaptor<Object> bodyCaptor = org.mockito.ArgumentCaptor.forClass(Object.class);
+        when(requestBodySpec.body(bodyCaptor.capture())).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(MlPredictionClient.MlPredictionResponse.class)).thenReturn(new MlPredictionClient.MlPredictionResponse());
+
+        client.predict(req);
+
+        Object capturedBody = bodyCaptor.getValue();
+        assertThat(capturedBody).isInstanceOf(java.util.Map.class);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> map = (java.util.Map<String, Object>) capturedBody;
+
+        assertThat(map).containsKey("request_id");
+        String requestId = (String) map.get("request_id");
+        assertThat(requestId).isNotBlank();
+        // Validate RFC 4122 UUID format
+        assertThat(UUID.fromString(requestId)).isNotNull();
+    }
 }
