@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fleetTbody.innerHTML = data.targets.map(t => {
           const serviceName = t.labels.job || 'service';
           const port = (t.labels.instance || '').split(':')[1] || '8080';
-          const latencyMs = Math.round((parseFloat(t.lastScrapeDuration) || 0.015) * 1000);
+          const latencyMs = Math.round((Number.parseFloat(t.lastScrapeDuration) || 0.015) * 1000);
           totalLat += latencyMs;
           const isUp = t.health === 'up';
           const meta = serviceMetaMap[serviceName] || defaultMeta;
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // 3. AI Model Drift & Risk Confidence
       if (el('modelConfidenceScore')) {
         const rawScore = data.confidenceScore !== undefined ? data.confidenceScore : 100.0;
-        const confNum = Math.min(100, Math.max(0, parseFloat(rawScore) || 100.0));
+        const confNum = Math.min(100, Math.max(0, Number.parseFloat(rawScore) || 100.0));
         el('modelConfidenceScore').textContent = `${confNum.toFixed(1)}%`;
 
         const segHigh = document.querySelector('.dist-segment.seg-high');
@@ -325,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Plot CPU Load (0 - 100%)
     const cpuCoords = cpuPoints.map((pt, idx) => {
-      const val = Math.min(100, Math.max(0, parseFloat(pt[1]) || 0));
+      const val = Math.min(100, Math.max(0, Number.parseFloat(pt[1]) || 0));
       const x = paddingLeft + (idx * stepX);
       const y = paddingTop + chartHeight - ((val / 100) * chartHeight);
       return { x, y, str: `${x.toFixed(1)},${y.toFixed(1)}` };
@@ -348,11 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Plot JVM Memory if available (dynamic scaling against max heap)
     if (memPoints && memPoints.length > 1) {
-      const maxMemVal = Math.max(1600, ...memPoints.map(p => parseFloat(p[1]) || 0));
+      const maxMemVal = Math.max(1600, ...memPoints.map(p => Number.parseFloat(p[1]) || 0));
       const memStepX = (chartWidth - paddingLeft) / (memPoints.length - 1);
 
       const memCoords = memPoints.map((pt, idx) => {
-        const val = Math.max(0, parseFloat(pt[1]) || 0);
+        const val = Math.max(0, Number.parseFloat(pt[1]) || 0);
         const x = paddingLeft + (idx * memStepX);
         const y = paddingTop + chartHeight - ((val / maxMemVal) * chartHeight);
         return { x, y, str: `${x.toFixed(1)},${y.toFixed(1)}` };
