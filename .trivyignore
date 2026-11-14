@@ -19,6 +19,22 @@
 
 # Upstream transitive & base image vulnerabilities — reviewed & tracked for framework upgrade
 
+# ── MLflow Python package dependencies (ghcr.io/mlflow/mlflow:v2.14.1) ────────
+GHSA-23mf-xhv8-69c2  # MLflow upstream transitive GitPython dependency | review: 2026-12-01
+GHSA-3f7w-8rr8-f37f  # MLflow upstream transitive GitPython dependency | review: 2026-12-01
+GHSA-6p8h-3wgx-97gf  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-6q48-6c7w-9gw2  # MLflow upstream certifi root CA advisory | review: 2026-12-01
+GHSA-94p4-4cq8-9g67  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-f9j4-qggq-h239  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-fjr4-x663-mwxc  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-gqvg-gmmx-x4hm  # MLflow statsmodels pickle control | review: 2026-12-01
+GHSA-jm78-9fvv-mhgr  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-m64x-33q8-m5h7  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-mv93-w799-cj2w  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-r9mr-m37c-5fr3  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-rwj8-pgh3-r573  # MLflow upstream transitive dependency | review: 2026-12-01
+GHSA-w8jc-g24h-crhw  # MLflow upstream transitive dependency | review: 2026-12-01
+
 CVE-2020-16156  # Upstream base image / framework dependency | review: 2026-12-01
 CVE-2021-36690  # Upstream base image / framework dependency | review: 2026-12-01
 CVE-2022-1304  # Upstream base image / framework dependency | review: 2026-12-01

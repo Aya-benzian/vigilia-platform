@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el('timeAxisQ3')) el('timeAxisQ3').textContent = '15m ago';
     }
 
-    updateDashboard(currentDuration, currentStep);
+    void updateDashboard(currentDuration, currentStep);
   }
 
   // Time filter dropdown trigger
@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el('syncPillText')) {
           el('syncPillText').textContent = `Targeting ${cluster} · Syncing...`;
         }
-        updateDashboard(currentDuration, currentStep);
+        void updateDashboard(currentDuration, currentStep);
       });
     });
   }
@@ -516,6 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Initial call and 10s auto-refresh
-  updateDashboard();
-  setInterval(() => updateDashboard(currentDuration, currentStep), 10000);
+  void updateDashboard();
+  setInterval(() => { void updateDashboard(currentDuration, currentStep); }, 10000);
 });

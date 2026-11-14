@@ -27,7 +27,10 @@ function getAuthToken() {
 
 // ─── URL Normalizer (prevents double /api/ or missing slashes) ─────────────────
 export function buildApiUrl(path) {
-  const base = (ENV.API_BASE || '/api').replace(/\/+$/, '');
+  let base = ENV.API_BASE || '/api';
+  while (base.endsWith('/')) {
+    base = base.slice(0, -1);
+  }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   if (base.endsWith('/api') && cleanPath.startsWith('/api/')) {
     return `${base}${cleanPath.substring(4)}`;
