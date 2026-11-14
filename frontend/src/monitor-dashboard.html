@@ -12,9 +12,38 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- Modular Design System & Stylesheets -->
-  <link rel="stylesheet" href="css/variables.css?v=39" />
-  <link rel="stylesheet" href="css/layout.css?v=39" />
-  <link rel="stylesheet" href="css/dashboard.css?v=43" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/dashboard.css" />
+
+  <style>
+    /* Critical Dropdown & Hero Safeguard */
+    .filter-dropdown-wrapper {
+      position: relative !important;
+      display: inline-block !important;
+    }
+    .hero-filter-menu {
+      display: none !important;
+      position: absolute !important;
+      top: calc(100% + 6px) !important;
+      left: 0 !important;
+      min-width: 190px !important;
+      background: #ffffff !important;
+      border: 1px solid #e2e8f0 !important;
+      border-radius: 10px !important;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12) !important;
+      padding: 5px !important;
+      z-index: 1000 !important;
+    }
+    .hero-filter-menu.open {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 2px !important;
+    }
+    .stage-main-title {
+      white-space: nowrap !important;
+    }
+  </style>
 
   <!-- Immediate Session Guard: Blocks back-button cache bypass if user is logged out -->
   <script>

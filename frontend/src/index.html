@@ -1630,7 +1630,6 @@
           <li class="nav-item"><a href="#portals" class="nav-link">Portals</a></li>
           <li class="nav-item"><a href="#security" class="nav-link">Security</a></li>
           <li class="nav-item"><a href="#simulator" class="nav-link">ML Demo</a></li>
-          <li class="nav-item" id="monitor-cockpit-nav-item"><a href="monitor-dashboard.html" class="nav-link" style="color:var(--copper);font-weight:700;">Monitor Cockpit ↗</a></li>
         </ul>
       </nav>
 
@@ -2210,11 +2209,6 @@
 
       const user = apiClient.auth.getUser();
       const isAuth = apiClient.auth.isAuthenticated();
-
-      const cockpitItem = document.getElementById('monitor-cockpit-nav-item');
-      if (cockpitItem) {
-        cockpitItem.style.display = isAuth ? 'none' : '';
-      }
 
       if (isAuth && user) {
         const userEmail = user.email || 'User';

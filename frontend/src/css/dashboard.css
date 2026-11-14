@@ -229,13 +229,13 @@
 
 /* ─── Hero Filter Dropdowns ─────────────────────────────────────── */
 .filter-dropdown-wrapper {
-  position: relative;
-  display: inline-block;
+  position: relative !important;
+  display: inline-block !important;
 }
 
 .hero-filter-menu {
-  display: none;
-  position: absolute;
+  display: none !important;
+  position: absolute !important;
   top: calc(100% + 6px);
   left: 0;
   min-width: 190px;
@@ -249,7 +249,9 @@
 }
 
 .hero-filter-menu.open {
-  display: block;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px;
 }
 
 .hero-filter-option {
