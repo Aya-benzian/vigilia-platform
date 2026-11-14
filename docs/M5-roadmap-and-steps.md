@@ -1,6 +1,6 @@
 # Vigilia Platform — M5 Roadmap & Implementation Guide
 > **Role:** Member 5 (DevSecOps & MLOps Infrastructure)  
-> **Status:** Phase 1–5 Complete & Operational | Current: Phase 6 (Helm)
+> **Status:** Phase 1–7 Complete & Operational | Current: Phase 8 (CI/CD to K8s)
 
 ---
 
@@ -29,8 +29,6 @@
                   │ 5. K8s Configuration │  (ConfigMaps, Secrets, CPU/Mem Limits)
                   └──────────┬───────────┘
                              ↓
-                        YOU ARE HERE
-                             ↓
                   ┌──────────────────────┐
                   │ 6. Helm Charts       │  (Parameterize dev/prod environments)
                   └──────────┬───────────┘
@@ -38,6 +36,8 @@
                   ┌──────────────────────┐
                   │ 7. Ingress & TLS     │  (External routing, Gateway, TLS termination)
                   └──────────┬───────────┘
+                             ↓
+                        YOU ARE HERE
                              ↓
                   ┌──────────────────────┐
                   │ 8. CI/CD to K8s      │  (Automated Helm deployment & rollback)
@@ -127,9 +127,9 @@
 
 ---
 
-## 🟦 PHASE 6 — Helm *(NEXT STEP ⏳)*
+## 🟦 PHASE 6 — Helm *(COMPLETED ✅)*
 
-- [ ] **Step 18 — Create Helm Chart:**
+- [x] **Step 18 — Create Helm Chart:**
   - Structure `helm/vigilia/`:
     ```
     helm/vigilia/
@@ -143,18 +143,28 @@
         ├── configmap.yaml
         └── secret.yaml
     ```
-  - Convert static Kubernetes YAMLs into parameterized Helm templates.
-- [ ] **Step 19 — Configurable Environments:**
-  - Create `values-dev.yaml` (minimal replicas, lower resource limits).
-  - Create `values-prod.yaml` (multi-replica, strict limits, production image tags).
+  - Converted all static Kubernetes YAMLs into parameterized Helm templates.
+- [x] **Step 19 — Configurable Environments:**
+  - Created `values-dev.yaml` (minimal replicas, lower resource limits, DEBUG log level).
+  - Created `values-prod.yaml` (2 replicas per service, strict limits, GHCR pull secret).
 
 ---
 
-## 🟦 PHASE 7 — Kubernetes Networking
+## 🟦 PHASE 7 — Kubernetes Networking *(COMPLETED ✅)*
 
-- [ ] **Step 20 — Internal Service Communication:** Validate CoreDNS name resolution between services (e.g. `http://risk-management-service:8084`).
-- [ ] **Step 21 — External Access (Ingress / Gateway):** Deploy Ingress controller (e.g., NGINX Ingress Controller) routing external traffic: `Internet → Ingress → API Gateway → Internal Microservices`.
-- [ ] **Step 22 — HTTPS / TLS Termination:** Configure TLS termination at the Ingress layer using certificates (self-signed or cert-manager).
+- [x] **Step 20 — Internal Service Communication:**
+  - Automated diagnostic probe script `scripts/verify-k8s-networking.sh` verifying CoreDNS resolution and internal HTTP/TCP health across all 10 services (`auth`, `customer`, `transaction`, `risk`, `notification`, `audit`, `ml-serving`, `frontend`, `postgres`, `api-gateway`).
+  - Standardized Kubernetes ClusterDNS naming convention across ConfigMaps and Helm templates (`http://<service-name>:<port>`).
+- [x] **Step 21 — External Access (Ingress / Gateway):**
+  - Static Kubernetes manifest `infrastructure/kubernetes/ingress.yaml` created with NGINX Ingress Controller routing:
+    - `/api/*` routed to `api-gateway:8080`.
+    - `/*` routed to `frontend:8080` (React SPA).
+  - Parameterized Helm template `helm/vigilia/templates/ingress.yaml` with environment-specific host routing in `values.yaml`, `values-dev.yaml`, and `values-prod.yaml`.
+  - Production rate-limiting (`limit-rps: 100`) and security headers (`X-Frame-Options`, `X-Content-Type-Options`) configured.
+- [x] **Step 22 — HTTPS / TLS Termination:**
+  - Automated TLS certificate and secret generator script `scripts/generate-dev-tls.sh` (2048-bit RSA, 365-day validity, SAN for `vigilia.local`, `*.vigilia.local`, `localhost`).
+  - TLS secret templates `infrastructure/kubernetes/tls-secret.example.yaml` documenting self-signed secrets and cert-manager `ClusterIssuer` (Let's Encrypt).
+  - Strict HTTPS redirection (`ssl-redirect: "true"`, `force-ssl-redirect: "true"`) enforced at Ingress.
 
 ---
 

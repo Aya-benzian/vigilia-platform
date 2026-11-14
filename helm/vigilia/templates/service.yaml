@@ -1,0 +1,194 @@
+{{/*
+  service.yaml
+  ClusterIP Services for all Vigilia platform components
+*/}}
+
+{{- if .Values.apiGateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: api-gateway
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: api-gateway
+  ports:
+    - port: {{ .Values.apiGateway.port }}
+      targetPort: {{ .Values.apiGateway.port }}
+{{- end }}
+
+---
+{{- if .Values.authService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: auth-service
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: auth-service
+  ports:
+    - port: {{ .Values.authService.port }}
+      targetPort: {{ .Values.authService.port }}
+{{- end }}
+
+---
+{{- if .Values.customerService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: customer-service
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: customer-service
+  ports:
+    - port: {{ .Values.customerService.port }}
+      targetPort: {{ .Values.customerService.port }}
+{{- end }}
+
+---
+{{- if .Values.transactionService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: transaction-service
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: transaction-service
+  ports:
+    - port: {{ .Values.transactionService.port }}
+      targetPort: {{ .Values.transactionService.port }}
+{{- end }}
+
+---
+{{- if .Values.riskManagementService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: risk-management-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: risk-management-service
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: risk-management-service
+  ports:
+    - port: {{ .Values.riskManagementService.port }}
+      targetPort: {{ .Values.riskManagementService.port }}
+{{- end }}
+
+---
+{{- if .Values.notificationService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: notification-service
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: notification-service
+  ports:
+    - port: {{ .Values.notificationService.port }}
+      targetPort: {{ .Values.notificationService.port }}
+{{- end }}
+
+---
+{{- if .Values.auditService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: audit-service
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: audit-service
+  ports:
+    - port: {{ .Values.auditService.port }}
+      targetPort: {{ .Values.auditService.port }}
+{{- end }}
+
+---
+{{- if .Values.mlServing.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-serving
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ml-serving
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: ml-serving
+  ports:
+    - port: {{ .Values.mlServing.port }}
+      targetPort: {{ .Values.mlServing.port }}
+{{- end }}
+
+---
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: frontend
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - port: {{ .Values.frontend.port }}
+      targetPort: {{ .Values.frontend.port }}
+{{- end }}
+
+---
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: postgres
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - port: {{ .Values.postgres.port }}
+      targetPort: {{ .Values.postgres.port }}
+{{- end }}
+

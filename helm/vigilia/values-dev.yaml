@@ -1,0 +1,141 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# values-dev.yaml — Development Environment Overrides
+# Usage: helm install vigilia ./helm/vigilia -f helm/vigilia/values-dev.yaml \
+#          --set secrets.postgresPassword=devpass \
+#          --set secrets.jwtSecret=devjwt
+# ─────────────────────────────────────────────────────────────────────────────
+
+global:
+  imageRegistry: "ghcr.io/vigilia-platform"
+  imageTag: "develop-latest"
+  imagePullPolicy: Always
+
+namespace: vigilia-dev
+
+config:
+  appEnv: "development"
+  logLevel: "DEBUG"
+  viteAppEnv: "development"
+
+# ── Dev: minimal replicas (1 each), lower resource limits ────────────────────
+
+apiGateway:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+authService:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+customerService:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+transactionService:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+riskManagementService:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+notificationService:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+auditService:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+mlServing:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+
+frontend:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "25m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+
+postgres:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+# ── Dev Ingress: local dev host & self-signed TLS ────────────────────────────
+ingress:
+  enabled: true
+  hosts:
+    - host: "vigilia.local"
+      paths:
+        - path: /api
+          pathType: Prefix
+          serviceName: api-gateway
+          servicePort: 8080
+        - path: /
+          pathType: Prefix
+          serviceName: frontend
+          servicePort: 8080
+  tls:
+    - secretName: "vigilia-tls-secret"
+      hosts:
+        - "vigilia.local"
+
+
