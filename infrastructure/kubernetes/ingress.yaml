@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Vigilia Platform — Step 21 & 22: Ingress & TLS Termination
+#
+# External routing architecture:
+#   Client (Browser/Mobile)
+#       │
+#       ▼ [HTTPS :443 / HTTP :80]
+#   [ NGINX Ingress Controller ] (TLS Termination with vigilia-tls-secret)
+#       ├── /api/*   ──► api-gateway:8080  ──► Internal Microservices
+#       └── /*       ──► frontend:8080     ──► React / Vite SPA
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vigilia-ingress
+  namespace: vigilia
+  labels:
+    app.kubernetes.io/name: vigilia-ingress
+    app.kubernetes.io/part-of: vigilia-platform
+  annotations:
+    # Ingress class (NGINX)
+    kubernetes.io/ingress.class: "nginx"
+
+    # HTTPS / TLS Enforcement
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # Performance & Timeouts for ML and transaction processing
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+
+    # Security Headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+spec:
+  ingressClassName: nginx
+
+  # Step 22: TLS Termination
+  tls:
+    - hosts:
+        - vigilia.local
+        - api.vigilia.local
+      secretName: vigilia-tls-secret
+
+  rules:
+    # ── Primary Domain: vigilia.local ───────────────────────────────────────
+    - host: vigilia.local
+      http:
+        paths:
+          # API Gateway: backend API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 8080
+          # Frontend SPA: catch-all web UI
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080
+
+    # ── Dedicated API Domain: api.vigilia.local ─────────────────────────────
+    - host: api.vigilia.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 8080
+

@@ -2,7 +2,8 @@
 FROM python:3.12-slim-bookworm AS builder
 WORKDIR /app
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
 # Stage 2: Run
 FROM python:3.12-slim-bookworm
@@ -12,10 +13,7 @@ WORKDIR /app
 RUN addgroup --system appgroup && adduser --system --group appuser
 
 COPY --from=builder /app/wheels /wheels
-COPY --from=builder /app/requirements.txt .
-RUN pip install --no-cache-dir --no-deps --only-binary :all: /wheels/numpy*.whl && \
-    pip install --no-cache-dir --no-deps --only-binary :all: /wheels/scipy*.whl && \
-    pip install --no-cache-dir --no-deps --only-binary :all: /wheels/*.whl && \
+RUN pip install --no-cache-dir /wheels/*.whl && \
     rm -rf /wheels
 
 COPY . .

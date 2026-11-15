@@ -1,0 +1,167 @@
+{{/*
+  deployment-ml.yaml
+  ML Serving — Python FastAPI service for fraud detection inference
+*/}}
+{{- if .Values.mlServing.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-serving
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ml-serving
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.mlServing.replicaCount }}
+  selector:
+    matchLabels:
+      app: ml-serving
+  template:
+    metadata:
+      labels:
+        app: ml-serving
+    spec:
+      {{- if .Values.global.imagePullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.global.imagePullSecret }}
+      {{- end }}
+      containers:
+        - name: ml-serving
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.mlServing.image }}:{{ .Values.global.imageTag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mlServing.port }}
+          envFrom:
+            - configMapRef:
+                name: vigilia-config
+          resources:
+            {{- toYaml .Values.mlServing.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: {{ .Values.mlServing.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ .Values.mlServing.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+{{- end }}
+
+---
+{{/*
+  Frontend — React/Vite SPA served by Nginx
+*/}}
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: frontend
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      {{- if .Values.global.imagePullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.global.imagePullSecret }}
+      {{- end }}
+      containers:
+        - name: frontend
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.frontend.image }}:{{ .Values.global.imageTag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+          envFrom:
+            - configMapRef:
+                name: vigilia-config
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.frontend.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.frontend.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+{{- end }}
+
+---
+{{/*
+  PostgreSQL — Shared relational database
+*/}}
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: postgres
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.postgres.replicaCount }}
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image }}:{{ .Values.postgres.imageTag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.postgres.port }}
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: vigilia-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: vigilia-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vigilia-secrets
+                  key: POSTGRES_PASSWORD
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.config.postgresUser | quote }}, "-d", {{ .Values.config.postgresDb | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.config.postgresUser | quote }}, "-d", {{ .Values.config.postgresDb | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+{{- end }}
+
