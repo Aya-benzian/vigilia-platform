@@ -1,0 +1,217 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Vigilia Platform — Helm Default Values
+# Override per environment: helm install vigilia ./helm/vigilia -f values-dev.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+global:
+  imageRegistry: "ghcr.io/vigilia-platform"
+  imageTag: "latest"
+  imagePullPolicy: IfNotPresent
+  # Set to the name of a docker-registry secret for GHCR private pulls
+  imagePullSecret: ""
+
+# ── Namespace ─────────────────────────────────────────────────────────────────
+namespace: vigilia
+
+# ── ConfigMap values (non-sensitive) ─────────────────────────────────────────
+config:
+  appEnv: "production"
+  logLevel: "INFO"
+  postgresHost: "postgres"
+  postgresPort: "5432"
+  postgresDb: "vigilia"
+  postgresUser: "vigilia"
+  springDatasourceUrl: "jdbc:postgresql://postgres:5432/vigilia"
+  springDatasourceUsername: "vigilia"
+  authServiceUrl: "http://auth-service:8081"
+  customerServiceUrl: "http://customer-service:8082"
+  transactionServiceUrl: "http://transaction-service:8083"
+  riskManagementServiceUrl: "http://risk-management-service:8084"
+  notificationServiceUrl: "http://notification-service:8085"
+  auditServiceUrl: "http://audit-service:8086"
+  mlServingUrl: "http://ml-serving:8000"
+  viteApiBaseUrl: "/api"
+  vitePrometheusUrl: "/prometheus"
+  viteAlertmanagerUrl: "/alertmanager"
+  viteAppEnv: "production"
+  viteAppVersion: "1.0.0"
+
+# ── Secrets (use --set or external secrets manager in production) ─────────────
+secrets:
+  postgresPassword: "CHANGE_ME_DATABASE_PASSWORD"
+  jwtSecret: "CHANGE_ME_TO_A_SECURE_RANDOM_256_BIT_KEY"
+  mlflowDbPassword: "CHANGE_ME_MLFLOW_DB_PASSWORD"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Services
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiGateway:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-api-gateway"
+  port: 8080
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+authService:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-auth-service"
+  port: 8081
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+customerService:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-customer-service"
+  port: 8082
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+transactionService:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-transaction-service"
+  port: 8083
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+riskManagementService:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-risk-management-service"
+  port: 8084
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+notificationService:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-notification-service"
+  port: 8085
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+auditService:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-audit-service"
+  port: 8086
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "384Mi"
+    limits:
+      cpu: "500m"
+      memory: "768Mi"
+
+mlServing:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-ml-serving"
+  port: 8000
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+
+frontend:
+  enabled: true
+  replicaCount: 1
+  image: "vigilia-frontend"
+  port: 8080
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "150m"
+      memory: "128Mi"
+
+postgres:
+  enabled: true
+  replicaCount: 1
+  image: "postgres"
+  imageTag: "16-alpine"
+  port: 5432
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 21 & 22: Ingress & TLS Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+  hosts:
+    - host: "vigilia.local"
+      paths:
+        - path: /api
+          pathType: Prefix
+          serviceName: api-gateway
+          servicePort: 8080
+        - path: /
+          pathType: Prefix
+          serviceName: frontend
+          servicePort: 8080
+    - host: "api.vigilia.local"
+      paths:
+        - path: /
+          pathType: Prefix
+          serviceName: api-gateway
+          servicePort: 8080
+  tls:
+    - secretName: "vigilia-tls-secret"
+      hosts:
+        - "vigilia.local"
+        - "api.vigilia.local"
+
+

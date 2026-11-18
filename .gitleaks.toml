@@ -8,5 +8,7 @@ commits = [
 ]
 paths = [
     '''(^|/)secret\.example\.yaml$''',
+    '''(^|/)tls-secret\.example\.yaml$''',
+    '''(^|/).*\.example\.ya?ml$''',
     '''(^|/)\.env\.example$'''
 ]

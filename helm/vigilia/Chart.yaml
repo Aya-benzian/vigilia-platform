@@ -1,0 +1,15 @@
+apiVersion: v2
+name: vigilia
+description: Vigilia Platform — FinTech DevSecOps & MLOps Infrastructure
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - fintech
+  - mlops
+  - devsecops
+  - fraud-detection
+maintainers:
+  - name: M5-DevSecOps
+home: https://github.com/vigilia-platform
+
