@@ -1,0 +1,31 @@
+{
+  "model_name": "purchase-fraud-model",
+  "model_version": "2",
+  "feature_spec_version": "v2",
+  "method": "split_conformal",
+  "alpha": 0.05,
+  "q_hat": 0.0016542673110961914,
+  "quantile_status": "EXACT_FINITE",
+  "calibration_samples_count": 22500,
+  "rank_k": 21376,
+  "calibration_dataset_id": "sparkov_purchase_chronological_part_c",
+  "test_samples_count": 22500,
+  "empirical_test_coverage": 0.981244,
+  "created_at": "2026-11-18T15:25:22.272119+00:00",
+  "metrics": {
+    "empirical_test_coverage": 0.981244,
+    "class_coverage": {
+      "legitimate": 0.982917,
+      "fraud": 0.791878
+    },
+    "mean_set_size": 0.9817,
+    "singleton_rate": 0.981689,
+    "ambiguous_rate": 0.0,
+    "empty_rate": 0.018311,
+    "singleton_breakdown": {
+      "legitimate_rate": 0.974533,
+      "fraud_rate": 0.007156
+    }
+  },
+  "notes": "Split Conformal Prediction offline calibration. Guarantees marginal coverage >= 1 - alpha under exchangeability. Independent calibration Part C and holdout test set. No model retraining."
+}

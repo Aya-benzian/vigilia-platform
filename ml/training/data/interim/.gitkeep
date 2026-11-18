@@ -1,0 +1,7 @@
+# data/interim/ — preprocessed/intermediate data files
+# All files here are gitignored. Examples:
+#   part_a.parquet   — part A of fraudTrain (first 80%)
+#   part_b.parquet   — part B (next 10%, calibration)
+#   part_c.parquet   — part C (last 10%, threshold)
+#   tune_sub.parquet — tuning subsample of A
+#   compare_sub.parquet — comparison subsample of A (disjoint from tune_sub)
