@@ -117,14 +117,20 @@ def _register_pipeline(
         mlflow.log_param("feature_count", len(feature_cols))
         mlflow.log_param("seed", SEED)
 
-        if card_path.exists():
-            mlflow.log_artifact(str(card_path), artifact_path="metadata")
-        if FEATURE_SPEC.exists():
-            mlflow.log_artifact(str(FEATURE_SPEC), artifact_path="metadata")
-
         tmp_dir = tempfile.mkdtemp()
         model_local_path = Path(tmp_dir) / "model"
         try:
+            if card_path.exists():
+                mlflow.log_artifact(str(card_path), artifact_path="metadata")
+            if FEATURE_SPEC.exists():
+                mlflow.log_artifact(str(FEATURE_SPEC), artifact_path="metadata")
+
+            conf_file = ARTIFACTS_DIR / f"{domain}_conformal_config.json"
+            if conf_file.exists():
+                tmp_conf = Path(tmp_dir) / "conformal_config.json"
+                shutil.copyfile(conf_file, tmp_conf)
+                mlflow.log_artifact(str(tmp_conf), artifact_path="metadata")
+
             mlflow.sklearn.save_model(
                 sk_model=pipeline,
                 path=str(model_local_path),

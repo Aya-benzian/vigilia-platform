@@ -65,6 +65,7 @@ ml/training/mlruns/
 ml/serving/models/
 *.joblib
 *.pkl
+!ml/training/artifacts/*_champion_pipeline.pkl
 *.onnx
 *.db
 *.sqlite
