@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * HTTP client for the ML Serving prediction API — M2 contract (FastAPI, port 8000).
@@ -93,14 +94,17 @@ public class MlPredictionClient {
 
     private MlPredictionResponse predictPurchase(RiskEvaluationRequest req) {
         Map<String, Object> features = purchaseFeatureCalculator.compute(req);
+        String requestId = req.getTransactionId() != null
+                ? req.getTransactionId().toString()
+                : UUID.randomUUID().toString();
         Map<String, Object> body = Map.of(
-                "request_id",           req.getTransactionId() != null ? req.getTransactionId().toString() : "",
+                "request_id",           requestId,
                 "feature_spec_version", "purchase-v2",
                 "features",             features
         );
 
-        log.debug("[ML] POST /predict/purchase transactionId={} featureCount={}",
-                req.getTransactionId(), features.size());
+        log.debug("[ML] POST /predict/purchase transactionId={} requestId={} featureCount={}",
+                req.getTransactionId(), requestId, features.size());
 
         return restClient.post()
                 .uri(mlBaseUrl + "/predict/purchase")
@@ -112,14 +116,17 @@ public class MlPredictionClient {
 
     private MlPredictionResponse predictTransfer(RiskEvaluationRequest req) {
         Map<String, Object> features = transferFeatureCalculator.compute(req);
+        String requestId = req.getTransactionId() != null
+                ? req.getTransactionId().toString()
+                : UUID.randomUUID().toString();
         Map<String, Object> body = Map.of(
-                "request_id",           req.getTransactionId() != null ? req.getTransactionId().toString() : "",
+                "request_id",           requestId,
                 "feature_spec_version", "transfer-v2",
                 "features",             features
         );
 
-        log.debug("[ML] POST /predict/transfer transactionId={} featureCount={}",
-                req.getTransactionId(), features.size());
+        log.debug("[ML] POST /predict/transfer transactionId={} requestId={} featureCount={}",
+                req.getTransactionId(), requestId, features.size());
 
         return restClient.post()
                 .uri(mlBaseUrl + "/predict/transfer")

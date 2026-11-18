@@ -34,6 +34,7 @@ public class RiskEvaluationRequest {
     private Integer cityPopulation;
 
     // Transaction specifics
+    private String merchantId;
     private String merchantCategory;
     private Double merchantLatitude;
     private Double merchantLongitude;
@@ -78,6 +79,9 @@ public class RiskEvaluationRequest {
 
     public Integer getCityPopulation() { return cityPopulation; }
     public void setCityPopulation(Integer cityPopulation) { this.cityPopulation = cityPopulation; }
+
+    public String getMerchantId() { return merchantId; }
+    public void setMerchantId(String merchantId) { this.merchantId = merchantId; }
 
     public String getMerchantCategory() { return merchantCategory; }
     public void setMerchantCategory(String merchantCategory) { this.merchantCategory = merchantCategory; }

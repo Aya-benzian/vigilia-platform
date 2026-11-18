@@ -1,0 +1,31 @@
+{
+  "model_name": "transfer-fraud-model",
+  "model_version": "2",
+  "feature_spec_version": "v2",
+  "method": "split_conformal",
+  "alpha": 0.05,
+  "q_hat": 0.0,
+  "quantile_status": "EXACT_FINITE",
+  "calibration_samples_count": 22500,
+  "rank_k": 21376,
+  "calibration_dataset_id": "paysim_transfer_chronological_part_c",
+  "test_samples_count": 22500,
+  "empirical_test_coverage": 0.997644,
+  "created_at": "2026-11-18T15:25:22.705204+00:00",
+  "metrics": {
+    "empirical_test_coverage": 0.997644,
+    "class_coverage": {
+      "legitimate": 0.999109,
+      "fraud": 0.431034
+    },
+    "mean_set_size": 0.9979,
+    "singleton_rate": 0.997911,
+    "ambiguous_rate": 0.0,
+    "empty_rate": 0.002089,
+    "singleton_breakdown": {
+      "legitimate_rate": 0.996533,
+      "fraud_rate": 0.001378
+    }
+  },
+  "notes": "Split Conformal Prediction offline calibration. Guarantees marginal coverage >= 1 - alpha under exchangeability. Independent calibration Part C and holdout test set. No model retraining."
+}
