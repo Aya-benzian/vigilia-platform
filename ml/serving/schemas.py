@@ -289,6 +289,18 @@ class PredictionResponse(BaseModel):
     model_version: str = Field(..., min_length=1, description="Resolved version string of the loaded model.")
     feature_spec_version: str = Field(..., min_length=1, description="Feature specification version used for inference.")
     inference_ms: float = Field(..., ge=0.0, description="Server-side inference execution time in milliseconds.")
+    prediction_set: Optional[List[str]] = Field(
+        default=None,
+        description="Split conformal prediction set: ['LEGITIMATE'], ['FRAUD'], ['LEGITIMATE', 'FRAUD'], or [].",
+    )
+    conformal_status: Optional[str] = Field(
+        default=None,
+        description="Categorical status of conformal prediction set: 'SINGLETON', 'AMBIGUOUS', or 'EMPTY'.",
+    )
+    is_ambiguous: Optional[bool] = Field(
+        default=None,
+        description="True if statistical ambiguity exists (prediction set size != 1).",
+    )
 
 
 # =====================================================================

@@ -29,6 +29,11 @@ import numpy as np
 import pandas as pd
 
 from config import get_settings
+from conformal_loader import (
+    ConformalLoadResult,
+    ConformalLoadStatus,
+    MLflowConformalAdapter,
+)
 from schemas import (
     FeatureContribution,
     FeatureSpecMismatchError,
@@ -103,6 +108,14 @@ class ModelEntry:
     feature_spec_version: Optional[str] = None
     explainer: Optional[Any] = None       # ModelExplainer instance if initialized
     explainer_error: Optional[str] = None # Technical reason if explainer initialization failed
+    conformal_config: Optional[Any] = None    # Validated ConformalConfig instance if available
+    conformal_evaluator: Optional[Any] = None # ConformalEvaluator instance if available
+    conformal_error: Optional[str] = None     # Technical reason if conformal evaluation failed
+
+    @property
+    def is_conformal_available(self) -> bool:
+        """Returns True if a ConformalEvaluator is initialized and ready on this entry."""
+        return self.conformal_evaluator is not None
 
 
 class DummyFraudModel:
@@ -924,6 +937,9 @@ class ModelRegistry:
         feature_spec_version: Optional[str] = None,
         explainer: Optional[Any] = None,
         explainer_error: Optional[str] = None,
+        conformal_config: Optional[Any] = None,
+        conformal_evaluator: Optional[Any] = None,
+        conformal_error: Optional[str] = None,
     ) -> ModelEntry:
         """Convenience method to set a model in the registry."""
         self._validate_family(family)
@@ -940,9 +956,34 @@ class ModelRegistry:
             feature_spec_version=feature_spec_version,
             explainer=explainer,
             explainer_error=explainer_error,
+            conformal_config=conformal_config,
+            conformal_evaluator=conformal_evaluator,
+            conformal_error=conformal_error,
         )
         self.set_entry(family, entry)
         return entry
+
+    def set_conformal_evaluator(
+        self,
+        family: str,
+        evaluator: Optional[Any],
+        config: Optional[Any] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        """
+        Attaches a ConformalEvaluator (and optional ConformalConfig) to the active ModelEntry.
+        Thread-safe. Raises ValueError if no active model entry exists for the family.
+        """
+        self._validate_family(family)
+        with self._lock:
+            entry = self._entries.get(family)
+            if entry is None:
+                raise ValueError(
+                    f"Cannot attach conformal evaluator: no active model entry for family '{family}'."
+                )
+            entry.conformal_evaluator = evaluator
+            entry.conformal_config = config
+            entry.conformal_error = error
 
     def record_failure(self, family: str, error_message: str) -> None:
         """
@@ -1219,6 +1260,50 @@ def load_family_model(
                 explainer_err,
             )
 
+        # Step 6: Split Conformal initialization via MLflow adapter
+        conformal_evaluator = None
+        conformal_config = None
+        conformal_error = None
+        try:
+            conformal_adapter = MLflowConformalAdapter()
+            feature_spec_ver = "purchase-v2" if family == "purchase" else "transfer-v2"
+            run_id = getattr(model_version_meta, "run_id", None)
+
+            conformal_res = conformal_adapter.load_conformal(
+                family=family,
+                model_name=target_name,
+                model_version=version,
+                feature_spec_version=feature_spec_ver,
+                client=client,
+                model_version_meta=model_version_meta,
+                run_id=run_id,
+            )
+
+            if conformal_res.status == ConformalLoadStatus.LOADED:
+                conformal_evaluator = conformal_res.evaluator
+                conformal_config = conformal_res.config
+                logger.info(
+                    "Split Conformal evaluator loaded for family '%s' (source: %s, quantile: %s).",
+                    clean_family,
+                    conformal_res.source,
+                    conformal_config.quantile if conformal_config else "N/A",
+                )
+            else:
+                conformal_error = conformal_res.error_message or conformal_res.status.value
+                logger.warning(
+                    "Split Conformal not active for family '%s': %s (%s). Serving continues without conformal enrichment.",
+                    clean_family,
+                    conformal_res.status.value,
+                    conformal_res.error_message,
+                )
+        except Exception as conf_exc:
+            conformal_error = f"{conf_exc.__class__.__name__}: {str(conf_exc)}"
+            logger.warning(
+                "Unexpected error during Split Conformal loading for family '%s': %s. Serving continues without conformal enrichment.",
+                clean_family,
+                conformal_error,
+            )
+
         # Update registry atomically
         registry.set_model(
             family=family,
@@ -1228,6 +1313,9 @@ def load_family_model(
             model_alias=target_alias,
             explainer=explainer,
             explainer_error=explainer_err,
+            conformal_config=conformal_config,
+            conformal_evaluator=conformal_evaluator,
+            conformal_error=conformal_error,
         )
         registry.mark_startup_complete(family, True)
         return loaded_model, version
@@ -1393,6 +1481,19 @@ def set_cached_model(
             registry.set_model(fam, model, version)
             if mark_started:
                 registry.mark_startup_complete(fam, True)
+
+
+def attach_test_conformal_evaluator(
+    family: str,
+    evaluator: Optional[Any],
+    config: Optional[Any] = None,
+) -> None:
+    """
+    Explicit test utility to inject a synthetic ConformalEvaluator into the active ModelEntry.
+    STRICTLY FOR TEST HARNESSES — Never invoked during production MLflow model loading.
+    """
+    registry = get_model_registry()
+    registry.set_conformal_evaluator(family=family, evaluator=evaluator, config=config, error=None)
 
 
 def load_champion_model(

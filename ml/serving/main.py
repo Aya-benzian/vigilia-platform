@@ -11,7 +11,7 @@ Milestone 1 Implementation:
 
 from contextlib import asynccontextmanager
 import logging
-from typing import AsyncGenerator, Dict, Optional
+from typing import AsyncGenerator, Dict, List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Response, status
 from fastapi.responses import JSONResponse
@@ -262,7 +262,29 @@ def _handle_prediction(family: str, request: PredictionRequest) -> PredictionRes
         logger.error("Inference execution error for family '%s': %s", clean_fam, exc)
         raise InferenceError(detail=f"Inference execution failed for family '{clean_fam}'.")
 
-    # 5. Uncertainty & Threshold decisions:
+    # 5. Split Conformal Prediction Evaluation (Online nonconformity check)
+    prediction_set: Optional[List[str]] = None
+    conformal_status: Optional[str] = None
+    is_ambiguous: Optional[bool] = None
+
+    if entry.conformal_evaluator is not None:
+        try:
+            conf_result = entry.conformal_evaluator.evaluate(fraud_prob)
+            prediction_set = conf_result.prediction_set
+            conformal_status = conf_result.status.value
+            is_ambiguous = conf_result.is_ambiguous
+        except Exception as exc:
+            clean_fam = str(family).replace("\r", "").replace("\n", "")
+            logger.warning(
+                "Conformal evaluation failed for family '%s': %s. Returning prediction without conformal set.",
+                clean_fam,
+                exc,
+            )
+            prediction_set = None
+            conformal_status = None
+            is_ambiguous = None
+
+    # 6. Uncertainty & Threshold decisions:
     # Do NOT assume 0.5 threshold, do NOT reuse 0.1948 legacy threshold, do NOT invent uncertainty formula.
     # Unresolved values are safely kept as None (reported as blockers for full decisioning).
     label: Optional[str] = None
@@ -280,6 +302,9 @@ def _handle_prediction(family: str, request: PredictionRequest) -> PredictionRes
         model_version=entry.model_version,
         feature_spec_version=canonical_version,
         inference_ms=inference_ms,
+        prediction_set=prediction_set,
+        conformal_status=conformal_status,
+        is_ambiguous=is_ambiguous,
     )
 
 
