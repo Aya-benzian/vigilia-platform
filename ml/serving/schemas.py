@@ -162,22 +162,44 @@ class HealthResponse(BaseModel):
 class PredictionRequest(BaseModel):
     """
     Generic feature request schema for Design 2 serving endpoints (/predict/purchase, /predict/transfer).
-    Supports both model families without hard-coding family-specific features until M1's
-    authoritative feature specifications are published.
+    Enforces authoritative V2 specifications ('purchase-v2' for Purchase: 29 features, 'transfer-v2' for Transfer: 20 features).
     """
     model_config = ConfigDict(
         extra="forbid",
         json_schema_extra={
             "example": {
                 "request_id": "e2c4a8f0-1111-4a6b-8f2e-aaaaaaaaaaaa",
-                "feature_spec_version": "purchase-v1",
+                "feature_spec_version": "purchase-v2",
                 "features": {
-                    "amount": 120.0,
-                    "log_amount": 4.79,
-                    "merchant_category": "shopping_net",
-                    "hour_of_day": 23,
-                    "distance_home_merchant_km": 812.4,
-                    "txn_count_24h": 6,
+                    "amount": 75.0,
+                    "log_amount": 4.3175,
+                    "hour_of_day": 12,
+                    "day_of_week": 2,
+                    "is_weekend": 0,
+                    "is_night": 0,
+                    "customer_age": 42.0,
+                    "distance_home_merchant_km": 15.5,
+                    "city_pop_log": 11.5,
+                    "merchant_category": "grocery_pos",
+                    "customer_avg_amount": 65.0,
+                    "customer_std_amount": 25.0,
+                    "customer_max_amount": 350.0,
+                    "amount_to_avg_ratio": 1.15,
+                    "amount_zscore_customer": 0.4,
+                    "hour_share": 0.08,
+                    "category_share": 0.12,
+                    "merchant_visit_count": 3,
+                    "avg_distance_home_km": 12.0,
+                    "distance_zscore": 0.25,
+                    "txn_count_1h": 1,
+                    "txn_count_24h": 4,
+                    "txn_count_7d": 18,
+                    "amount_sum_24h": 180.0,
+                    "time_since_last_txn_s": 7200.0,
+                    "is_new_merchant": 0,
+                    "is_new_category": 0,
+                    "history_length": 120,
+                    "days_since_first_txn": 45.0,
                 },
             }
         },
@@ -190,11 +212,26 @@ class PredictionRequest(BaseModel):
     feature_spec_version: str = Field(
         ...,
         min_length=1,
-        description="Feature specification version contract (e.g., 'purchase-v1', 'transfer-v1').",
+        description="Feature specification version contract ('purchase-v2' for Purchase, 'transfer-v2' for Transfer).",
     )
     features: Dict[str, Any] = Field(
         ...,
-        description="Map of feature names to feature values (numeric, boolean, or categorical string).",
+        description=(
+            "Key-value mapping of feature names to values. Must strictly contain all expected features "
+            "for the active domain specification:\n"
+            "- 'purchase-v2' (29 features): amount, log_amount, hour_of_day, day_of_week, is_weekend, is_night, "
+            "customer_age, distance_home_merchant_km, city_pop_log, merchant_category, customer_avg_amount, "
+            "customer_std_amount, customer_max_amount, amount_to_avg_ratio, amount_zscore_customer, hour_share, "
+            "category_share, merchant_visit_count, avg_distance_home_km, distance_zscore, txn_count_1h, "
+            "txn_count_24h, txn_count_7d, amount_sum_24h, time_since_last_txn_s, is_new_merchant, is_new_category, "
+            "history_length, days_since_first_txn.\n"
+            "- 'transfer-v2' (20 features): amount, log_amount, hour_of_day, day_of_week, sender_avg_amount, "
+            "sender_std_amount, sender_max_amount, amount_to_avg_ratio, sender_amount_zscore, is_new_recipient, "
+            "pair_transfer_count, recipient_share, days_since_last_pair_transfer, distinct_recipients_30d, "
+            "recipient_inbound_count_24h, recipient_unique_senders_24h, sender_txn_count_1h, sender_txn_count_24h, "
+            "amount_to_balance_ratio, history_length.\n"
+            "Values must be numeric (int/float, non-NaN, non-Inf) or non-empty string for merchant_category. Nulls and booleans are rejected."
+        ),
     )
 
     @field_validator("request_id")
@@ -257,13 +294,16 @@ class PredictionResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "request_id": "e2c4a8f0-1111-4a6b-8f2e-aaaaaaaaaaaa",
-                "label": "FRAUD",
-                "fraud_probability": 0.94,
-                "uncertainty": 0.08,
+                "label": None,
+                "fraud_probability": 0.8412,
+                "uncertainty": None,
                 "model_name": "purchase-fraud-model",
-                "model_version": "3",
-                "feature_spec_version": "purchase-v1",
-                "inference_ms": 18.0,
+                "model_version": "1",
+                "feature_spec_version": "purchase-v2",
+                "inference_ms": 12.45,
+                "prediction_set": ["FRAUD"],
+                "conformal_status": "SINGLETON",
+                "is_ambiguous": False,
             }
         },
     )
@@ -344,12 +384,12 @@ class ExplanationResponse(BaseModel):
             "example": {
                 "request_id": "e2c4a8f0-1111-4a6b-8f2e-aaaaaaaaaaaa",
                 "model_name": "purchase-fraud-model",
-                "model_version": "3",
+                "model_version": "1",
                 "base_value": 0.05,
                 "contributions": [
-                    {"feature": "distance_home_merchant_km", "value": 812.4, "shap": 0.42},
-                    {"feature": "amount", "value": 120.0, "shap": 0.28},
-                    {"feature": "hour_of_day", "value": 23, "shap": 0.15},
+                    {"feature": "distance_home_merchant_km", "value": 15.5, "shap": 0.42},
+                    {"feature": "amount", "value": 75.0, "shap": 0.28},
+                    {"feature": "hour_of_day", "value": 12, "shap": 0.15},
                 ],
             }
         },

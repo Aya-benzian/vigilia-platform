@@ -38,6 +38,7 @@ from conformal_loader import (
     ConformalLoadStatus,
     MLflowClientProtocol,
     MLflowConformalAdapter,
+    normalize_m1_conformal_dict,
 )
 from model_loader import (
     DummyPurchaseModel,
@@ -681,3 +682,412 @@ def test_no_synthetic_quantile_in_production(
     assert entry.conformal_evaluator is None
     assert entry.conformal_config is None
     assert entry.is_conformal_available is False
+
+
+# =====================================================================
+# Tests: M1 Deliverables Ingestion & Normalization Matrix
+# =====================================================================
+
+@pytest.fixture
+def m1_real_purchase_payload() -> Dict[str, Any]:
+    """Exact content from ml/training/artifacts/purchase_conformal_config.json."""
+    return {
+        "model_name": "purchase-fraud-model",
+        "model_version": "2",
+        "feature_spec_version": "v2",
+        "method": "split_conformal",
+        "alpha": 0.05,
+        "q_hat": 0.0016542673110961914,
+        "quantile_status": "EXACT_FINITE",
+        "calibration_samples_count": 22500,
+        "rank_k": 21376,
+        "calibration_dataset_id": "sparkov_purchase_chronological_part_c",
+        "test_samples_count": 22500,
+        "empirical_test_coverage": 0.981244,
+        "created_at": "2026-11-18T15:25:22.272119+00:00",
+        "metrics": {
+            "empirical_test_coverage": 0.981244,
+            "class_coverage": {"legitimate": 0.982917, "fraud": 0.791878},
+            "mean_set_size": 0.9817,
+            "singleton_rate": 0.981689,
+            "ambiguous_rate": 0.0,
+            "empty_rate": 0.018311,
+            "singleton_breakdown": {
+                "legitimate_rate": 0.974533,
+                "fraud_rate": 0.007156,
+            },
+        },
+        "notes": "Split Conformal Prediction offline calibration.",
+    }
+
+
+@pytest.fixture
+def m1_real_transfer_payload() -> Dict[str, Any]:
+    """Exact content from ml/training/artifacts/transfer_conformal_config.json."""
+    return {
+        "model_name": "transfer-fraud-model",
+        "model_version": "2",
+        "feature_spec_version": "v2",
+        "method": "split_conformal",
+        "alpha": 0.05,
+        "q_hat": 0.0,
+        "quantile_status": "EXACT_FINITE",
+        "calibration_samples_count": 22500,
+        "rank_k": 21376,
+        "calibration_dataset_id": "paysim_transfer_chronological_part_c",
+        "test_samples_count": 22500,
+        "empirical_test_coverage": 0.997644,
+        "created_at": "2026-11-18T15:25:22.705204+00:00",
+        "metrics": {
+            "empirical_test_coverage": 0.997644,
+            "class_coverage": {"legitimate": 0.999109, "fraud": 0.431034},
+            "mean_set_size": 0.9979,
+            "singleton_rate": 0.997911,
+            "ambiguous_rate": 0.0,
+            "empty_rate": 0.002089,
+            "singleton_breakdown": {
+                "legitimate_rate": 0.996533,
+                "fraud_rate": 0.001378,
+            },
+        },
+        "notes": "Split Conformal Prediction offline calibration.",
+    }
+
+
+def test_load_conformal_m1_purchase_exact_metadata_path(
+    adapter: MLflowConformalAdapter,
+    mock_client: MockMLflowClient,
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-1: Purchase configuration loaded from metadata/conformal_config.json."""
+    run_id = "run-m1-purchase-meta"
+    mock_client.add_artifact(
+        run_id, "metadata/conformal_config.json", json.dumps(m1_real_purchase_payload)
+    )
+    mv = mock_client.register_model_version(
+        "purchase-fraud-model", "champion", version="2", run_id=run_id
+    )
+
+    res = adapter.load_conformal(
+        family="purchase",
+        model_name="purchase-fraud-model",
+        model_version="2",
+        feature_spec_version="purchase-v2",
+        client=mock_client,
+        model_version_meta=mv,
+    )
+
+    assert res.status == ConformalLoadStatus.LOADED
+    assert res.is_success is True
+    assert res.config is not None
+    assert res.config.quantile == 0.0016542673110961914
+    assert res.config.n == 22500
+    assert res.config.k == 21376
+    assert res.config.feature_spec_version == "purchase-v2"
+    assert res.config.family == "purchase"
+    assert res.source == "artifact:metadata/conformal_config.json"
+    assert res.evaluator is not None
+    assert res.evaluator.default_quantile == 0.0016542673110961914
+
+
+def test_load_conformal_m1_transfer_exact_metadata_path(
+    adapter: MLflowConformalAdapter,
+    mock_client: MockMLflowClient,
+    m1_real_transfer_payload: Dict[str, Any],
+) -> None:
+    """Case M1-2: Transfer configuration loaded from metadata/conformal_config.json (q=0.0)."""
+    run_id = "run-m1-transfer-meta"
+    mock_client.add_artifact(
+        run_id, "metadata/conformal_config.json", json.dumps(m1_real_transfer_payload)
+    )
+    mv = mock_client.register_model_version(
+        "transfer-fraud-model", "champion", version="2", run_id=run_id
+    )
+
+    res = adapter.load_conformal(
+        family="transfer",
+        model_name="transfer-fraud-model",
+        model_version="2",
+        feature_spec_version="transfer-v2",
+        client=mock_client,
+        model_version_meta=mv,
+    )
+
+    assert res.status == ConformalLoadStatus.LOADED
+    assert res.is_success is True
+    assert res.config is not None
+    assert res.config.quantile == 0.0
+    assert res.config.n == 22500
+    assert res.config.k == 21376
+    assert res.config.feature_spec_version == "transfer-v2"
+    assert res.config.family == "transfer"
+    assert res.source == "artifact:metadata/conformal_config.json"
+    assert res.evaluator is not None
+    assert res.evaluator.default_quantile == 0.0
+
+
+def test_load_conformal_m1_fallback_to_root(
+    adapter: MLflowConformalAdapter,
+    mock_client: MockMLflowClient,
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-3: Fallback to root conformal_config.json when metadata/ is absent."""
+    run_id = "run-m1-purchase-root-fallback"
+    # Placed at root 'conformal_config.json' instead of 'metadata/conformal_config.json'
+    mock_client.add_artifact(
+        run_id, "conformal_config.json", json.dumps(m1_real_purchase_payload)
+    )
+    mv = mock_client.register_model_version(
+        "purchase-fraud-model", "champion", version="2", run_id=run_id
+    )
+
+    res = adapter.load_conformal(
+        family="purchase",
+        model_name="purchase-fraud-model",
+        model_version="2",
+        feature_spec_version="purchase-v2",
+        client=mock_client,
+        model_version_meta=mv,
+    )
+
+    assert res.status == ConformalLoadStatus.LOADED
+    assert res.is_success is True
+    assert res.source == "artifact:conformal_config.json"
+    assert res.config is not None
+    assert res.config.quantile == 0.0016542673110961914
+
+
+def test_normalize_m1_conformal_dict_success(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-4: Direct verification of normalize_m1_conformal_dict."""
+    normalized = normalize_m1_conformal_dict(
+        raw_data=m1_real_purchase_payload,
+        family="purchase",
+        expected_model_name="purchase-fraud-model",
+        expected_model_version="2",
+    )
+
+    assert normalized["family"] == "purchase"
+    assert normalized["quantile"] == 0.0016542673110961914
+    assert normalized["n"] == 22500
+    assert normalized["k"] == 21376
+    assert normalized["feature_spec_version"] == "purchase-v2"
+    assert normalized["model_name"] == "purchase-fraud-model"
+    assert normalized["model_version"] == "2"
+
+
+def test_normalize_m1_conformal_dict_preserves_canonical_when_matching(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-4b: Both canonical and alias keys present with identical values."""
+    payload = dict(m1_real_purchase_payload)
+    payload["quantile"] = 0.0016542673110961914
+    payload["n"] = 22500
+    payload["k"] = 21376
+    payload["family"] = "purchase"
+    payload["feature_spec_version"] = "purchase-v2"
+
+    normalized = normalize_m1_conformal_dict(
+        raw_data=payload,
+        family="purchase",
+        expected_model_name="purchase-fraud-model",
+        expected_model_version="2",
+    )
+
+    assert normalized["family"] == "purchase"
+    assert normalized["quantile"] == 0.0016542673110961914
+    assert normalized["n"] == 22500
+    assert normalized["k"] == 21376
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_quantile(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-5a: Contradictory quantile and q_hat."""
+    payload = dict(m1_real_purchase_payload)
+    payload["quantile"] = 0.9999  # Differs from q_hat=0.001654...
+
+    with pytest.raises(
+        from_conformal_config := pytest.importorskip("conformal_config").ConformalValidationError,
+        match="Contradictory quantile values",
+    ):
+        normalize_m1_conformal_dict(raw_data=payload, family="purchase")
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_n(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-5b: Contradictory n and calibration_samples_count."""
+    payload = dict(m1_real_purchase_payload)
+    payload["n"] = 500  # Differs from calibration_samples_count=22500
+
+    from conformal_config import ConformalValidationError
+
+    with pytest.raises(ConformalValidationError, match="Contradictory sample size"):
+        normalize_m1_conformal_dict(raw_data=payload, family="purchase")
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_k(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-5c: Contradictory k and rank_k."""
+    payload = dict(m1_real_purchase_payload)
+    payload["k"] = 100  # Differs from rank_k=21376
+
+    from conformal_config import ConformalValidationError
+
+    with pytest.raises(ConformalValidationError, match="Contradictory conformal rank"):
+        normalize_m1_conformal_dict(raw_data=payload, family="purchase")
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_family(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-6: Incorrect/contradictory family."""
+    payload = dict(m1_real_purchase_payload)
+    payload["family"] = "transfer"  # Incompatible with requested family purchase
+
+    from conformal_config import ConformalValidationError
+
+    with pytest.raises(ConformalValidationError, match="Contradictory family"):
+        normalize_m1_conformal_dict(raw_data=payload, family="purchase")
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_model_name(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-6b: Contradictory model_name for family."""
+    payload = dict(m1_real_purchase_payload)
+    payload["model_name"] = "transfer-fraud-model"  # Requested family is purchase
+
+    from conformal_config import ConformalValidationError
+
+    with pytest.raises(ConformalValidationError, match="Contradictory model_name"):
+        normalize_m1_conformal_dict(raw_data=payload, family="purchase")
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_model_version(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-7: Incompatible model_version."""
+    from conformal_config import ConformalValidationError
+
+    # Configuration has model_version "2", but active model is version "1"
+    with pytest.raises(ConformalValidationError, match="Contradictory model_version"):
+        normalize_m1_conformal_dict(
+            raw_data=m1_real_purchase_payload,
+            family="purchase",
+            expected_model_version="1",
+        )
+
+
+def test_normalize_m1_conformal_dict_rejects_contradictory_feature_spec(
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-8: Incompatible FeatureSpec version."""
+    payload = dict(m1_real_purchase_payload)
+    payload["feature_spec_version"] = "transfer-v2"  # Incompatible with family purchase
+
+    from conformal_config import ConformalValidationError
+
+    with pytest.raises(
+        ConformalValidationError, match="Contradictory feature_spec_version"
+    ):
+        normalize_m1_conformal_dict(raw_data=payload, family="purchase")
+
+
+def test_e2e_prediction_with_real_m1_purchase_artifact(
+    test_client: TestClient,
+    mock_client: MockMLflowClient,
+    m1_real_purchase_payload: Dict[str, Any],
+) -> None:
+    """Case M1-E2E-1: End-to-end prediction using real M1 purchase artifact."""
+    stop_background_model_loader()
+    reset_model_cache()
+
+    run_id = "run-e2e-m1-purchase"
+    mock_client.add_artifact(
+        run_id, "metadata/conformal_config.json", json.dumps(m1_real_purchase_payload)
+    )
+    mock_client.register_model_version(
+        "purchase-fraud-model", "champion", version="2", run_id=run_id
+    )
+
+    with patch("model_loader.MlflowClient", return_value=mock_client), \
+         patch("mlflow.sklearn.load_model", return_value=DummyPurchaseModel(version="2")):
+        load_family_model("purchase")
+
+    registry = get_model_registry()
+    entry = registry.get_entry("purchase")
+    assert entry is not None
+    assert entry.is_conformal_available is True
+    assert entry.conformal_evaluator.default_quantile == 0.0016542673110961914
+
+    # DummyPurchaseModel predicts p = 0.15
+    # s(legit) = 0.15 > 0.001654 -> not in set
+    # s(fraud) = 0.85 > 0.001654 -> not in set
+    # Expected: EMPTY set, is_ambiguous = True
+    payload = {
+        "request_id": str(uuid.uuid4()),
+        "feature_spec_version": "purchase-v2",
+        "features": dict(SAMPLE_PURCHASE_FEATURES),
+    }
+
+    response = test_client.post("/predict/purchase", json=payload)
+    assert response.status_code == 200
+
+    data = response.json()
+    parsed = PredictionResponse(**data)
+    assert parsed.fraud_probability == 0.15
+    assert parsed.prediction_set == []
+    assert parsed.conformal_status == "EMPTY"
+    assert parsed.is_ambiguous is True
+
+
+def test_e2e_prediction_with_real_m1_transfer_artifact_q_zero(
+    test_client: TestClient,
+    mock_client: MockMLflowClient,
+    m1_real_transfer_payload: Dict[str, Any],
+) -> None:
+    """Case M1-E2E-2: End-to-end prediction using real M1 transfer artifact with q=0.0."""
+    stop_background_model_loader()
+    reset_model_cache()
+
+    run_id = "run-e2e-m1-transfer"
+    mock_client.add_artifact(
+        run_id, "metadata/conformal_config.json", json.dumps(m1_real_transfer_payload)
+    )
+    mock_client.register_model_version(
+        "transfer-fraud-model", "champion", version="2", run_id=run_id
+    )
+
+    with patch("model_loader.MlflowClient", return_value=mock_client), \
+         patch("mlflow.sklearn.load_model", return_value=DummyTransferModel(version="2")):
+        load_family_model("transfer")
+
+    registry = get_model_registry()
+    entry = registry.get_entry("transfer")
+    assert entry is not None
+    assert entry.is_conformal_available is True
+    assert entry.conformal_evaluator.default_quantile == 0.0
+
+    # DummyTransferModel predicts p = 0.15
+    # s(legit) = 0.15 > 0.0 -> not in set
+    # s(fraud) = 0.85 > 0.0 -> not in set
+    # Expected: EMPTY set, is_ambiguous = True
+    payload = {
+        "request_id": str(uuid.uuid4()),
+        "feature_spec_version": "transfer-v2",
+        "features": dict(SAMPLE_TRANSFER_FEATURES),
+    }
+
+    response = test_client.post("/predict/transfer", json=payload)
+    assert response.status_code == 200
+
+    data = response.json()
+    parsed = PredictionResponse(**data)
+    assert parsed.fraud_probability == 0.15
+    assert parsed.prediction_set == []
+    assert parsed.conformal_status == "EMPTY"
+    assert parsed.is_ambiguous is True

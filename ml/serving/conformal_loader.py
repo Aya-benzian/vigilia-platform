@@ -21,11 +21,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 import logging
+import math
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple, Union, runtime_checkable
 
 from conformal_config import (
+    SUPPORTED_FAMILIES,
     ConformalCompatibilityError,
     ConformalConfig,
     ConformalConfigValidator,
@@ -87,28 +89,166 @@ class MLflowClientProtocol(Protocol):
         ...
 
 
+def normalize_m1_conformal_dict(
+    raw_data: Dict[str, Any],
+    family: str,
+    expected_model_name: Optional[str] = None,
+    expected_model_version: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Normalizes M1 Split Conformal calibration artifacts to canonical M2 schema.
+
+    Translations:
+        - q_hat -> quantile
+        - calibration_samples_count -> n
+        - rank_k -> k
+        - feature_spec_version: "v2" -> f"{family}-v2"
+        - Deduces 'family' only from the explicitly requested family context.
+
+    Security & Validation Rules:
+        - If canonical key already exists and differs from alias, raises ConformalValidationError.
+        - Verifies model_name corresponds to the loaded family.
+        - Verifies model_version matches expected_model_version if provided.
+        - Rejects contradictory family or feature_spec_version.
+    """
+    if not isinstance(raw_data, dict):
+        raise ConformalValidationError(
+            f"Configuration must be a dictionary, got: {type(raw_data).__name__}"
+        )
+    if not raw_data:
+        raise ConformalValidationError("Configuration dictionary is empty.")
+
+    data = dict(raw_data)
+    clean_family = str(family).strip().lower()
+    if clean_family not in SUPPORTED_FAMILIES:
+        raise ConformalValidationError(
+            f"Unsupported family '{clean_family}'. Must be one of {sorted(SUPPORTED_FAMILIES)}."
+        )
+
+    # 1. Family deduction and verification
+    if "family" in data and data["family"] is not None:
+        raw_fam = str(data["family"]).strip().lower()
+        if raw_fam != clean_family:
+            raise ConformalValidationError(
+                f"Contradictory family in configuration: '{raw_fam}' does not match requested family '{clean_family}'."
+            )
+    else:
+        data["family"] = clean_family
+
+    # 2. Model name verification
+    if "model_name" in data and data["model_name"] is not None:
+        model_name_str = str(data["model_name"]).strip()
+        if clean_family == "purchase" and "purchase" not in model_name_str:
+            raise ConformalValidationError(
+                f"Contradictory model_name '{model_name_str}' for family 'purchase'."
+            )
+        if clean_family == "transfer" and "transfer" not in model_name_str:
+            raise ConformalValidationError(
+                f"Contradictory model_name '{model_name_str}' for family 'transfer'."
+            )
+        if expected_model_name is not None and model_name_str != expected_model_name:
+            raise ConformalValidationError(
+                f"Contradictory model_name: configuration has '{model_name_str}', expected '{expected_model_name}'."
+            )
+
+    # 3. Model version verification
+    if expected_model_version is not None and "model_version" in data and data["model_version"] is not None:
+        ver_str = str(data["model_version"]).strip()
+        if ver_str != str(expected_model_version).strip():
+            raise ConformalValidationError(
+                f"Contradictory model_version: configuration has '{ver_str}', expected '{expected_model_version}'."
+            )
+
+    # 4. Quantile alias: q_hat -> quantile
+    if "q_hat" in data:
+        q_hat_val = data["q_hat"]
+        if "quantile" in data and data["quantile"] is not None:
+            q1 = ConformalConfigValidator.parse_quantile(data["quantile"])
+            q2 = ConformalConfigValidator.parse_quantile(q_hat_val)
+            if math.isinf(q1) != math.isinf(q2) or (
+                not math.isinf(q1) and not math.isclose(q1, q2, rel_tol=1e-7, abs_tol=1e-7)
+            ):
+                raise ConformalValidationError(
+                    f"Contradictory quantile values: canonical 'quantile'={data['quantile']!r} differs from alias 'q_hat'={q_hat_val!r}."
+                )
+        else:
+            data["quantile"] = q_hat_val
+
+    # 5. Sample size alias: calibration_samples_count -> n
+    if "calibration_samples_count" in data:
+        samples_val = data["calibration_samples_count"]
+        if "n" in data and data["n"] is not None:
+            if data["n"] != samples_val:
+                raise ConformalValidationError(
+                    f"Contradictory sample size: canonical 'n'={data['n']!r} differs from alias 'calibration_samples_count'={samples_val!r}."
+                )
+        else:
+            data["n"] = samples_val
+
+    # 6. Conformal rank alias: rank_k -> k
+    if "rank_k" in data:
+        rank_val = data["rank_k"]
+        if "k" in data and data["k"] is not None:
+            if data["k"] != rank_val:
+                raise ConformalValidationError(
+                    f"Contradictory conformal rank: canonical 'k'={data['k']!r} differs from alias 'rank_k'={rank_val!r}."
+                )
+        else:
+            data["k"] = rank_val
+
+    # 7. Feature spec version alias: v2 -> {family}-v2
+    if "feature_spec_version" in data and data["feature_spec_version"] is not None:
+        spec_str = str(data["feature_spec_version"]).strip()
+        if spec_str == "v2":
+            data["feature_spec_version"] = f"{clean_family}-v2"
+        else:
+            if clean_family == "purchase" and not spec_str.startswith("purchase"):
+                raise ConformalValidationError(
+                    f"Contradictory feature_spec_version '{spec_str}' for family 'purchase'."
+                )
+            if clean_family == "transfer" and not spec_str.startswith("transfer"):
+                raise ConformalValidationError(
+                    f"Contradictory feature_spec_version '{spec_str}' for family 'transfer'."
+                )
+
+    return data
+
+
 class MLflowConformalAdapter:
     """
     Isolated adapter connecting MLflow tracking/registry artifacts to Split Conformal evaluation.
 
     Encapsulates:
-    - Downloading calibration artifacts (e.g. conformal_config.json).
+    - Downloading calibration artifacts (searching metadata/conformal_config.json first, then conformal_config.json).
+    - Normalizing M1 field aliases (q_hat, calibration_samples_count, rank_k, v2).
     - Parsing fallback tags from ModelVersion or Run metadata.
     - Validating schema and mathematical bounds via ConformalConfigValidator.
     - Verifying compatibility with active model name, version, and FeatureSpec.
     - Initializing the ConformalEvaluator with the verified quantile.
     """
 
-    DEFAULT_ARTIFACT_NAME: str = "conformal_config.json"
+    PRIMARY_ARTIFACT_PATH: str = "metadata/conformal_config.json"
+    FALLBACK_ARTIFACT_PATH: str = "conformal_config.json"
+    DEFAULT_CANDIDATE_PATHS: Tuple[str, ...] = (
+        PRIMARY_ARTIFACT_PATH,
+        FALLBACK_ARTIFACT_PATH,
+    )
+    DEFAULT_ARTIFACT_NAME: str = PRIMARY_ARTIFACT_PATH
     DEFAULT_TAG_KEY: str = "conformal_config"
 
     def __init__(
         self,
-        artifact_name: str = DEFAULT_ARTIFACT_NAME,
+        artifact_name: Optional[str] = None,
+        candidate_paths: Optional[Tuple[str, ...]] = None,
         allow_tags_fallback: bool = True,
         tag_key: str = DEFAULT_TAG_KEY,
     ) -> None:
-        self.artifact_name = artifact_name
+        self.artifact_name = artifact_name or self.DEFAULT_ARTIFACT_NAME
+        self.candidate_paths = candidate_paths or (
+            (artifact_name, self.FALLBACK_ARTIFACT_PATH)
+            if artifact_name and artifact_name != self.FALLBACK_ARTIFACT_PATH
+            else self.DEFAULT_CANDIDATE_PATHS
+        )
         self.allow_tags_fallback = allow_tags_fallback
         self.tag_key = tag_key
 
@@ -117,87 +257,103 @@ class MLflowConformalAdapter:
         client: Any,
         run_id: str,
         artifact_name: Optional[str] = None,
-    ) -> Tuple[Optional[Dict[str, Any]], Optional[ConformalLoadStatus], Optional[str]]:
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[ConformalLoadStatus], Optional[str], Optional[str]]:
         """
         Attempts to download and parse the conformal configuration JSON artifact.
+        Searches candidate paths in order (metadata/conformal_config.json, then conformal_config.json).
 
         Returns:
-            Tuple of (raw_data, failure_status, error_message).
+            Tuple of (raw_data, failure_status, error_message, resolved_path).
             If successful, raw_data is populated and failure_status is None.
         """
-        target_name = artifact_name or self.artifact_name
-        try:
-            local_path = client.download_artifacts(run_id=run_id, path=target_name)
-            if not local_path or not os.path.exists(local_path):
-                return (
-                    None,
-                    ConformalLoadStatus.ARTIFACT_NOT_FOUND,
-                    f"Artifact '{target_name}' not found for run '{run_id}' (path does not exist).",
-                )
+        if artifact_name is not None:
+            paths_to_try = [artifact_name]
+        else:
+            paths_to_try = list(self.candidate_paths)
 
-            # If local_path is a directory, look for target file inside
-            if os.path.isdir(local_path):
-                candidate = os.path.join(local_path, target_name)
-                if os.path.exists(candidate):
-                    local_path = candidate
-                else:
+        last_not_found_err: Optional[str] = None
+        download_failed_err: Optional[str] = None
+
+        for target_name in paths_to_try:
+            try:
+                local_path = client.download_artifacts(run_id=run_id, path=target_name)
+                if not local_path or not os.path.exists(local_path):
+                    last_not_found_err = (
+                        f"Artifact '{target_name}' not found for run '{run_id}' (path does not exist)."
+                    )
+                    continue
+
+                # If local_path is a directory, look for target file inside
+                if os.path.isdir(local_path):
+                    candidate = os.path.join(local_path, os.path.basename(target_name))
+                    if os.path.exists(candidate):
+                        local_path = candidate
+                    else:
+                        candidate_direct = os.path.join(local_path, target_name)
+                        if os.path.exists(candidate_direct):
+                            local_path = candidate_direct
+                        else:
+                            last_not_found_err = (
+                                f"Artifact file '{target_name}' not found inside directory '{local_path}'."
+                            )
+                            continue
+
+                with open(local_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                if not content.strip():
                     return (
                         None,
-                        ConformalLoadStatus.ARTIFACT_NOT_FOUND,
-                        f"Artifact file '{target_name}' not found inside directory '{local_path}'.",
+                        ConformalLoadStatus.METADATA_MISSING,
+                        f"Artifact '{target_name}' in run '{run_id}' is empty.",
+                        target_name,
                     )
 
-            with open(local_path, "r", encoding="utf-8") as f:
-                content = f.read()
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError as decode_err:
+                    return (
+                        None,
+                        ConformalLoadStatus.INVALID_CONFIG,
+                        f"Artifact '{target_name}' contains malformed JSON: {decode_err}",
+                        target_name,
+                    )
 
-            if not content.strip():
-                return (
-                    None,
-                    ConformalLoadStatus.METADATA_MISSING,
-                    f"Artifact '{target_name}' in run '{run_id}' is empty.",
-                )
+                if not isinstance(data, dict):
+                    return (
+                        None,
+                        ConformalLoadStatus.INVALID_CONFIG,
+                        f"Artifact '{target_name}' JSON root must be an object, got: {type(data).__name__}",
+                        target_name,
+                    )
 
-            try:
-                data = json.loads(content)
-            except json.JSONDecodeError as decode_err:
-                return (
-                    None,
-                    ConformalLoadStatus.INVALID_CONFIG,
-                    f"Artifact '{target_name}' contains malformed JSON: {decode_err}",
-                )
+                return data, None, None, target_name
 
-            if not isinstance(data, dict):
-                return (
-                    None,
-                    ConformalLoadStatus.INVALID_CONFIG,
-                    f"Artifact '{target_name}' JSON root must be an object, got: {type(data).__name__}",
-                )
+            except FileNotFoundError as fnf_err:
+                last_not_found_err = f"Artifact '{target_name}' not found in run '{run_id}': {fnf_err}"
+                continue
+            except Exception as exc:
+                err_msg = str(exc)
+                lower_msg = err_msg.lower()
+                if any(
+                    token in lower_msg
+                    for token in ("does not exist", "not found", "no such file", "resource_does_not_exist")
+                ):
+                    last_not_found_err = f"Artifact '{target_name}' does not exist for run '{run_id}': {exc}"
+                    continue
+                # Network, connection or tracking server error
+                download_failed_err = f"MLflow artifact download failed for '{target_name}' in run '{run_id}': {exc}"
+                break
 
-            return data, None, None
+        if download_failed_err is not None:
+            return None, ConformalLoadStatus.DOWNLOAD_FAILED, download_failed_err, None
 
-        except FileNotFoundError as fnf_err:
-            return (
-                None,
-                ConformalLoadStatus.ARTIFACT_NOT_FOUND,
-                f"Artifact '{target_name}' not found in run '{run_id}': {fnf_err}",
-            )
-        except Exception as exc:
-            err_msg = str(exc)
-            lower_msg = err_msg.lower()
-            if any(
-                token in lower_msg
-                for token in ("does not exist", "not found", "no such file", "resource_does_not_exist")
-            ):
-                return (
-                    None,
-                    ConformalLoadStatus.ARTIFACT_NOT_FOUND,
-                    f"Artifact '{target_name}' does not exist for run '{run_id}': {exc}",
-                )
-            return (
-                None,
-                ConformalLoadStatus.DOWNLOAD_FAILED,
-                f"MLflow artifact download failed for '{target_name}' in run '{run_id}': {exc}",
-            )
+        return (
+            None,
+            ConformalLoadStatus.ARTIFACT_NOT_FOUND,
+            last_not_found_err or f"Artifact not found in candidate paths: {paths_to_try}",
+            None,
+        )
 
     def extract_from_tags(
         self,
@@ -285,6 +441,7 @@ class MLflowConformalAdapter:
     ) -> ConformalLoadResult:
         """
         Validates the extracted dictionary and constructs ConformalConfig and ConformalEvaluator.
+        Normalizes M1 aliases (q_hat, calibration_samples_count, rank_k, v2) prior to validation.
         """
         if not raw_data or not isinstance(raw_data, dict):
             return ConformalLoadResult(
@@ -293,9 +450,43 @@ class MLflowConformalAdapter:
                 source=source,
             )
 
+        # 0. Normalization of M1 format
+        try:
+            normalized_data = normalize_m1_conformal_dict(
+                raw_data=raw_data,
+                family=family,
+                expected_model_name=model_name,
+                expected_model_version=model_version,
+            )
+        except ConformalValidationError as norm_err:
+            msg = str(norm_err)
+            lower_msg = msg.lower()
+            if "model_version" in lower_msg:
+                status = ConformalLoadStatus.INCOMPATIBLE_VERSION
+            elif "feature_spec_version" in lower_msg:
+                status = ConformalLoadStatus.INCOMPATIBLE_SPEC
+            elif "family" in lower_msg or "model_name" in lower_msg:
+                status = ConformalLoadStatus.INCOMPATIBLE_FAMILY
+            elif "quantile" in lower_msg:
+                status = ConformalLoadStatus.INVALID_QUANTILE
+            else:
+                status = ConformalLoadStatus.INVALID_CONFIG
+
+            return ConformalLoadResult(
+                status=status,
+                error_message=f"Normalization failed for conformal config ({source}): {msg}",
+                source=source,
+            )
+        except Exception as exc:
+            return ConformalLoadResult(
+                status=ConformalLoadStatus.INVALID_CONFIG,
+                error_message=f"Unexpected error normalizing conformal config ({source}): {exc}",
+                source=source,
+            )
+
         # 1. Schema & mathematical consistency check via ConformalConfigValidator
         try:
-            config = ConformalConfigValidator.validate_dict(raw_data, target_family=family)
+            config = ConformalConfigValidator.validate_dict(normalized_data, target_family=family)
         except ConformalValidationError as val_err:
             msg = str(val_err)
             lower_msg = msg.lower()
@@ -398,13 +589,13 @@ class MLflowConformalAdapter:
 
         # Strategy 1: Artifact download via MLflow client
         if client is not None and effective_run_id:
-            raw_data, failure_status, err_msg = self.extract_from_artifact(
+            raw_data, failure_status, err_msg, resolved_path = self.extract_from_artifact(
                 client=client,
                 run_id=effective_run_id,
                 artifact_name=artifact_name,
             )
             if raw_data is not None:
-                source = f"artifact:{artifact_name or self.artifact_name}"
+                source = f"artifact:{resolved_path or artifact_name or self.artifact_name}"
                 return self.validate_and_build(
                     raw_data=raw_data,
                     family=family,

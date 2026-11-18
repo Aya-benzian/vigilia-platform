@@ -276,9 +276,22 @@ class ConformalConfigValidator:
         if not model_version:
             raise ConformalValidationError("model_version cannot be empty.")
 
-        feature_spec_version = str(data["feature_spec_version"]).strip()
-        if not feature_spec_version:
+        raw_spec = str(data["feature_spec_version"]).strip()
+        if not raw_spec:
             raise ConformalValidationError("feature_spec_version cannot be empty.")
+
+        # Support "v2" as alias strictly in the context of the corresponding family
+        if raw_spec == "v2":
+            if family == "purchase":
+                feature_spec_version = "purchase-v2"
+            elif family == "transfer":
+                feature_spec_version = "transfer-v2"
+            else:
+                raise ConformalValidationError(
+                    f"Feature specification alias 'v2' cannot be resolved for unsupported family '{family}'."
+                )
+        else:
+            feature_spec_version = raw_spec
 
         # Ensure feature spec matches family convention
         if family == "purchase" and not feature_spec_version.startswith("purchase"):
@@ -382,7 +395,11 @@ class ConformalConfigValidator:
                 f"Conformal model_version mismatch: configuration is for '{config.model_version}', active is '{expected_model_version}'."
             )
 
-        if expected_feature_spec_version is not None and config.feature_spec_version != expected_feature_spec_version:
-            raise ConformalCompatibilityError(
-                f"Conformal feature_spec_version mismatch: configuration is for '{config.feature_spec_version}', active is '{expected_feature_spec_version}'."
-            )
+        if expected_feature_spec_version is not None:
+            expected_spec = expected_feature_spec_version
+            if expected_spec == "v2":
+                expected_spec = f"{expected_family}-v2"
+            if config.feature_spec_version != expected_spec:
+                raise ConformalCompatibilityError(
+                    f"Conformal feature_spec_version mismatch: configuration is for '{config.feature_spec_version}', active is '{expected_feature_spec_version}'."
+                )
