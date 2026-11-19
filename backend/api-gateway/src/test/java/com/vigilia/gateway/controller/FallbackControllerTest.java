@@ -120,6 +120,30 @@ class FallbackControllerTest {
     }
 
     @Test
+    @DisplayName("Fallback ML Visualization : HTTP 503, enveloppe normalisée, correlationId propagé")
+    void testMlVisualizationFallback() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/fallback/ml-visualization")
+                .header("X-Correlation-Id", "corr-viz-202")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        Mono<ResponseEntity<ApiErrorResponse>> result = fallbackController.mlVisualizationFallback(exchange);
+
+        StepVerifier.create(result)
+                .assertNext(response -> {
+                    assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+                    assertEquals("corr-viz-202", response.getHeaders().getFirst("X-Correlation-Id"));
+                    ApiErrorResponse body = response.getBody();
+                    assertNotNull(body);
+                    assertEquals("SERVICE_UNAVAILABLE", body.getCode());
+                    assertEquals(503, body.getStatus());
+                    assertEquals("corr-viz-202", body.getCorrelationId());
+                    assertTrue(body.getMessage().contains("visualisation ML"));
+                })
+                .verifyComplete();
+    }
+
+    @Test
     @DisplayName("Génération automatique de correlationId si absent")
     void testFallbackGeneratesCorrelationIdIfAbsent() {
         MockServerHttpRequest request = MockServerHttpRequest.get("/fallback/auth").build();

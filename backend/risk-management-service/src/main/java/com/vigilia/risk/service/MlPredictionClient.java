@@ -1,6 +1,8 @@
 package com.vigilia.risk.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.vigilia.risk.dto.MlExplanationResponse;
 import com.vigilia.risk.dto.RiskEvaluationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,28 +16,23 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * HTTP client for the ML Serving prediction API — M2 contract (FastAPI, port 8000).
+ * HTTP client for the ML Serving prediction & explanation APIs — M2 contract (FastAPI, port 8000).
  *
  * Supported domains:
- *   - Purchase: POST /predict/purchase  — feature_spec version: purchase-v2 (29 features)
- *   - Transfer: POST /predict/transfer  — feature_spec version: transfer-v2 (20 features)
+ *   - Purchase Prediction:  POST /predict/purchase — feature_spec version: purchase-v2 (29 features)
+ *   - Transfer Prediction:  POST /predict/transfer — feature_spec version: transfer-v2 (20 features)
+ *   - Purchase Explanation: POST /explain/purchase — feature_spec version: purchase-v2 (29 features)
+ *   - Transfer Explanation: POST /explain/transfer — feature_spec version: transfer-v2 (20 features)
  *
  * Timeouts are configurable via application.properties:
  *   risk.ml.url           → base URL (default: http://ml-serving:8000)
  *   risk.ml.timeout-ms    → read timeout in ms (default: 1500)
  *
- * On any exception (timeout, 503, parse error) the caller handles the fallback
- * by returning PENDING_REVIEW. This client NEVER returns null on success.
- *
- * Response mapping (M2 contract):
- *   request_id           → maps to our transactionId echo
- *   label                → "FRAUD" | "LEGITIMATE"
- *   fraud_probability    → calibrated probability [0, 1]
- *   uncertainty          → model uncertainty [0, 1]
- *   model_name           → registered model name
- *   model_version        → MLflow model version
- *   feature_spec_version → "purchase-v2" | "transfer-v2"
- *   inference_ms         → server-side inference time
+ * Resilience:
+ *   - On prediction failure (timeout, 503, parse error), predict() returns null so the caller
+ *     safely falls back to PENDING_REVIEW (never APPROVED).
+ *   - On explanation failure (timeout, 503, network, requestId mismatch), explain() logs a WARN
+ *     and returns null. Prediction validity and business decisions remain unaffected.
  */
 @Component
 public class MlPredictionClient {
@@ -59,9 +56,11 @@ public class MlPredictionClient {
 
     /**
      * Calls the ML Serving endpoint appropriate to the transaction type.
+     * Computes the point-in-time features once and attaches them to the returned response
+     * for seamless reuse by the explanation step.
      *
-     * @param request the full risk evaluation request (must include computed features context)
-     * @return the ML prediction response, or null on any failure (timeout, 5xx, parse error)
+     * @param request the full risk evaluation request
+     * @return the ML prediction response with computed features attached, or null on any failure
      */
     public MlPredictionResponse predict(RiskEvaluationRequest request) {
         String transactionType = request.getTransactionType() != null
@@ -88,6 +87,121 @@ public class MlPredictionClient {
         }
     }
 
+    /**
+     * Direct purchase prediction endpoint (/predict/purchase) with explicit requestId and features.
+     */
+    public MlPredictionResponse predictPurchase(String requestId, Map<String, Object> features) {
+        Map<String, Object> body = Map.of(
+                "request_id",           requestId,
+                "feature_spec_version", "purchase-v2",
+                "features",             features
+        );
+
+        log.debug("[ML] POST /predict/purchase transactionId/requestId={} featureCount={}",
+                requestId, features.size());
+
+        MlPredictionResponse response = restClient.post()
+                .uri(mlBaseUrl + "/predict/purchase")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(MlPredictionResponse.class);
+
+        if (response != null) {
+            response.setFeatures(features);
+            if (response.getRequestId() == null) {
+                response.setRequestId(requestId);
+            }
+        }
+        return response;
+    }
+
+    /**
+     * Direct transfer prediction endpoint (/predict/transfer) with explicit requestId and features.
+     */
+    public MlPredictionResponse predictTransfer(String requestId, Map<String, Object> features) {
+        Map<String, Object> body = Map.of(
+                "request_id",           requestId,
+                "feature_spec_version", "transfer-v2",
+                "features",             features
+        );
+
+        log.debug("[ML] POST /predict/transfer transactionId/requestId={} featureCount={}",
+                requestId, features.size());
+
+        MlPredictionResponse response = restClient.post()
+                .uri(mlBaseUrl + "/predict/transfer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(MlPredictionResponse.class);
+
+        if (response != null) {
+            response.setFeatures(features);
+            if (response.getRequestId() == null) {
+                response.setRequestId(requestId);
+            }
+        }
+        return response;
+    }
+
+    /**
+     * High-level SHAP explanation call.
+     * Reuses the exact same features and requestId obtained during the prediction step.
+     *
+     * @param request the original risk evaluation request
+     * @param prediction the successful ML prediction response containing requestId and features
+     * @return the explanation response with SHAP contributions, or null on any error (logged as WARN)
+     */
+    public MlExplanationResponse explain(RiskEvaluationRequest request, MlPredictionResponse prediction) {
+        if (request == null || prediction == null) {
+            return null;
+        }
+
+        String requestId = prediction.getRequestId();
+        if (requestId == null && request.getTransactionId() != null) {
+            requestId = request.getTransactionId().toString();
+        }
+
+        Map<String, Object> features = prediction.getFeatures();
+        if (features == null) {
+            // Fallback: compute features once if they weren't attached
+            String txType = request.getTransactionType() != null ? request.getTransactionType().name() : "PURCHASE";
+            if ("TRANSFER".equalsIgnoreCase(txType)) {
+                features = transferFeatureCalculator.compute(request);
+            } else {
+                features = purchaseFeatureCalculator.compute(request);
+            }
+        }
+
+        String transactionType = request.getTransactionType() != null
+                ? request.getTransactionType().name()
+                : "PURCHASE";
+
+        if ("PURCHASE".equalsIgnoreCase(transactionType)) {
+            return explainPurchase(requestId, features);
+        } else if ("TRANSFER".equalsIgnoreCase(transactionType)) {
+            return explainTransfer(requestId, features);
+        } else {
+            log.warn("[ML-SHAP] Unknown transactionType={}; skipping SHAP explain", transactionType);
+            return null;
+        }
+    }
+
+    /**
+     * Calls POST /explain/purchase with specification purchase-v2 (29 features).
+     */
+    public MlExplanationResponse explainPurchase(String requestId, Map<String, Object> features) {
+        return executeExplainCall("/explain/purchase", "purchase-v2", requestId, features);
+    }
+
+    /**
+     * Calls POST /explain/transfer with specification transfer-v2 (20 features).
+     */
+    public MlExplanationResponse explainTransfer(String requestId, Map<String, Object> features) {
+        return executeExplainCall("/explain/transfer", "transfer-v2", requestId, features);
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -97,21 +211,7 @@ public class MlPredictionClient {
         String requestId = req.getTransactionId() != null
                 ? req.getTransactionId().toString()
                 : UUID.randomUUID().toString();
-        Map<String, Object> body = Map.of(
-                "request_id",           requestId,
-                "feature_spec_version", "purchase-v2",
-                "features",             features
-        );
-
-        log.debug("[ML] POST /predict/purchase transactionId={} requestId={} featureCount={}",
-                req.getTransactionId(), requestId, features.size());
-
-        return restClient.post()
-                .uri(mlBaseUrl + "/predict/purchase")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .body(MlPredictionResponse.class);
+        return predictPurchase(requestId, features);
     }
 
     private MlPredictionResponse predictTransfer(RiskEvaluationRequest req) {
@@ -119,21 +219,50 @@ public class MlPredictionClient {
         String requestId = req.getTransactionId() != null
                 ? req.getTransactionId().toString()
                 : UUID.randomUUID().toString();
-        Map<String, Object> body = Map.of(
-                "request_id",           requestId,
-                "feature_spec_version", "transfer-v2",
-                "features",             features
-        );
+        return predictTransfer(requestId, features);
+    }
 
-        log.debug("[ML] POST /predict/transfer transactionId={} requestId={} featureCount={}",
-                req.getTransactionId(), requestId, features.size());
+    private MlExplanationResponse executeExplainCall(String path,
+                                                    String specVersion,
+                                                    String requestId,
+                                                    Map<String, Object> features) {
+        try {
+            Map<String, Object> body = Map.of(
+                    "request_id",           requestId,
+                    "feature_spec_version", specVersion,
+                    "features",             features
+            );
 
-        return restClient.post()
-                .uri(mlBaseUrl + "/predict/transfer")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .body(MlPredictionResponse.class);
+            log.debug("[ML-SHAP] POST {} requestId={} featureCount={}", path, requestId, features.size());
+
+            MlExplanationResponse response = restClient.post()
+                    .uri(mlBaseUrl + path)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(MlExplanationResponse.class);
+
+            if (response == null) {
+                log.warn("[ML-SHAP] Null response received from {} for requestId={}", path, requestId);
+                return null;
+            }
+
+            if (requestId != null && !requestId.equals(response.getRequestId())) {
+                log.warn("[ML-SHAP] Request ID correlation mismatch on {}: expected={}, received={}",
+                        path, requestId, response.getRequestId());
+                return null;
+            }
+
+            return response;
+        } catch (RestClientException ex) {
+            log.warn("[ML-SHAP] HTTP/Communication failure on {} for requestId={}: {}",
+                    path, requestId, ex.getMessage());
+            return null;
+        } catch (Exception ex) {
+            log.warn("[ML-SHAP] Unexpected failure on {} for requestId={}: {}",
+                    path, requestId, ex.getMessage());
+            return null;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -176,6 +305,10 @@ public class MlPredictionClient {
         @JsonProperty("inference_ms")
         private Integer inferenceMs;
 
+        /** Features computed and used for this prediction (cached for SHAP explainability). */
+        @JsonIgnore
+        private Map<String, Object> features;
+
         public MlPredictionResponse() {}
 
         public String getRequestId() { return requestId; }
@@ -202,6 +335,9 @@ public class MlPredictionClient {
 
         public Integer getInferenceMs() { return inferenceMs; }
         public void setInferenceMs(Integer inferenceMs) { this.inferenceMs = inferenceMs; }
+
+        public Map<String, Object> getFeatures() { return features; }
+        public void setFeatures(Map<String, Object> features) { this.features = features; }
 
         // Backward-compatibility aliases for M1 callers and tests
         public String getPrediction() { return getLabel(); }

@@ -2,9 +2,11 @@ package com.vigilia.risk.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vigilia.risk.dto.MlExplanationResponse;
 import com.vigilia.risk.dto.RiskEvaluationRequest;
 import com.vigilia.risk.dto.RiskEvaluationResponse;
 import com.vigilia.risk.dto.RiskStatus;
+import com.vigilia.risk.dto.ShapContribution;
 import com.vigilia.risk.entity.DecisionPolicyEntity;
 import com.vigilia.risk.entity.OutboxEventEntity;
 import com.vigilia.risk.entity.ReviewCaseEntity;
@@ -26,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -144,8 +147,22 @@ public class RiskEvaluationService {
         MlPredictionResponse ml = mlClient.predict(request);
         if (ml == null) {
             log.warn("[RISK] ML failure → PENDING_REVIEW for transactionId={}", transactionId);
-            return persistAndOpenReview(request, policy, "ML_FAILURE", null, null,
+            return persistAndOpenReview(request, policy, "ML_FAILURE", null, null, null,
                     "FALLBACK_ML_FAILURE", "HIGH");
+        }
+
+        // 3b. SHAP Explainability (isolated, non-blocking)
+        List<ShapContribution> shapValues = null;
+        try {
+            MlExplanationResponse shapResponse = mlClient.explain(request, ml);
+            if (shapResponse != null && shapResponse.getContributions() != null) {
+                shapValues = shapResponse.getContributions();
+                log.debug("[RISK] SHAP contributions retrieved for transactionId={}, count={}",
+                        transactionId, shapValues.size());
+            }
+        } catch (Exception ex) {
+            log.warn("[RISK] SHAP explanation failed for transactionId={}: {}",
+                    transactionId, ex.getMessage());
         }
 
         BigDecimal probability  = toBigDecimal(ml.getFraudProbability());
@@ -155,7 +172,7 @@ public class RiskEvaluationService {
         // 4. High uncertainty → review
         if (uncertainty != null && uncertainty.compareTo(uncertaintyThresh) >= 0) {
             log.info("[RISK] High uncertainty={} for transactionId={}", uncertainty, transactionId);
-            return persistAndOpenReview(request, policy, mlStatus, ml, probability,
+            return persistAndOpenReview(request, policy, mlStatus, ml, probability, shapValues,
                     "UNCERTAINTY", "MEDIUM");
         }
 
@@ -163,7 +180,7 @@ public class RiskEvaluationService {
         if (probability != null && probability.compareTo(rejectThreshold) >= 0) {
             log.info("[RISK] REJECTED probability={} >= threshold={} for transactionId={}",
                     probability, rejectThreshold, transactionId);
-            return persist(request, policy, mlStatus, ml, probability,
+            return persist(request, policy, mlStatus, ml, probability, shapValues,
                     RiskStatus.REJECTED, "POLICY_REJECT", null, null);
         }
 
@@ -171,13 +188,13 @@ public class RiskEvaluationService {
         if (probability != null && probability.compareTo(approveThreshold) <= 0) {
             log.info("[RISK] APPROVED probability={} <= threshold={} for transactionId={}",
                     probability, approveThreshold, transactionId);
-            return persist(request, policy, mlStatus, ml, probability,
+            return persist(request, policy, mlStatus, ml, probability, shapValues,
                     RiskStatus.APPROVED, "POLICY_APPROVE", null, null);
         }
 
         // 7. Ambiguous zone
         log.info("[RISK] Ambiguous zone probability={} for transactionId={}", probability, transactionId);
-        return persistAndOpenReview(request, policy, mlStatus, ml, probability,
+        return persistAndOpenReview(request, policy, mlStatus, ml, probability, shapValues,
                 "AMBIGUOUS_ZONE", "MEDIUM");
     }
 
@@ -205,7 +222,20 @@ public class RiskEvaluationService {
                                            String decisionReason,
                                            ReviewCaseEntity reviewCase,
                                            String priority) {
-        RiskEvaluationEntity entity = buildEvaluationEntity(req, policy, mlStatus, ml, probability, decision, decisionReason);
+        return persist(req, policy, mlStatus, ml, probability, null, decision, decisionReason, reviewCase, priority);
+    }
+
+    private RiskEvaluationResponse persist(RiskEvaluationRequest req,
+                                           DecisionPolicyEntity policy,
+                                           String mlStatus,
+                                           MlPredictionResponse ml,
+                                           BigDecimal probability,
+                                           List<ShapContribution> shapValues,
+                                           RiskStatus decision,
+                                           String decisionReason,
+                                           ReviewCaseEntity reviewCase,
+                                           String priority) {
+        RiskEvaluationEntity entity = buildEvaluationEntity(req, policy, mlStatus, ml, probability, shapValues, decision, decisionReason);
         entity = evaluationRepository.save(entity);
 
         if (reviewCase != null) {
@@ -250,11 +280,22 @@ public class RiskEvaluationService {
                                                         BigDecimal probability,
                                                         String decisionReason,
                                                         String priority) {
+        return persistAndOpenReview(req, policy, mlStatus, ml, probability, null, decisionReason, priority);
+    }
+
+    private RiskEvaluationResponse persistAndOpenReview(RiskEvaluationRequest req,
+                                                        DecisionPolicyEntity policy,
+                                                        String mlStatus,
+                                                        MlPredictionResponse ml,
+                                                        BigDecimal probability,
+                                                        List<ShapContribution> shapValues,
+                                                        String decisionReason,
+                                                        String priority) {
         ReviewCaseEntity reviewCase = new ReviewCaseEntity();
         reviewCase.setTransactionId(req.getTransactionId());
         reviewCase.setStatus("OPEN");
         reviewCase.setSlaDueAt(Instant.now().plus(Duration.ofHours(reviewSlaDurationHours)));
-        return persist(req, policy, mlStatus, ml, probability,
+        return persist(req, policy, mlStatus, ml, probability, shapValues,
                 RiskStatus.PENDING_REVIEW, decisionReason, reviewCase, priority);
     }
 
@@ -263,6 +304,17 @@ public class RiskEvaluationService {
                                                        String mlStatus,
                                                        MlPredictionResponse ml,
                                                        BigDecimal probability,
+                                                       RiskStatus decision,
+                                                       String decisionReason) {
+        return buildEvaluationEntity(req, policy, mlStatus, ml, probability, null, decision, decisionReason);
+    }
+
+    private RiskEvaluationEntity buildEvaluationEntity(RiskEvaluationRequest req,
+                                                       DecisionPolicyEntity policy,
+                                                       String mlStatus,
+                                                       MlPredictionResponse ml,
+                                                       BigDecimal probability,
+                                                       List<ShapContribution> shapValues,
                                                        RiskStatus decision,
                                                        String decisionReason) {
         RiskEvaluationEntity e = new RiskEvaluationEntity();
@@ -275,8 +327,10 @@ public class RiskEvaluationService {
         e.setDecisionReason(decisionReason);
         e.setTraceId(MDC.get("correlationId"));
 
-        e.setFeatureSpecVersion(FEATURE_SPEC_VERSION);
+        e.setFeatureSpecVersion(ml != null && ml.getFeatureSpecVersion() != null
+                ? ml.getFeatureSpecVersion() : FEATURE_SPEC_VERSION);
         e.setFeatures(extractSanitizedFeaturesJson(req));
+        e.setShapValues(shapValues);
 
         if (ml != null) {
             e.setModelName(ml.getModelName());

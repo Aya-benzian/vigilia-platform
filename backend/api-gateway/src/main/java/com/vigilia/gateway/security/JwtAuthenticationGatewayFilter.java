@@ -174,7 +174,8 @@ public class JwtAuthenticationGatewayFilter implements GlobalFilter, Ordered {
         return path.startsWith("/api/v1/risk/reviews")
                 || path.startsWith("/api/v1/risk/policies")
                 || path.startsWith("/api/v1/risk/decisions")
-                || path.startsWith("/api/v1/admin");
+                || path.startsWith("/api/v1/admin")
+                || path.startsWith("/api/v1/visualization");
     }
 
     private boolean hasPrivilegedRole(String role, List<String> roles) {
