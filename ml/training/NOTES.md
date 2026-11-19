@@ -31,6 +31,7 @@
 23. [Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture](#23-academic-supervisor-directive-strict-domain-isolation--decoupled-model-architecture-2026-10-29)
 24. [Session 6: Formal Bayesian Optimization, 5-Fold Stratified Cross-Validation & Statistical Validation on Isolated Domains](#24-session-6-formal-bayesian-optimization-5-fold-stratified-cross-validation--statistical-validation-on-isolated-domains-2026-11-07)
 25. [Session 7: Split Conformal Prediction, Uncertainty Quantification & Champion Pipelines Delivery](#25-session-7-split-conformal-prediction-uncertainty-quantification--champion-pipelines-delivery-2026-11-18)
+26. [Session 8: Data Visualization Architecture (PCA, t-SNE, Clustering, Outliers & Error Taxonomy)](#26-session-8-data-visualization-architecture-pca-t-sne-clustering-outliers--error-taxonomy-2026-11-19)
 
 ---
 
@@ -990,4 +991,44 @@ To ensure valid finite-sample coverage without data leakage:
 - Test Suite: **89 passed, 6 skipped, 0 failed** (100% green).
 - Linter: `ruff check` passed with **0 errors / 0 warnings**.
 - Git Sync: Fast-forward merged with latest `origin/develop` (commit `1b3516c` pushed to `origin/feat/ml-training-setup`).
+
+---
+
+## 26. Session 8: Data Visualization Architecture (PCA, t-SNE, Clustering, Outliers & Error Taxonomy) (2026-11-19)
+
+### 26.1 Motivation & M1/M2/M4 Contract Alignment
+In accordance with Section 7 of the Design 2 / Final v4.2 specification and Member 2 (ML Serving) requirements, Member 1 generated offline 2D projection datasets and error taxonomy annotations to power the interactive Data Visualization dashboard in Member 4 (Frontend):
+- **Supervised Error Analysis**: Every point annotated with official classification quadrant (TP, TN, FP, FN) evaluated against official cost-sensitive thresholds: $\tau = 0.1200$ (Purchase) and $\tau = 0.3300$ (Transfer).
+- **Conformal Prediction Integration**: Every point annotated with its finite-sample prediction set (`['LEGITIMATE']`, `['FRAUD']`, `['LEGITIMATE', 'FRAUD']`), `is_ambiguous`, and `conformal_status`.
+- **Unsupervised Anomaly & Cluster Signatures**: `DBSCAN` clustering and `IsolationForest` anomaly scoring executed across full preprocessed representations (42 dims for Purchase, 20 dims for Transfer).
+- **Strict Separation of Concerns**: Heavy projections (PCA, t-SNE) executed offline in M1 so that serving HTTP paths (`/visualization/...`) perform only fast in-memory loading, filtering, and pagination.
+
+### 26.2 Dimensionality Reduction Protocol
+1. **PCA (Principal Component Analysis)**:
+   - **Strict Data Purity**: Projector `PCA(n_components=2, random_state=42)` fitted **exclusively on Part A (Train split, 90,000 rows)** after `ColumnTransformer` preprocessing. Holdout test sets never participate in `fit()`.
+   - **Purchase (Sparkov)**: Explained variance ratio = `[0.129548, 0.076126]`, cumulative variance = `20.57%`.
+   - **Transfer (PaySim)**: Explained variance ratio = `[0.180189, 0.159552]`, cumulative variance = `33.97%`.
+   - Serialized models exported as `artifacts/purchase_pca_model.pkl` and `artifacts/transfer_pca_model.pkl`.
+2. **t-SNE (t-Distributed Stochastic Neighbor Embedding)**:
+   - Computed offline with `random_state=42`, `perplexity=30.0`, `learning_rate=200.0`, `max_iter=1000`.
+   - Produces non-linear separation maps isolating compact fraud manifolds.
+
+### 26.3 Sampling Strategy & Cross-Method Alignment
+To ensure rich visual density on the frontend dashboard without overwhelming the browser DOM/Canvas:
+- **Purchase**: 1,000 test points (all 197 test frauds + 803 sampled legitimate transactions, achieving ~19.7% fraud rate).
+- **Transfer**: 500 test points (all 58 test frauds + 442 sampled legitimate transactions, achieving ~11.6% fraud rate).
+- **Strict Alignment**: For each domain, the exact same transactions with identical `transaction_id`s (`tx_purc_00000`, `tx_tran_00000`...) are shared between the PCA and t-SNE JSON files, enabling seamless 1-to-1 point switching in the UI.
+
+### 26.4 Delivered Artifacts (`ml/training/artifacts/`)
+- `purchase_pca_points.json` (1,000 points, 427 KB)
+- `purchase_tsne_points.json` (1,000 points, 429 KB)
+- `transfer_pca_points.json` (500 points, 214 KB)
+- `transfer_tsne_points.json` (500 points, 214 KB)
+- `purchase_pca_model.pkl` (1.8 KB)
+- `transfer_pca_model.pkl` (1.3 KB)
+
+### 26.5 Quality Assurance & Test Status
+- Test Suite: **95 passed, 6 skipped, 0 failed** (100% green).
+- Linter: `ruff check` passed with **0 errors / 0 warnings**.
+- Conformance: All 4 JSON artifacts strictly validate against the `VisualizationArtifact` schema specification.
 
