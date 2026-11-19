@@ -19,20 +19,38 @@ public class ReactiveCircuitBreakerConfig {
 
     @Bean
     public Customizer<ReactiveResilience4JCircuitBreakerFactory> defaultCustomizer() {
-        return factory -> factory.configureDefault(id -> new Resilience4JConfigBuilder(id)
-                .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                        .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                        .slidingWindowSize(10)
-                        .minimumNumberOfCalls(5)
-                        .failureRateThreshold(50.0f)
-                        .waitDurationInOpenState(Duration.ofSeconds(10))
-                        .permittedNumberOfCallsInHalfOpenState(3)
-                        .slowCallRateThreshold(50.0f)
-                        .slowCallDurationThreshold(Duration.ofSeconds(4))
-                        .build())
-                .timeLimiterConfig(TimeLimiterConfig.custom()
-                        .timeoutDuration(Duration.ofSeconds(5))
-                        .build())
-                .build());
+        return factory -> {
+            factory.configureDefault(id -> new Resilience4JConfigBuilder(id)
+                    .circuitBreakerConfig(CircuitBreakerConfig.custom()
+                            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                            .slidingWindowSize(10)
+                            .minimumNumberOfCalls(5)
+                            .failureRateThreshold(50.0f)
+                            .waitDurationInOpenState(Duration.ofSeconds(10))
+                            .permittedNumberOfCallsInHalfOpenState(3)
+                            .slowCallRateThreshold(50.0f)
+                            .slowCallDurationThreshold(Duration.ofSeconds(4))
+                            .build())
+                    .timeLimiterConfig(TimeLimiterConfig.custom()
+                            .timeoutDuration(Duration.ofSeconds(5))
+                            .build())
+                    .build());
+
+            factory.configure(builder -> builder
+                    .circuitBreakerConfig(CircuitBreakerConfig.custom()
+                            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                            .slidingWindowSize(10)
+                            .minimumNumberOfCalls(5)
+                            .failureRateThreshold(50.0f)
+                            .waitDurationInOpenState(Duration.ofSeconds(10))
+                            .permittedNumberOfCallsInHalfOpenState(3)
+                            .slowCallRateThreshold(50.0f)
+                            .slowCallDurationThreshold(Duration.ofSeconds(12))
+                            .build())
+                    .timeLimiterConfig(TimeLimiterConfig.custom()
+                            .timeoutDuration(Duration.ofSeconds(15))
+                            .build()),
+                    "mlVisualizationCircuitBreaker");
+        };
     }
 }

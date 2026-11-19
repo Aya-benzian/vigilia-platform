@@ -1,6 +1,8 @@
 package com.vigilia.risk.service;
 
+import com.vigilia.risk.dto.MlExplanationResponse;
 import com.vigilia.risk.dto.RiskEvaluationRequest;
+import com.vigilia.risk.dto.ShapContribution;
 import com.vigilia.risk.dto.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -197,5 +199,143 @@ class MlPredictionClientTest {
         assertThat(requestId).isNotBlank();
         // Validate RFC 4122 UUID format
         assertThat(UUID.fromString(requestId)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("SHAP Purchase: successful call returns contributions and matches request_id")
+    void explain_purchase_success_returnsContributions() {
+        String reqId = UUID.randomUUID().toString();
+        java.util.Map<String, Object> features = java.util.Map.of("amount", 125.50, "hour_of_day", 14);
+
+        MlExplanationResponse expected = new MlExplanationResponse(
+                reqId, "purchase-fraud-model", "1", 0.045,
+                java.util.List.of(
+                        new ShapContribution("amount", 125.50, 0.28),
+                        new ShapContribution("distance_home_merchant_km", 812.4, 0.15)
+                )
+        );
+
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri("http://ml-serving:8000/explain/purchase")).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(MlExplanationResponse.class)).thenReturn(expected);
+
+        MlExplanationResponse res = client.explainPurchase(reqId, features);
+
+        assertThat(res).isNotNull();
+        assertThat(res.getRequestId()).isEqualTo(reqId);
+        assertThat(res.getContributions()).hasSize(2);
+        assertThat(res.getContributions().get(0).getFeature()).isEqualTo("amount");
+        assertThat(res.getContributions().get(0).getShap()).isEqualTo(0.28);
+    }
+
+    @Test
+    @DisplayName("SHAP Transfer: successful call returns contributions")
+    void explain_transfer_success_returnsContributions() {
+        String reqId = UUID.randomUUID().toString();
+        java.util.Map<String, Object> features = java.util.Map.of("amount", 500.0, "dest_risk_score", 0.8);
+
+        MlExplanationResponse expected = new MlExplanationResponse(
+                reqId, "transfer-fraud-model", "1", 0.03,
+                java.util.List.of(new ShapContribution("dest_risk_score", 0.8, 0.45))
+        );
+
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri("http://ml-serving:8000/explain/transfer")).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(MlExplanationResponse.class)).thenReturn(expected);
+
+        MlExplanationResponse res = client.explainTransfer(reqId, features);
+
+        assertThat(res).isNotNull();
+        assertThat(res.getRequestId()).isEqualTo(reqId);
+        assertThat(res.getContributions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("SHAP Resilience: on HTTP 503 or RestClientException, returns null safely")
+    void explain_onHttp503_returnsNullSafely() {
+        String reqId = UUID.randomUUID().toString();
+        java.util.Map<String, Object> features = java.util.Map.of("amount", 100.0);
+
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(MlExplanationResponse.class))
+                .thenThrow(new org.springframework.web.client.HttpServerErrorException(
+                        org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Model Not Ready"));
+
+        MlExplanationResponse res = client.explainPurchase(reqId, features);
+
+        assertThat(res).isNull();
+    }
+
+    @Test
+    @DisplayName("SHAP Resilience: on correlation mismatch (requestId mismatch), returns null and discards")
+    void explain_requestIdMismatch_returnsNullSafely() {
+        String reqId = UUID.randomUUID().toString();
+        String mismatchedId = UUID.randomUUID().toString();
+        java.util.Map<String, Object> features = java.util.Map.of("amount", 100.0);
+
+        MlExplanationResponse mismatched = new MlExplanationResponse(
+                mismatchedId, "purchase-fraud-model", "1", 0.05, java.util.List.of()
+        );
+
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(MlExplanationResponse.class)).thenReturn(mismatched);
+
+        MlExplanationResponse res = client.explainPurchase(reqId, features);
+
+        assertThat(res).isNull();
+    }
+
+    @Test
+    @DisplayName("SHAP High-Level: reuses features and requestId attached to prediction response")
+    void explain_reusesPredictionFeaturesAndRequestId() {
+        RiskEvaluationRequest req = buildPurchaseRequest();
+        String reqId = req.getTransactionId().toString();
+        java.util.Map<String, Object> computedFeatures = java.util.Map.of("amt", 100.0, "hour_of_day", 10);
+
+        MlPredictionClient.MlPredictionResponse predResponse = buildMlResponse(reqId);
+        predResponse.setFeatures(computedFeatures);
+
+        MlExplanationResponse expExpected = new MlExplanationResponse(
+                reqId, "purchase-fraud-model", "1", 0.05,
+                java.util.List.of(new ShapContribution("amt", 100.0, 0.2))
+        );
+
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri("http://ml-serving:8000/explain/purchase")).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+
+        org.mockito.ArgumentCaptor<Object> bodyCaptor = org.mockito.ArgumentCaptor.forClass(Object.class);
+        when(requestBodySpec.body(bodyCaptor.capture())).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(MlExplanationResponse.class)).thenReturn(expExpected);
+
+        MlExplanationResponse res = client.explain(req, predResponse);
+
+        assertThat(res).isNotNull();
+        assertThat(res.getRequestId()).isEqualTo(reqId);
+
+        // Verify that the exact features and request_id were passed in body
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> sentBody = (java.util.Map<String, Object>) bodyCaptor.getValue();
+        assertThat(sentBody.get("request_id")).isEqualTo(reqId);
+        assertThat(sentBody.get("feature_spec_version")).isEqualTo("purchase-v2");
+        assertThat(sentBody.get("features")).isEqualTo(computedFeatures);
+
+        // Verify purchaseFeatureCalculator was NEVER called during explain!
+        verify(purchaseFeatureCalculator, never()).compute(any());
     }
 }

@@ -8,10 +8,14 @@ import sys
 from pathlib import Path
 from typing import Generator, Dict, Any
 
-# Ensure ml/serving directory is in python path
+# Ensure ml/serving directory and repository root are in python path
 SERVING_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = SERVING_DIR.parent.parent
+
 if str(SERVING_DIR) not in sys.path:
     sys.path.insert(0, str(SERVING_DIR))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 # Mandatory safety rule: test suite must run under APP_ENV=test
 os.environ["APP_ENV"] = "test"
