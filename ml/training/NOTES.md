@@ -30,6 +30,7 @@
 22. [Dual-Domain ML Architecture & Cross-Domain Feature Benchmark](#22-dual-domain-ml-architecture--cross-domain-feature-benchmark-2026-10-26)
 23. [Supervisor Directive: Strict Domain Isolation & Decoupled Model Architecture](#23-academic-supervisor-directive-strict-domain-isolation--decoupled-model-architecture-2026-10-29)
 24. [Session 6: Formal Bayesian Optimization, 5-Fold Stratified Cross-Validation & Statistical Validation on Isolated Domains](#24-session-6-formal-bayesian-optimization-5-fold-stratified-cross-validation--statistical-validation-on-isolated-domains-2026-11-07)
+25. [Session 7: Split Conformal Prediction, Uncertainty Quantification & Champion Pipelines Delivery](#25-session-7-split-conformal-prediction-uncertainty-quantification--champion-pipelines-delivery-2026-11-18)
 
 ---
 
@@ -932,4 +933,61 @@ Registered under `@champion` alias:
 
 ### 24.7 Test Suite Status
 - Unit tests: **82 passed, 6 skipped (MLflow live HTTP smoke tests as designed for CI), 0 failed** (100% green).
+
+---
+
+## 25. Session 7: Split Conformal Prediction, Uncertainty Quantification & Champion Pipelines Delivery (2026-11-18)
+
+### 25.1 Motivation & M1/M2 Architecture Collaboration
+Following the request from Member 2 (ML Serving) to support **Uncertainty Quantification** and **Human-in-the-Loop triage**, Member 1 implemented Split Conformal Prediction (Vovk framework):
+- Instead of returning a fragile scalar probability or arbitrary heuristic threshold, the model generates statistical prediction sets: `['LEGITIMATE']`, `['FRAUD']`, `['LEGITIMATE', 'FRAUD']` (ambiguous), or `[]`.
+- Provides a distribution-free **finite-sample marginal coverage guarantee of at least 95%** ($\alpha = 0.05$) under the exchangeability assumption.
+- **Zero Retraining Required**: Base XGBoost champion models and Isotonic calibrators remain completely frozen.
+- **Strict Domain Isolation**: Purchase (Sparkov, 29 features) and Transfer (PaySim, 20 features) are treated with completely decoupled calibration data, quantiles, and configuration artifacts.
+
+### 25.2 Independent Data Splitting Protocol
+To ensure valid finite-sample coverage without data leakage:
+- **Training Set (60% = 90,000 rows)**: Model parameters fitted — untouched.
+- **Part B Isotonic Calibration (10% = 15,000 rows)**: Calibrator parameters fitted — strictly untouched and not reused.
+- **$D_{cal\_conf}$ Conformal Calibration (15% = 22,500 rows, Part C)**: Chronological holdout used solely for non-conformity scoring and quantile computation.
+- **$D_{test}$ Independent Test (15% = 22,500 rows)**: Final holdout used solely for empirical out-of-sample evaluation.
+
+### 25.3 Mathematical Protocol & Order Statistics
+1. **Non-Conformity Scores**:
+   $$s_i = 1 - \hat{P}(Y = y_i \mid X_i)$$
+2. **Exact Finite-Sample Quantile**:
+   $$k = \lceil (n + 1)(1 - \alpha) \rceil = \lceil (22\,501) \times 0.95 \rceil = 21\,376$$
+   $$\hat{q} = \text{np.sort}(scores)[k - 1] \quad \text{(exact order statistic without linear interpolation)}$$
+3. **Prediction Set Formation at Inference**:
+   $$C(X) = \{c \in \{0, 1\} \mid 1 - \hat{P}(Y = c \mid X) \le \hat{q}\} = \{c \in \{0, 1\} \mid \hat{P}(Y = c \mid X) \ge 1 - \hat{q}\}$$
+
+### 25.4 Empirical Validation Results ($n_{test} = 22,500$ rows)
+- **Purchase Domain (`purchase-fraud-model` v2 — 29 features)**:
+  - Quantile Threshold: $\hat{q} = 0.001654$ (`status: EXACT_FINITE`)
+  - Empirical Marginal Coverage: **98.12%** (guarantee $\ge 95\%$ satisfied)
+  - Class Coverage: 98.29% (Legitimate), 79.19% (Fraud)
+  - Singleton Rate: **98.17%** (crisp high-certainty classifications)
+  - Mean Prediction Set Size: 0.9817
+- **Transfer Domain (`transfer-fraud-model` v2 — 20 features)**:
+  - Quantile Threshold: $\hat{q} = 0.000000$ (`status: EXACT_FINITE`)
+  - Empirical Marginal Coverage: **99.76%** (guarantee $\ge 95\%$ satisfied)
+  - Class Coverage: 99.91% (Legitimate), 43.10% (Fraud)
+  - Singleton Rate: **99.79%**
+  - Mean Prediction Set Size: 0.9979
+
+### 25.5 Artifacts Created & MLflow Publication
+- `ml/training/src/conformal_prediction.py`: Core offline calibration & evaluation module.
+- `ml/training/tests/test_conformal_prediction.py`: 7 comprehensive unit tests.
+- `ml/training/artifacts/purchase_conformal_config.json`: Metadata artifact for M2 serving.
+- `ml/training/artifacts/transfer_conformal_config.json`: Metadata artifact for M2 serving.
+- Published to MLflow: Logged under `metadata/conformal_config.json` attached to the v2 Champion runs of both `purchase-fraud-model` and `transfer-fraud-model`.
+- Updated `register_isolated_champions.py`: Automatically bundles conformal configs into MLflow runs.
+- Champion Pipelines delivered to repo via `.gitignore` exception:
+  - `purchase_champion_pipeline.pkl` (408 KB)
+  - `transfer_champion_pipeline.pkl` (418 KB)
+
+### 25.6 Quality Assurance & Test Status
+- Test Suite: **89 passed, 6 skipped, 0 failed** (100% green).
+- Linter: `ruff check` passed with **0 errors / 0 warnings**.
+- Git Sync: Fast-forward merged with latest `origin/develop` (commit `1b3516c` pushed to `origin/feat/ml-training-setup`).
 
