@@ -9,7 +9,8 @@ class VigiliaSidebar extends HTMLElement {
     const activeRoute = (this.getAttribute('active') || 'command-center').toLowerCase();
     const workspaceName = this.getAttribute('workspace') || 'MONITOR WORKSPACE';
 
-    const navItems = [
+    // ── MUST-HAVE ────────────────────────────────────────────────────────────
+    const mustHaveItems = [
       {
         id: 'command-center',
         title: 'Command Center',
@@ -21,62 +22,35 @@ class VigiliaSidebar extends HTMLElement {
           </svg>`
       },
       {
-        id: 'kubernetes-explorer',
-        title: 'Kubernetes Explorer',
-        href: '#',
-        icon: `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>`
-      },
-      {
         id: 'live-transactions',
         title: 'Live Transactions',
-        href: '#',
+        href: '/live-transactions.html',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-            <line x1="2" y1="10" x2="22" y2="10"></line>
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>`
       },
       {
-        id: 'system-health',
-        title: 'System Health',
+        id: 'ai-model-intelligence',
+        title: 'AI Model Intelligence',
         href: '#',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            <polyline points="9 12 11 14 15 10"></polyline>
+            <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"></path>
+            <circle cx="9" cy="10" r="1" fill="currentColor"></circle>
+            <circle cx="15" cy="10" r="1" fill="currentColor"></circle>
+            <path d="M9 14s1 1 3 1 3-1 3-1"></path>
           </svg>`
       },
       {
-        id: 'gpu-workloads',
-        title: 'GPU & AI Workloads',
+        id: 'alerts',
+        title: 'Alerts & Incidents',
         href: '#',
+        badge: '3',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-            <rect x="9" y="9" width="6" height="6"></rect>
-            <line x1="9" y1="1" x2="9" y2="4"></line>
-            <line x1="15" y1="1" x2="15" y2="4"></line>
-            <line x1="9" y1="20" x2="9" y2="23"></line>
-            <line x1="15" y1="20" x2="15" y2="23"></line>
-            <line x1="20" y1="9" x2="23" y2="9"></line>
-            <line x1="20" y1="15" x2="23" y2="15"></line>
-            <line x1="1" y1="9" x2="4" y2="9"></line>
-            <line x1="1" y1="15" x2="4" y2="15"></line>
-          </svg>`
-      },
-      {
-        id: 'resource-analytics',
-        title: 'Resource Analytics',
-        href: '#',
-        icon: `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"></line>
-            <line x1="12" y1="20" x2="12" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="14"></line>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>`
       },
       {
@@ -85,12 +59,33 @@ class VigiliaSidebar extends HTMLElement {
         href: '#',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <circle cx="12" cy="12" r="4"></circle>
-            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
-            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
-            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
-            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>`
+      },
+    ];
+
+    // ── HIGH VALUE ───────────────────────────────────────────────────────────
+    const highValueItems = [
+      {
+        id: 'fraud-analytics',
+        title: 'Fraud Analytics',
+        href: '#',
+        icon: `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+          </svg>`
+      },
+      {
+        id: 'logs-explorer',
+        title: 'Logs Explorer',
+        href: '#',
+        icon: `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>`
       },
       {
@@ -107,37 +102,10 @@ class VigiliaSidebar extends HTMLElement {
             <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
           </svg>`
       },
-      {
-        id: 'logs-explorer',
-        title: 'Logs Explorer',
-        href: '#',
-        icon: `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 17 10 11 4 5"></polyline>
-            <line x1="12" y1="19" x2="20" y2="19"></line>
-          </svg>`
-      },
-      {
-        id: 'alerts',
-        title: 'Alerts & Incidents',
-        href: '#',
-        badge: '3',
-        icon: `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>`
-      },
-      {
-        id: 'incident-timeline',
-        title: 'Incident Timeline',
-        href: '#',
-        icon: `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>`
-      },
+    ];
+
+    // ── NICE-TO-HAVE ─────────────────────────────────────────────────────────
+    const niceToHaveItems = [
       {
         id: 'reports',
         title: 'Reports & Exports',
@@ -152,7 +120,7 @@ class VigiliaSidebar extends HTMLElement {
       },
       {
         id: 'monitoring-config',
-        title: 'Monitoring Configuration',
+        title: 'Monitoring Config',
         href: '#',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -166,7 +134,7 @@ class VigiliaSidebar extends HTMLElement {
             <line x1="9" y1="8" x2="15" y2="8"></line>
             <line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>`
-      }
+      },
     ];
 
     const renderNav = (items) => items.map(item => {
@@ -181,6 +149,12 @@ class VigiliaSidebar extends HTMLElement {
         </a>
       `;
     }).join('');
+
+    const renderSection = (items) => `
+      <div class="sidebar-nav-section">
+        ${renderNav(items)}
+      </div>
+    `;
 
     this.innerHTML = `
       <aside class="sidebar light-theme">
@@ -203,19 +177,24 @@ class VigiliaSidebar extends HTMLElement {
 
           <!-- Main Ops & Monitor Navigation -->
           <nav class="sidebar-nav-group">
-            ${renderNav(navItems)}
+            ${renderSection(mustHaveItems)}
+            ${renderSection(highValueItems)}
+            ${renderSection(niceToHaveItems)}
           </nav>
         </div>
 
         <!-- Bottom Platform Health Pulse Widget -->
         <div class="sidebar-health-widget">
           <div class="health-status-header">
-            <span class="health-pulse-dot"></span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
             <span class="health-status-title">Platform Healthy</span>
           </div>
           <p class="health-status-subtext">All systems operational</p>
           <svg class="mini-sparkline-svg" viewBox="0 0 120 24" fill="none">
-            <path d="M0 12 Q 15 4, 30 14 T 60 10 T 90 16 T 120 8" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round"></path>
+            <path d="M0 14 Q 15 6, 30 16 T 60 12 T 90 18 T 120 10" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round"></path>
           </svg>
         </div>
       </aside>

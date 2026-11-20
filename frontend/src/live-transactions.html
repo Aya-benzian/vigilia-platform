@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Live Transactions</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <!-- Google Fonts: Geist Sans & Geist Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Design System -->
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/dashboard.css" />
+  <link rel="stylesheet" href="/css/live-transactions.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <vigilia-sidebar active="live-transactions" workspace="MONITOR WORKSPACE"></vigilia-sidebar>
+
+    <div class="app-main-wrapper">
+      <vigilia-top-navbar search-placeholder="Search customers, cards, searches, logs, or anything..."></vigilia-top-navbar>
+
+      <main class="main-stage">
+
+        <!-- ── Page Header ───────────────────────────────────────── -->
+        <header class="ltx-hero">
+          <div class="ltx-hero-left">
+            <h1 class="ltx-page-title">Live Transactions</h1>
+            <p class="ltx-page-desc">Real-time transaction stream with AI monitoring and policy</p>
+          </div>
+          <div class="ltx-hero-right">
+            <div class="ltx-hero-controls">
+              <!-- Channel filter -->
+              <div class="ltx-filter-group" id="ltxChannelFilter">
+                <button class="ltx-filter-btn active" data-channel="all">All</button>
+                <button class="ltx-filter-btn" data-channel="PURCHASE">Payments</button>
+                <button class="ltx-filter-btn" data-channel="TRANSFER">Transfers</button>
+              </div>
+              <!-- Export -->
+              <button class="ltx-export-btn" id="ltxExportBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- ── Main Split ─────────────────────────────────────────── -->
+        <div class="ltx-main-split">
+
+          <!-- Left: Transaction Feed -->
+          <div class="cockpit-card ltx-feed-card">
+            <div class="ltx-card-header">
+              <div class="title-group">
+                <div class="ltx-icon-box blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                </div>
+                <div class="header-title-wrap">
+                  <span class="card-title">Transaction Stream</span>
+                  <span class="stream-live-pill"><span class="chip-dot"></span>Live</span>
+                </div>
+              </div>
+              <div class="ltx-feed-header-controls">
+                <div class="ltx-search-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" class="ltx-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" class="ltx-search-input" id="ltxSearch" placeholder="Search transactions..." />
+                </div>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="ltx-table-wrap">
+              <table class="ltx-table" id="ltxTable">
+                <colgroup>
+                  <col class="col-txid" style="width: 9%;" />
+                  <col class="col-time" style="width: 8.5%;" />
+                  <col class="col-channel" style="width: 25.5%;" />
+                  <col class="col-amount" style="width: 13.5%;" />
+                  <col class="col-customer" style="width: 21%;" />
+                  <col class="col-score" style="width: 11%;" />
+                  <col class="col-decision" style="width: 11.5%;" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th class="col-txid">TX ID <span class="ltx-sort-arrow">▾</span></th>
+                    <th class="col-time">TIME <span class="ltx-sort-arrow">▾</span></th>
+                    <th class="col-channel">CHANNEL</th>
+                    <th class="col-amount text-right">AMOUNT</th>
+                    <th class="col-customer">CUSTOMER</th>
+                    <th class="col-score text-center">AI SCORE</th>
+                    <th class="col-decision text-center">DECISION</th>
+                  </tr>
+                </thead>
+                <tbody id="ltxTbody">
+                  <tr class="ltx-empty-state-row">
+                    <td colspan="7" style="text-align: center; padding: 48px 16px; color: #64748b;">
+                      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="opacity: 0.5;">
+                          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        <strong style="font-size: 14px; font-weight: 600; color: #1e293b;">No transactions recorded yet</strong>
+                        <span style="font-size: 12px; color: #94a3b8;">Real-time ingestion stream is active &middot; Incoming transactions will appear here</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer Pagination -->
+            <div class="ltx-table-footer">
+              <div class="ltx-footer-left">
+                <span class="ltx-footer-info">Showing <strong class="font-mono" id="ltxShowingCount">0</strong> of <strong class="font-mono" id="ltxFooterCount">0</strong> live transactions</span>
+              </div>
+              <div class="ltx-pagination-group">
+                <button class="ltx-p-btn prev" aria-label="Previous">&lt;</button>
+                <button class="ltx-p-btn active">1</button>
+                <button class="ltx-p-btn">2</button>
+                <button class="ltx-p-btn">3</button>
+                <span class="ltx-p-dots">...</span>
+                <button class="ltx-p-btn">24</button>
+                <button class="ltx-p-btn next" aria-label="Next">&gt;</button>
+              </div>
+            </div>
+          </div><!-- /ltx-feed-card -->
+
+          <!-- Right panels stack -->
+          <div class="ltx-right-stack">
+
+            <!-- AI Decision Breakdown -->
+            <div class="cockpit-card ltx-breakdown-card">
+              <div class="ltx-card-header">
+                <div class="title-group">
+                  <div class="ltx-icon-box purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12 2.1 7.1"/><path d="M12 12v10"/></svg>
+                  </div>
+                  <div class="header-title-wrap">
+                    <span class="card-title">AI Decision Breakdown</span>
+                  </div>
+                </div>
+                <div class="ltx-card-header-right">
+                  <span class="ltx-ai-acc-pill"><span class="ai-acc-dot"></span>&mdash;% Acc</span>
+                  <div class="ltx-dropdown-pill">24h ⌵</div>
+                </div>
+              </div>
+              <div class="ltx-donut-body">
+                <!-- Donut SVG -->
+                <div class="ltx-donut-wrap">
+                  <svg viewBox="0 0 140 140" width="124" height="124" class="ltx-donut-svg">
+                    <defs>
+                      <linearGradient id="dgGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#059669"/>
+                        <stop offset="100%" stop-color="#10b981"/>
+                      </linearGradient>
+                    </defs>
+                    <circle cx="70" cy="70" r="50" fill="none" stroke="#f1f5f9" stroke-width="13"/>
+                    <!-- Auto-Approved ~96.8% -->
+                    <circle cx="70" cy="70" r="50" fill="none" stroke="url(#dgGreen)" stroke-width="13"
+                      stroke-dasharray="0 314.16" stroke-dashoffset="0"
+                      transform="rotate(-90 70 70)"/>
+                    <!-- Pending Review ~2.4% -->
+                    <circle cx="70" cy="70" r="50" fill="none" stroke="#f59e0b" stroke-width="13"
+                      stroke-dasharray="0 314.16" stroke-dashoffset="-304"
+                      transform="rotate(-90 70 70)"/>
+                    <!-- Blocked ~0.8% -->
+                    <circle cx="70" cy="70" r="50" fill="none" stroke="#ef4444" stroke-width="13"
+                      stroke-dasharray="0 314.16" stroke-dashoffset="-312"
+                      transform="rotate(-90 70 70)"/>
+                  </svg>
+                  <div class="ltx-donut-center">
+                    <span class="ltx-donut-num font-mono">0</span>
+                    <span class="ltx-donut-lbl">Decisions</span>
+                  </div>
+                </div>
+                <!-- Legend -->
+                <div class="ltx-donut-legend">
+                  <div class="ltx-legend-row">
+                    <span class="ltx-legend-dot ltx-ld-green"></span>
+                    <div class="ltx-legend-col">
+                      <div class="ltx-legend-title-row">
+                        <span class="ltx-legend-name">Auto-Approved</span>
+                        <span class="ltx-legend-pct font-mono">0.0%</span>
+                      </div>
+                      <div class="ltx-legend-sub-row">
+                        <span class="ltx-legend-tag green">&mdash;</span>
+                        <span class="ltx-legend-count font-mono">0 tx</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ltx-legend-row">
+                    <span class="ltx-legend-dot ltx-ld-amber"></span>
+                    <div class="ltx-legend-col">
+                      <div class="ltx-legend-title-row">
+                        <span class="ltx-legend-name">Pending Review</span>
+                        <span class="ltx-legend-pct font-mono">0.0%</span>
+                      </div>
+                      <div class="ltx-legend-sub-row">
+                        <span class="ltx-legend-tag amber">&mdash;</span>
+                        <span class="ltx-legend-count font-mono">0 tx</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ltx-legend-row">
+                    <span class="ltx-legend-dot ltx-ld-red"></span>
+                    <div class="ltx-legend-col">
+                      <div class="ltx-legend-title-row">
+                        <span class="ltx-legend-name">Blocked</span>
+                        <span class="ltx-legend-pct font-mono">0.0%</span>
+                      </div>
+                      <div class="ltx-legend-sub-row">
+                        <span class="ltx-legend-tag red">&mdash;</span>
+                        <span class="ltx-legend-count font-mono">0 tx</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- AI Policy Engine Insights Strip -->
+              <div class="ltx-ai-insights-strip">
+                <div class="ltx-ai-ins-item">
+                  <span class="ai-ins-val font-mono">&mdash; ms</span>
+                  <span class="ai-ins-lbl">Avg Latency</span>
+                </div>
+                <div class="ltx-ai-ins-sep"></div>
+                <div class="ltx-ai-ins-item">
+                  <span class="ai-ins-val font-mono text-emerald">0.0%</span>
+                  <span class="ai-ins-lbl">False Pos.</span>
+                </div>
+                <div class="ltx-ai-ins-sep"></div>
+                <div class="ltx-ai-ins-item">
+                  <span class="ai-ins-val font-mono text-blue">100%</span>
+                  <span class="ai-ins-lbl">Model SLA</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Channel Performance -->
+            <div class="cockpit-card ltx-channel-card">
+              <div class="ltx-card-header">
+                <div class="title-group">
+                  <div class="ltx-icon-box blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                  </div>
+                  <span class="card-title">Channel Performance</span>
+                </div>
+                <span class="ltx-ch-total-pill"><span class="ch-live-dot"></span>0.00 tx/s Total</span>
+              </div>
+              <div class="ltx-channel-list">
+                <!-- Channel 1: Payments -->
+                <div class="ltx-ch-module">
+                  <div class="ltx-ch-mod-header">
+                    <div class="ltx-ch-mod-left">
+                      <span class="ltx-ch-ico-box blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                      </span>
+                      <div class="ltx-ch-title-wrap">
+                        <span class="ltx-ch-name">Payments</span>
+                        <span class="ltx-ch-badge blue">0% Share</span>
+                      </div>
+                    </div>
+                    <div class="ltx-ch-mod-right">
+                      <span class="ltx-ch-rate font-mono">0.00 tx/s</span>
+                      <span class="ltx-ch-trend up">&mdash;</span>
+                    </div>
+                  </div>
+                  <div class="ltx-ch-bar-track">
+                    <div class="ltx-ch-bar-fill blue" style="width: 0%;"></div>
+                  </div>
+                  <div class="ltx-ch-telemetry-row">
+                    <span class="ch-tel-item">Vol: <strong class="font-mono text-dark">$0</strong></span>
+                    <span class="ch-tel-dot">·</span>
+                    <span class="ch-tel-item">Pass: <strong class="font-mono text-emerald">0.0%</strong></span>
+                    <span class="ch-tel-dot">·</span>
+                    <span class="ch-tel-item">Avg: <strong class="font-mono text-dark">$0.00</strong></span>
+                  </div>
+                </div>
+
+                <!-- Channel 2: Transfers -->
+                <div class="ltx-ch-module">
+                  <div class="ltx-ch-mod-header">
+                    <div class="ltx-ch-mod-left">
+                      <span class="ltx-ch-ico-box purple">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                      </span>
+                      <div class="ltx-ch-title-wrap">
+                        <span class="ltx-ch-name">Transfers</span>
+                        <span class="ltx-ch-badge purple">0% Share</span>
+                      </div>
+                    </div>
+                    <div class="ltx-ch-mod-right">
+                      <span class="ltx-ch-rate font-mono">0.00 tx/s</span>
+                      <span class="ltx-ch-trend up">&mdash;</span>
+                    </div>
+                  </div>
+                  <div class="ltx-ch-bar-track">
+                    <div class="ltx-ch-bar-fill purple" style="width: 0%;"></div>
+                  </div>
+                  <div class="ltx-ch-telemetry-row">
+                    <span class="ch-tel-item">Vol: <strong class="font-mono text-dark">$0</strong></span>
+                    <span class="ch-tel-dot">·</span>
+                    <span class="ch-tel-item">Pass: <strong class="font-mono text-emerald">0.0%</strong></span>
+                    <span class="ch-tel-dot">·</span>
+                    <span class="ch-tel-item">Avg: <strong class="font-mono text-dark">$0.00</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /ltx-right-stack -->
+        </div><!-- /ltx-main-split -->
+
+        <!-- ── Bottom Analytics Row ───────────────────────────────── -->
+        <div class="ltx-bottom-row">
+
+          <!-- Panel 1: Throughput Timeline -->
+          <div class="cockpit-card ltx-analytics-card ltx-throughput-card">
+            <div class="ltx-card-header">
+              <div class="title-group">
+                <div class="ltx-icon-box blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div class="header-title-wrap">
+                  <span class="card-title">Throughput Timeline</span>
+                </div>
+              </div>
+              <div class="ltx-timeline-controls">
+                <div class="ltx-timeline-range">
+                  <button class="ltx-range-btn active">1h</button>
+                  <button class="ltx-range-btn">24h</button>
+                  <button class="ltx-range-btn">7d</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Real-time metrics bar -->
+            <div class="ltx-timeline-kpi-bar">
+              <div class="ltx-tkpi-item">
+                <span class="ltx-tkpi-lbl">Current Speed</span>
+                <span class="ltx-tkpi-val font-mono blue">0.00 <small>tx/s</small></span>
+              </div>
+              <div class="ltx-tkpi-sep"></div>
+              <div class="ltx-tkpi-item">
+                <span class="ltx-tkpi-lbl">Peak Throughput</span>
+                <span class="ltx-tkpi-val font-mono text-dark">&mdash; <small>tx/s</small></span>
+              </div>
+              <div class="ltx-tkpi-sep"></div>
+              <div class="ltx-tkpi-item">
+                <span class="ltx-tkpi-lbl">Avg Velocity</span>
+                <span class="ltx-tkpi-val font-mono text-dark">&mdash; <small>tx/s</small></span>
+              </div>
+              <div class="ltx-tkpi-sep"></div>
+              <div class="ltx-tkpi-item">
+                <span class="ltx-tkpi-lbl">Stream Health</span>
+                <span class="ltx-tkpi-val text-emerald">100% OK</span>
+              </div>
+            </div>
+
+            <div class="ltx-timeline-wrap">
+              <div class="ltx-timeline-chart-inner">
+                <div class="ltx-chart-y-axis">
+                  <span>1.0</span>
+                  <span>0.5</span>
+                  <span>0.0</span>
+                </div>
+                <div class="ltx-chart-canvas-wrap">
+                  <svg viewBox="0 0 420 120" width="100%" height="100%" preserveAspectRatio="none" class="ltx-area-svg">
+                    <defs>
+                      <linearGradient id="timelineGradNew" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.32"/>
+                        <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+                      </linearGradient>
+                    </defs>
+                    <!-- Grid horizontal lines -->
+                    <line x1="0" y1="18" x2="420" y2="18" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="3 3"/>
+                    <line x1="0" y1="65" x2="420" y2="65" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="3 3"/>
+                    <line x1="0" y1="112" x2="420" y2="112" stroke="#e2e8f0" stroke-width="1"/>
+
+                    <!-- Smooth Area fill (dynamic baseline) -->
+                    <polygon id="ltxTimelineArea" points="0,112 420,112" fill="url(#timelineGradNew)"/>
+                    
+                    <!-- Line (dynamic baseline) -->
+                    <polyline id="ltxTimelineLine" points="0,112 420,112"
+                      fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    
+                    <!-- Points container -->
+                    <g id="ltxTimelinePoints"></g>
+                  </svg>
+                  <!-- Current value tag -->
+                  <div class="ltx-timeline-tag">
+                    <span class="ltx-tag-dot"></span>
+                    <span class="font-mono">0.00 tx/s</span>
+                  </div>
+                </div>
+              </div>
+              <div class="ltx-chart-xaxis" id="ltxTimelineXAxis">
+                <span>&mdash;</span><span>&mdash;</span><span>&mdash;</span><span>&mdash;</span><span>&mdash;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Risk Score Distribution -->
+          <div class="cockpit-card ltx-analytics-card ltx-dist-card">
+            <div class="ltx-card-header">
+              <div class="title-group">
+                <div class="ltx-icon-box emerald">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <span class="card-title">AI Risk Score Distribution</span>
+              </div>
+              <span class="ltx-dist-tag"><span class="chip-dot emerald"></span>Model v2.4 Live</span>
+            </div>
+
+            <!-- Health Summary Strip -->
+            <div class="ltx-dist-summary-bar">
+              <div class="dist-sum-left">
+                <span class="dist-sum-label">Confidence:</span>
+                <span class="dist-sum-val green" id="confidenceSafeVal">0.0% Safe</span>
+                <span class="dist-sum-sep">/</span>
+                <span class="dist-sum-val red" id="confidenceFlaggedVal">0.0% Flagged</span>
+              </div>
+              <span class="dist-sum-meta font-mono" id="ltxTotalEvaluated">0 Evaluated</span>
+            </div>
+
+            <!-- Richer Vertical Columns filling the space properly -->
+            <div class="ltx-distribution-wrap">
+              <div class="ltx-dist-bars">
+                <!-- Bar 1: 0-25 (Low / Safe) -->
+                <div class="ltx-dist-col">
+                  <span class="ltx-dist-badge green font-mono">0.0%</span>
+                  <div class="ltx-dist-bar-track">
+                    <div class="ltx-dist-bar-fill emerald" style="height: 0%;"></div>
+                  </div>
+                  <span class="ltx-dist-lbl font-mono">0–25</span>
+                  <span class="ltx-dist-sub">Safe</span>
+                  <span class="ltx-dist-count font-mono">0 tx</span>
+                </div>
+                <!-- Bar 2: 26-50 (Mild) -->
+                <div class="ltx-dist-col">
+                  <span class="ltx-dist-badge amber font-mono">0.0%</span>
+                  <div class="ltx-dist-bar-track">
+                    <div class="ltx-dist-bar-fill amber" style="height: 0%;"></div>
+                  </div>
+                  <span class="ltx-dist-lbl font-mono">26–50</span>
+                  <span class="ltx-dist-sub">Low Risk</span>
+                  <span class="ltx-dist-count font-mono">0 tx</span>
+                </div>
+                <!-- Bar 3: 51-75 (Medium Review) -->
+                <div class="ltx-dist-col">
+                  <span class="ltx-dist-badge orange font-mono">0.0%</span>
+                  <div class="ltx-dist-bar-track">
+                    <div class="ltx-dist-bar-fill orange" style="height: 0%;"></div>
+                  </div>
+                  <span class="ltx-dist-lbl font-mono">51–75</span>
+                  <span class="ltx-dist-sub">Review</span>
+                  <span class="ltx-dist-count font-mono">0 tx</span>
+                </div>
+                <!-- Bar 4: 76-100 (Critical / Block) -->
+                <div class="ltx-dist-col">
+                  <span class="ltx-dist-badge red font-mono">0.0%</span>
+                  <div class="ltx-dist-bar-track">
+                    <div class="ltx-dist-bar-fill red" style="height: 0%;"></div>
+                  </div>
+                  <span class="ltx-dist-lbl font-mono">76–100</span>
+                  <span class="ltx-dist-sub">Blocked</span>
+                  <span class="ltx-dist-count font-mono">0 tx</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 3: Policy Enforcement Log -->
+          <div class="cockpit-card ltx-analytics-card ltx-policy-card">
+            <div class="ltx-card-header">
+              <div class="title-group">
+                <div class="ltx-icon-box slate">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <span class="card-title">Policy Enforcement Log</span>
+              </div>
+              <div class="ltx-dropdown-pill">Last 24h ⌵</div>
+            </div>
+
+            <!-- Policy Summary Banner -->
+            <div class="ltx-pol-summary-bar">
+              <span class="pol-sum-rule-count font-mono">0 Rules Evaluated</span>
+              <span class="pol-sum-pass-badge green">100% Policy SLA</span>
+            </div>
+
+            <div class="ltx-policy-list">
+              <!-- Rule 1 -->
+              <div class="ltx-policy-item">
+                <div class="ltx-pol-left">
+                  <span class="ltx-pol-icon-chip green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <div class="ltx-pol-info">
+                    <span class="ltx-pol-name">Auto-Approve</span>
+                    <span class="ltx-pol-sub">Approved automatically by AI confidence threshold</span>
+                  </div>
+                </div>
+                <div class="ltx-pol-right">
+                  <span class="ltx-pol-count font-mono">0</span>
+                  <span class="ltx-pol-badge green">0.0%</span>
+                </div>
+              </div>
+              <!-- Rule 2 -->
+              <div class="ltx-policy-item">
+                <div class="ltx-pol-left">
+                  <span class="ltx-pol-icon-chip amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </span>
+                  <div class="ltx-pol-info">
+                    <span class="ltx-pol-name">Manual Review</span>
+                    <span class="ltx-pol-sub">High anomaly score routed to human inspection queue</span>
+                  </div>
+                </div>
+                <div class="ltx-pol-right">
+                  <span class="ltx-pol-count font-mono">0</span>
+                  <span class="ltx-pol-badge amber">0.0%</span>
+                </div>
+              </div>
+              <!-- Rule 3 -->
+              <div class="ltx-policy-item">
+                <div class="ltx-pol-left">
+                  <span class="ltx-pol-icon-chip red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  </span>
+                  <div class="ltx-pol-info">
+                    <span class="ltx-pol-name">Hard Block</span>
+                    <span class="ltx-pol-sub">Instant rejection by blacklist or confirmed fraud patterns</span>
+                  </div>
+                </div>
+                <div class="ltx-pol-right">
+                  <span class="ltx-pol-count font-mono">0</span>
+                  <span class="ltx-pol-badge red">0.0%</span>
+                </div>
+              </div>
+              <!-- Rule 4 -->
+              <div class="ltx-policy-item">
+                <div class="ltx-pol-left">
+                  <span class="ltx-pol-icon-chip purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </span>
+                  <div class="ltx-pol-info">
+                    <span class="ltx-pol-name">Velocity Protection</span>
+                    <span class="ltx-pol-sub">Rapid repeated transaction attempt rate-limit triggered</span>
+                  </div>
+                </div>
+                <div class="ltx-pol-right">
+                  <span class="ltx-pol-count font-mono">0</span>
+                  <span class="ltx-pol-badge purple">0.0%</span>
+                </div>
+              </div>
+              <!-- Rule 5 -->
+              <div class="ltx-policy-item">
+                <div class="ltx-pol-left">
+                  <span class="ltx-pol-icon-chip blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                  </span>
+                  <div class="ltx-pol-info">
+                    <span class="ltx-pol-name">Geo-Anomaly Detection</span>
+                    <span class="ltx-pol-sub">Impossible travel velocity or unapproved jurisdiction</span>
+                  </div>
+                </div>
+                <div class="ltx-pol-right">
+                  <span class="ltx-pol-count font-mono">0</span>
+                  <span class="ltx-pol-badge blue">0.0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /ltx-bottom-row -->
+
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="js/auth.js"></script>
+  <script type="module" src="js/api-client.js"></script>
+  <script type="module" src="js/monitor-api.js"></script>
+  <script type="module" src="js/components/top-navbar.js"></script>
+  <script type="module" src="js/components/sidebar.js"></script>
+  <script type="module" src="js/live-transactions.js"></script>
+</body>
+</html>
