@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Case Investigation (VG-2048)</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+
+  <!-- Google Fonts: Geist Sans & Geist Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Base Vigilia Design System Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+
+  <!-- Bulletproof Embedded CSS for Case Investigation Workspace -->
+  <style>
+    /* ── Reset & Body Lock ── */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f0f4fa;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* ── Global SVG Guard ── */
+    svg {
+      display: inline-block;
+      vertical-align: middle;
+      max-width: 100%;
+    }
+
+    /* ── Left Sidebar (Exact Vigilia Palette & Tokens) ── */
+    .sidebar.light-theme {
+      width: 250px !important;
+      min-width: 250px !important;
+      max-width: 250px !important;
+      background: #ffffff !important;
+      border-right: 1px solid #e2e8f0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      padding: 1.25rem 0.85rem !important;
+      height: 100vh !important;
+      box-sizing: border-box !important;
+      overflow-y: auto !important;
+      z-index: 100 !important;
+    }
+
+    .brand-link {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.75rem !important;
+      text-decoration: none !important;
+      padding: 0.25rem 0.5rem 1.25rem !important;
+    }
+
+    .brand-logo-img {
+      height: 32px !important;
+      width: 32px !important;
+      max-height: 32px !important;
+      max-width: 32px !important;
+      object-fit: contain !important;
+      display: block !important;
+    }
+
+    .brand-name {
+      font-size: 1.35rem !important;
+      font-weight: 800 !important;
+      color: #0f172a !important;
+      letter-spacing: -0.025em !important;
+    }
+
+    .sidebar .nav-item {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.85rem !important;
+      padding: 0.62rem 0.9rem !important;
+      border-radius: 9px !important;
+      font-size: 0.86rem !important;
+      font-weight: 600 !important;
+      color: #475569 !important;
+      text-decoration: none !important;
+      transition: all 0.15s ease !important;
+      box-sizing: border-box !important;
+    }
+
+    .sidebar .nav-item:hover {
+      background: #f1f5f9 !important;
+      color: #0f172a !important;
+    }
+
+    /* Active: My Investigations */
+    .sidebar .nav-item.active {
+      background: #fdf4ed !important;
+      color: #c05621 !important;
+      font-weight: 700 !important;
+    }
+
+    .sidebar .nav-item.active svg {
+      stroke: #d97236 !important;
+    }
+
+    .sidebar .nav-item svg {
+      width: 18px !important;
+      height: 18px !important;
+      stroke: #64748b;
+      flex-shrink: 0 !important;
+    }
+
+    .nav-badge {
+      margin-left: auto !important;
+      background: #ea580c !important;
+      color: #ffffff !important;
+      font-size: 0.7rem !important;
+      font-weight: 700 !important;
+      padding: 2px 7px !important;
+      border-radius: 9999px !important;
+    }
+
+    .sidebar-security-box {
+      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+      border: 1px solid #dbeafe;
+      border-radius: 12px;
+      padding: 0.85rem 0.95rem;
+      display: flex;
+      gap: 0.75rem;
+      margin-top: auto;
+    }
+
+    .sidebar-security-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #1e3a8a;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-security-icon svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+
+    /* ── Top Navbar ── */
+    .app-main-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .top-navbar {
+      height: 58px;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.75rem;
+      flex-shrink: 0;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex: 1;
+    }
+
+    .search-container {
+      position: relative;
+      max-width: 420px;
+      width: 100%;
+    }
+
+    .search-container svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px !important;
+      height: 16px !important;
+      color: #94a3b8;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 38px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 9999px;
+      padding: 0 45px 0 38px;
+      font-size: 0.84rem;
+      color: #0f172a;
+      outline: none;
+      box-sizing: border-box;
+      transition: all 0.15s ease;
+    }
+
+    .search-kbd-shortcut {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 600;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .notification-btn {
+      position: relative;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #64748b;
+      padding: 6px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notification-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .notification-btn svg {
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: #ea580c;
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ffffff;
+    }
+
+    .profile-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .profile-pill:hover {
+      background: #f8fafc;
+    }
+
+    .profile-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #091522;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    /* ── Main Stage Scrollable ── */
+    .main-stage {
+      flex: 1;
+      height: calc(100vh - 58px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 18px 24px 35px;
+      background-color: #f0f4fa;
+      box-sizing: border-box;
+    }
+
+    /* ── 1. Case Context Header Bar (Top Strip) ── */
+    .ci-case-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 0.85rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .ci-meta-group {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      flex-wrap: wrap;
+    }
+
+    .ci-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ci-meta-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .ci-meta-val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .ci-meta-code {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .ci-meta-tx {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    .ci-icon-copy {
+      color: #94a3b8;
+      cursor: pointer;
+      display: inline-flex;
+      transition: color 0.15s;
+    }
+
+    .ci-icon-copy:hover {
+      color: #2563eb;
+    }
+
+    .ci-meta-date {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .ci-meta-amount {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ci-domain-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: #f3e8ff;
+      color: #7c3aed;
+    }
+
+    .ci-domain-badge svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .ci-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .ci-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2563eb;
+    }
+
+    /* Advisory Callout (Right side of Bar) */
+    .ci-advisory-box {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      max-width: 320px;
+    }
+
+    .ci-advisory-box svg {
+      width: 16px !important;
+      height: 16px !important;
+      color: #ea580c;
+      flex-shrink: 0;
+    }
+
+    .ci-advisory-text {
+      font-size: 0.72rem;
+      color: #9a3412;
+      line-height: 1.35;
+      font-weight: 500;
+    }
+
+    /* ── 2. Two-Column Workspace Layout ── */
+    .ci-workspace-layout {
+      display: grid;
+      grid-template-columns: 2.3fr 1fr;
+      gap: 1.15rem;
+    }
+
+    /* Left Stream: Tabs + ML Diagnostic Cards */
+    .ci-stream-left {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Tab Navigation */
+    .ci-tabs-strip {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0.25rem;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+    }
+
+    .ci-tab-nav {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 9px;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .ci-tab-nav:hover {
+      color: #0f172a;
+    }
+
+    .ci-tab-nav.active {
+      color: #c05621;
+      font-weight: 700;
+      background: #fdf4ed;
+    }
+
+    .ci-tab-nav.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 20%;
+      right: 20%;
+      height: 2.5px;
+      background: #ea580c;
+      border-radius: 2px;
+    }
+
+    .ci-tab-nav svg {
+      width: 15px !important;
+      height: 15px !important;
+      flex-shrink: 0;
+    }
+
+    /* ML Diagnostic Cards Grid */
+    .ci-ml-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .ci-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.03);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .ci-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+    }
+
+    .ci-card-title-row svg {
+      width: 16px !important;
+      height: 16px !important;
+      color: #0f172a;
+      flex-shrink: 0;
+    }
+
+    .ci-card-title {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    /* Score de Risque Card */
+    .ci-risk-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex: 1;
+    }
+
+    .ci-dial-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      width: 150px;
+    }
+
+    .ci-dial-svg {
+      width: 150px;
+      height: 85px;
+      display: block;
+    }
+
+    .ci-dial-num {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      margin-top: -30px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .ci-dial-sub {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #ef4444;
+      margin-top: 4px;
+    }
+
+    .ci-divider-v {
+      width: 1px;
+      height: 75px;
+      border-left: 1px dashed #cbd5e1;
+    }
+
+    .ci-thresh-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      flex: 1;
+    }
+
+    .ci-thresh-label {
+      font-size: 0.74rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+      font-weight: 600;
+    }
+
+    .ci-thresh-alert-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .ci-thresh-alert-header {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #dc2626;
+    }
+
+    .ci-thresh-alert-header svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+
+    .ci-thresh-alert-desc {
+      font-size: 0.7rem;
+      color: #991b1b;
+      line-height: 1.35;
+    }
+
+    /* Prédiction Conforme Card */
+    .ci-conformal-alert {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 10px;
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.95rem;
+    }
+
+    .ci-conformal-alert svg {
+      width: 18px !important;
+      height: 18px !important;
+      color: #d97706;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .ci-conf-bold {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #b45309;
+      margin-bottom: 2px;
+    }
+
+    .ci-conf-desc {
+      font-size: 0.72rem;
+      color: #92400e;
+      line-height: 1.35;
+    }
+
+    .ci-conf-set-row {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.78rem;
+      color: #475569;
+      font-family: 'Geist Mono', monospace;
+      font-weight: 600;
+    }
+
+    .ci-conf-set-val {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    /* Attribution SHAP Bar Chart */
+    .ci-shap-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+    }
+
+    .ci-shap-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 45px;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.72rem;
+    }
+
+    .ci-shap-feat {
+      color: #475569;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.71rem;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ci-shap-track {
+      position: relative;
+      height: 10px;
+      background: #f8fafc;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+    }
+
+    .ci-shap-axis-center {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #cbd5e1;
+    }
+
+    .ci-shap-bar {
+      position: absolute;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .ci-shap-bar-pos {
+      left: 50%;
+      background: #f87171;
+    }
+
+    .ci-shap-bar-neg {
+      right: 50%;
+      background: #34d399;
+    }
+
+    .ci-shap-val {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .ci-val-pos { color: #dc2626; }
+    .ci-val-neg { color: #059669; }
+
+    .ci-shap-scale-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 45px;
+      gap: 0.6rem;
+      margin-top: 0.35rem;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 0.25rem;
+    }
+
+    .ci-shap-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: #94a3b8;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Détection d'Anomalie (Isolation Forest Scatter) */
+    .ci-anomaly-art {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 135px;
+      position: relative;
+    }
+
+    .ci-anomaly-svg {
+      width: 100%;
+      height: 130px;
+    }
+
+    .ci-anomaly-metrics {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .ci-anom-score-lbl {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    .ci-anom-score-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      line-height: 1;
+    }
+
+    .ci-anom-badge-outlier {
+      display: inline-flex;
+      align-items: center;
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.15rem 0.55rem;
+      border-radius: 6px;
+      margin-top: 2px;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Bottom: Informations Complémentaires */
+    .ci-bottom-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .ci-bottom-left {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .ci-bottom-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ci-bottom-title-row svg {
+      width: 15px !important;
+      height: 15px !important;
+      color: #64748b;
+    }
+
+    .ci-bottom-data-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ci-bottom-lbl {
+      font-size: 0.7rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .ci-bottom-val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ci-bottom-val-row svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    .ci-tag-critique {
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .ci-tag-moi {
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .ci-history-link {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #2563eb;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .ci-history-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Right Column: The Decision Panel ── */
+    .ci-panel-right {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .ci-decision-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .ci-dec-header {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .ci-dec-header svg {
+      width: 18px !important;
+      height: 18px !important;
+      color: #0f172a;
+    }
+
+    .ci-dec-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    /* 3 Action Radio Option Cards */
+    .ci-action-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .ci-option-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 0.85rem;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .ci-option-card:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    /* Option 1: Approve (Selected by default or green) */
+    .ci-option-card.opt-approve.selected,
+    .ci-option-card.opt-approve:hover {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    /* Option 2: Reject */
+    .ci-option-card.opt-reject.selected {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+
+    /* Option 3: Escalate */
+    .ci-option-card.opt-escalate.selected {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    .ci-opt-radio {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: all 0.15s;
+    }
+
+    .opt-approve .ci-opt-radio {
+      border-color: #10b981;
+      background: #10b981;
+      color: #ffffff;
+    }
+
+    .opt-reject.selected .ci-opt-radio {
+      border-color: #ef4444;
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .opt-escalate.selected .ci-opt-radio {
+      border-color: #f59e0b;
+      background: #f59e0b;
+      color: #ffffff;
+    }
+
+    .ci-opt-radio svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .ci-opt-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .ci-opt-title {
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .opt-approve .ci-opt-title { color: #047857; }
+    .opt-reject.selected .ci-opt-title { color: #b91c1c; }
+    .opt-escalate.selected .ci-opt-title { color: #b45309; }
+
+    .ci-opt-sub {
+      font-size: 0.72rem;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    /* Decision Form Controls */
+    .ci-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .ci-form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ci-required {
+      color: #ef4444;
+    }
+
+    .ci-form-select {
+      width: 100%;
+      height: 38px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0 0.75rem;
+      font-size: 0.82rem;
+      color: #0f172a;
+      outline: none;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+
+    .ci-form-select:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .ci-form-textarea {
+      width: 100%;
+      height: 75px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.8rem;
+      color: #0f172a;
+      outline: none;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+      transition: all 0.15s;
+    }
+
+    .ci-form-textarea:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .ci-char-counter {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      text-align: right;
+      font-weight: 500;
+    }
+
+    /* Notes Internes Accordion */
+    .ci-accordion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .ci-accordion-header svg {
+      width: 14px !important;
+      height: 14px !important;
+      color: #94a3b8;
+    }
+
+    /* Submit Button: Navy Pill */
+    .ci-btn-submit {
+      width: 100%;
+      height: 42px;
+      background: #091522;
+      color: #ffffff;
+      border: none;
+      border-radius: 9px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(9, 21, 34, 0.15);
+    }
+
+    .ci-btn-submit:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+
+    .ci-btn-submit svg {
+      width: 15px !important;
+      height: 15px !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Full Application Shell -->
+  <div class="app-shell">
+
+    <!-- ── Left Light Sidebar (My Investigations Active) ── -->
+    <aside class="sidebar light-theme" id="appSidebar">
+      <div style="display: flex; flex-direction: column;">
+        
+        <!-- Brand Link with Official Vigilia Logo Image -->
+        <a href="analyst-overview.html" class="brand-link">
+          <img src="assets/vigilia-logo-mark.png" alt="Vigilia Logo" class="brand-logo-img" style="height: 32px; width: 32px; max-width: 32px; object-fit: contain; display: block;" />
+          <span class="brand-name">Vigilia</span>
+        </a>
+
+        <!-- Navigation Group -->
+        <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
+          <a href="analyst-overview.html" class="nav-item" title="Analyst Overview">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span>Analyst Overview</span>
+          </a>
+
+          <a href="review-queue.html" class="nav-item" title="Review Queue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+              <line x1="4" y1="22" x2="4" y2="15"></line>
+            </svg>
+            <span>Review Queue</span>
+          </a>
+
+          <!-- ACTIVE: My Investigations -->
+          <a href="case-investigation.html?case=VG-2048" class="nav-item active" title="My Investigations">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>My Investigations</span>
+          </a>
+
+          <a href="decision-history.html" class="nav-item" title="Decision History">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Decision History</span>
+          </a>
+
+          <div style="height: 1px; background: #e2e8f0; margin: 0.75rem 0.65rem 1rem;"></div>
+
+          <a href="#" class="nav-item" title="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Notifications</span>
+            <span class="nav-badge">3</span>
+          </a>
+
+          <a href="#" class="nav-item" title="Profile & Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Profile & Settings</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- Sidebar Security Box -->
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+        <div class="sidebar-security-box">
+          <div class="sidebar-security-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size: 0.78rem; font-weight: 700; color: #0f172a; margin-bottom: 2px;">Your security is our priority</div>
+            <div style="font-size: 0.72rem; color: #64748b; line-height: 1.35;">AI-powered fraud detection keeps your transactions safe.</div>
+          </div>
+        </div>
+
+        <a href="#" style="display: flex; align-items: center; gap: 0.65rem; padding: 0.75rem 0.5rem 0.25rem; font-size: 0.78rem; color: #64748b; text-decoration: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+          </svg>
+          <span>Need help? Contact support</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- ── Main App Wrapper (Top Navbar + Stage) ────────────────── -->
+    <div class="app-main-wrapper">
+
+      <!-- Top Navbar -->
+      <header class="top-navbar">
+        <div class="nav-left">
+          <!-- Search Bar -->
+          <div class="search-container">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              class="search-input" 
+              placeholder="Search cases, transactions, or customers..." 
+            />
+            <span class="search-kbd-shortcut">⌘K</span>
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <!-- Notification Bell -->
+          <button class="notification-btn" aria-label="Notifications" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="notification-badge">3</span>
+          </button>
+
+          <!-- User Profile -->
+          <div class="profile-pill">
+            <div class="profile-avatar">AB</div>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.86rem; font-weight: 700; color: #0f172a; line-height: 1.2;">Aïcha Belk</span>
+              <span style="font-size: 0.72rem; color: #64748b;">Senior Analyst</span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" style="margin-left: 2px;">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Stage -->
+      <main class="main-stage">
+
+        <!-- 1. Case Context Header Bar (Top Strip) -->
+        <section class="ci-case-bar">
+          <div class="ci-meta-group">
+            <!-- Case ID -->
+            <div class="ci-meta-item">
+              <span class="ci-meta-label">Case ID</span>
+              <div class="ci-meta-val-row">
+                <span class="ci-meta-code">VG-2048</span>
+                <span class="ci-icon-copy" title="Copy Case ID">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </span>
+              </div>
+            </div>
+
+            <!-- Transaction ID -->
+            <div class="ci-meta-item">
+              <span class="ci-meta-label">Transaction ID</span>
+              <div class="ci-meta-val-row">
+                <span class="ci-meta-tx">TXN-78421</span>
+                <span class="ci-icon-copy" title="Copy Transaction ID">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </span>
+              </div>
+            </div>
+
+            <!-- Date & Time -->
+            <div class="ci-meta-item">
+              <span class="ci-meta-label">Date &amp; Time</span>
+              <span class="ci-meta-date">Apr 28, 2025 • 14:32</span>
+            </div>
+
+            <!-- Domain -->
+            <div class="ci-meta-item">
+              <span class="ci-meta-label">Domain</span>
+              <span class="ci-domain-badge">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                <span>Purchase</span>
+              </span>
+            </div>
+
+            <!-- Amount -->
+            <div class="ci-meta-item">
+              <span class="ci-meta-label">Amount</span>
+              <span class="ci-meta-amount">$3,420.50 CAD</span>
+            </div>
+
+            <!-- Status -->
+            <div class="ci-meta-item">
+              <span class="ci-meta-label">Status</span>
+              <span class="ci-status-badge">
+                <span class="ci-status-dot"></span>
+                <span>In Progress</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Advisory Callout (Right) -->
+          <div class="ci-advisory-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div class="ci-advisory-text">
+              L'évaluation du modèle est consultative. La responsabilité de la décision incombe à l'analyste.
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Two-Column Workspace Layout -->
+        <div class="ci-workspace-layout">
+
+          <!-- Left Main Stream: Tabs + 4 ML Deep-Dive Cards + Bottom Status -->
+          <div class="ci-stream-left">
+
+            <!-- Tabs Strip -->
+            <div class="ci-tabs-strip">
+              <button class="ci-tab-nav" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                <span>Détails Transaction</span>
+              </button>
+              <button class="ci-tab-nav" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>Contexte Client</span>
+              </button>
+              <!-- ACTIVE TAB -->
+              <button class="ci-tab-nav active" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04"></path></svg>
+                <span>Explication IA</span>
+              </button>
+              <button class="ci-tab-nav" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>Historique</span>
+              </button>
+            </div>
+
+            <!-- Row 1: Score de Risque & Prédiction Conforme -->
+            <div class="ci-ml-grid">
+
+              <!-- Card 1: Score de Risque -->
+              <div class="ci-card">
+                <div class="ci-card-title-row">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 14 14"></polyline>
+                  </svg>
+                  <h3 class="ci-card-title">Score de Risque</h3>
+                </div>
+
+                <div class="ci-risk-content">
+                  <!-- Semicircle Dial Gauge -->
+                  <div class="ci-dial-wrap">
+                    <svg width="150" height="85" class="ci-dial-svg" viewBox="0 0 160 90">
+                      <defs>
+                        <linearGradient id="riskDialGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                          <stop offset="0%" stop-color="#f87171" />
+                          <stop offset="70%" stop-color="#ef4444" />
+                          <stop offset="100%" stop-color="#dc2626" />
+                        </linearGradient>
+                      </defs>
+                      <!-- Background Track (Full 180° Semicircle) -->
+                      <path d="M 20 80 A 60 60 0 0 1 140 80" fill="none" stroke="#f1f5f9" stroke-width="12" stroke-linecap="round"></path>
+                      <!-- Active Risk Track (Exact 84.12% Arc) -->
+                      <path d="M 20 80 A 60 60 0 0 1 140 80" fill="none" stroke="url(#riskDialGradient)" stroke-width="12" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="29.94"></path>
+                    </svg>
+                    <div class="ci-dial-num">0.8412</div>
+                    <div class="ci-dial-sub">Risque Élevé</div>
+                  </div>
+
+                  <div class="ci-divider-v"></div>
+
+                  <!-- Threshold Information -->
+                  <div class="ci-thresh-info">
+                    <div class="ci-thresh-label">
+                      τ = 0.1200<br />(seuil Purchase)
+                    </div>
+                    <div class="ci-thresh-alert-box">
+                      <div class="ci-thresh-alert-header">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        <span>Dépasse le seuil</span>
+                      </div>
+                      <div class="ci-thresh-alert-desc">
+                        Score supérieur au seuil officiel pour les achats (τ = 0.1200).
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 2: Prédiction Conforme -->
+              <div class="ci-card">
+                <div class="ci-card-title-row">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                  </svg>
+                  <h3 class="ci-card-title">Prédiction Conforme</h3>
+                </div>
+
+                <!-- Conformal Ambiguity Alert -->
+                <div class="ci-conformal-alert">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  <div>
+                    <div class="ci-conf-bold">Zone d'ambiguïté statistique :</div>
+                    <div class="ci-conf-desc">
+                      le modèle ne peut garantir la classe à 95%. Arbitrage humain requis.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Prediction Set Pill -->
+                <div class="ci-conf-set-row">
+                  Prediction set : <span class="ci-conf-set-val">["legitimate", "fraud"]</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Row 2: Attribution SHAP & Détection d'Anomalie -->
+            <div class="ci-ml-grid">
+
+              <!-- Card 3: Attribution SHAP - Top 8 Features -->
+              <div class="ci-card">
+                <div class="ci-card-title-row">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                  </svg>
+                  <h3 class="ci-card-title">Attribution SHAP – Top 8 Features</h3>
+                </div>
+
+                <!-- SHAP Horizontal Waterfall -->
+                <div class="ci-shap-chart">
+                  <!-- 1. amt -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">amt</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-pos" style="width: 48%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-pos">+0.38</span>
+                  </div>
+
+                  <!-- 2. hour_of_day -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">hour_of_day</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-pos" style="width: 25%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-pos">+0.19</span>
+                  </div>
+
+                  <!-- 3. category_risk_score -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">category_risk_score</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-pos" style="width: 18%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-pos">+0.14</span>
+                  </div>
+
+                  <!-- 4. merchant_risk -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">merchant_risk</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-pos" style="width: 14%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-pos">+0.11</span>
+                  </div>
+
+                  <!-- 5. card_age_days -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">card_age_days</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-neg" style="width: 14%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-neg">-0.11</span>
+                  </div>
+
+                  <!-- 6. customer_age -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">customer_age</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-neg" style="width: 12%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-neg">-0.09</span>
+                  </div>
+
+                  <!-- 7. avg_transaction_30d -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">avg_transaction_30d</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-neg" style="width: 9%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-neg">-0.07</span>
+                  </div>
+
+                  <!-- 8. country_risk -->
+                  <div class="ci-shap-row">
+                    <span class="ci-shap-feat">country_risk</span>
+                    <div class="ci-shap-track">
+                      <div class="ci-shap-axis-center"></div>
+                      <div class="ci-shap-bar ci-shap-bar-neg" style="width: 8%;"></div>
+                    </div>
+                    <span class="ci-shap-val ci-val-neg">-0.06</span>
+                  </div>
+
+                  <!-- Scale Axis -->
+                  <div class="ci-shap-scale-row">
+                    <div></div>
+                    <div class="ci-shap-ticks">
+                      <span>-0.4</span>
+                      <span>-0.2</span>
+                      <span>0.0</span>
+                      <span>0.2</span>
+                      <span>0.4</span>
+                    </div>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 4: Détection d'Anomalie (Isolation Forest) -->
+              <div class="ci-card">
+                <div class="ci-card-title-row">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                  </svg>
+                  <h3 class="ci-card-title">Détection d'Anomalie</h3>
+                </div>
+
+                <!-- Isolation Forest Scatter Plot Graphic -->
+                <div class="ci-anomaly-art">
+                  <svg width="100%" height="130" class="ci-anomaly-svg" viewBox="0 0 240 120">
+                    <defs>
+                      <radialGradient id="anomGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15"></stop>
+                        <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"></stop>
+                      </radialGradient>
+                    </defs>
+                    <!-- Background Soft Cluster Glow -->
+                    <ellipse cx="120" cy="60" rx="75" ry="38" fill="url(#anomGlow)"></ellipse>
+                    <ellipse cx="120" cy="60" rx="90" ry="45" fill="none" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3"></ellipse>
+                    
+                    <!-- Inlier Blue Dots Cluster -->
+                    <circle cx="110" cy="55" r="2" fill="#3b82f6" opacity="0.6"></circle>
+                    <circle cx="118" cy="52" r="2.2" fill="#2563eb" opacity="0.8"></circle>
+                    <circle cx="125" cy="58" r="2" fill="#3b82f6" opacity="0.6"></circle>
+                    <circle cx="115" cy="64" r="2" fill="#3b82f6" opacity="0.7"></circle>
+                    <circle cx="130" cy="62" r="2" fill="#2563eb" opacity="0.8"></circle>
+                    <circle cx="105" cy="60" r="1.8" fill="#60a5fa" opacity="0.5"></circle>
+                    <circle cx="135" cy="55" r="2" fill="#3b82f6" opacity="0.6"></circle>
+                    <circle cx="120" cy="68" r="2" fill="#2563eb" opacity="0.7"></circle>
+                    <circle cx="95" cy="58" r="1.8" fill="#93c5fd" opacity="0.5"></circle>
+                    <circle cx="145" cy="62" r="2" fill="#60a5fa" opacity="0.6"></circle>
+                    
+                    <!-- Outlier Points in Red (This Transaction highlighted) -->
+                    <circle cx="195" cy="38" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"></circle>
+                    <circle cx="45" cy="78" r="3" fill="#f87171" opacity="0.8"></circle>
+                    <circle cx="205" cy="75" r="2.5" fill="#f87171" opacity="0.7"></circle>
+                  </svg>
+                </div>
+
+                <!-- Anomaly Metric Scores -->
+                <div class="ci-anomaly-metrics">
+                  <span class="ci-anom-score-lbl">anomaly_score</span>
+                  <span class="ci-anom-score-val">-0.184</span>
+                  <span class="ci-anom-badge-outlier">is_outlier : True</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Bottom: Informations Complémentaires -->
+            <div class="ci-bottom-bar">
+              <div class="ci-bottom-left">
+                <div class="ci-bottom-title-row">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  <span>Informations Complémentaires</span>
+                </div>
+
+                <!-- SLA Restant -->
+                <div class="ci-bottom-data-item">
+                  <span class="ci-bottom-lbl">SLA Restant</span>
+                  <div class="ci-bottom-val-row" style="color: #dc2626;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span id="ciSlaClock">14m 22s</span>
+                    <span class="ci-tag-critique">Critique</span>
+                  </div>
+                </div>
+
+                <!-- Assigné à -->
+                <div class="ci-bottom-data-item">
+                  <span class="ci-bottom-lbl">Assigné à</span>
+                  <div class="ci-bottom-val-row">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Aïcha Belk</span>
+                    <span class="ci-tag-moi">Moi</span>
+                  </div>
+                </div>
+
+                <!-- Créé il y a -->
+                <div class="ci-bottom-data-item">
+                  <span class="ci-bottom-lbl">Créé il y a</span>
+                  <div class="ci-bottom-val-row">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span>32 min</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- History Link -->
+              <a href="decision-history.html" class="ci-history-link">
+                <span>Voir l'historique complet</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </a>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Décision Form -->
+          <div class="ci-panel-right">
+            <div class="ci-decision-card">
+              <div class="ci-dec-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m14.5 12.5-8 8a2.12 2.12 0 1 1-3-3l8-8"></path>
+                  <path d="m18 8 2-2a2.83 2.83 0 1 0-4-4l-2 2"></path>
+                  <path d="m11 13 4 4"></path>
+                </svg>
+                <h2 class="ci-dec-title">Décision</h2>
+              </div>
+
+              <!-- Action Radio Options -->
+              <div class="ci-action-options">
+                <!-- 1. Approve (Légitime) -->
+                <div class="ci-option-card opt-approve selected" data-decision="approve">
+                  <div class="ci-opt-radio">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                  <div class="ci-opt-content">
+                    <div class="ci-opt-title">Approve (Légitime)</div>
+                    <div class="ci-opt-sub">Transaction considérée comme sécurisée.</div>
+                  </div>
+                </div>
+
+                <!-- 2. Reject (Fraude Confirmée) -->
+                <div class="ci-option-card opt-reject" data-decision="reject">
+                  <div class="ci-opt-radio">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </div>
+                  <div class="ci-opt-content">
+                    <div class="ci-opt-title">Reject (Fraude Confirmée)</div>
+                    <div class="ci-opt-sub">Transaction suspecte de fraude.</div>
+                  </div>
+                </div>
+
+                <!-- 3. Escalate (Tier 2 / Enquête) -->
+                <div class="ci-option-card opt-escalate" data-decision="escalate">
+                  <div class="ci-opt-radio">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                  </div>
+                  <div class="ci-opt-content">
+                    <div class="ci-opt-title">Escalate (Tier 2 / Enquête)</div>
+                    <div class="ci-opt-sub">Besoin d'analyse approfondie.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Form: Code Motif -->
+              <div class="ci-form-group">
+                <label class="ci-form-label" for="selectCodeMotif">
+                  Code Motif <span class="ci-required">*</span>
+                </label>
+                <select class="ci-form-select" id="selectCodeMotif" required>
+                  <option value="" disabled selected>Sélectionner un code...</option>
+                  <option value="ID_THEFT">Suspicion d'usurpation d'identité</option>
+                  <option value="AMOUNT_ANOMALY">Montant inhabituel par rapport au profil</option>
+                  <option value="VELOCITY_RISK">Multiples transactions en courte durée</option>
+                  <option value="GEO_MISMATCH">Incohérence géographique (IP vs Carte)</option>
+                  <option value="VERIFIED_CLIENT">Client contacté et identité confirmée</option>
+                  <option value="LEGITIMATE_PATTERN">Activité habituelle vérifiée</option>
+                </select>
+              </div>
+
+              <!-- Form: Justification de Décision -->
+              <div class="ci-form-group">
+                <label class="ci-form-label" for="txtJustification">
+                  Justification de Décision <span class="ci-required">*</span>
+                </label>
+                <textarea 
+                  class="ci-form-textarea" 
+                  id="txtJustification" 
+                  placeholder="Expliquez votre décision en au moins 20 caractères..." 
+                  maxlength="1000"
+                ></textarea>
+                <div class="ci-char-counter">
+                  <span id="charCount">0</span> / 1000
+                </div>
+              </div>
+
+              <!-- Accordion: Notes Internes (optionnel) -->
+              <div class="ci-accordion-header" id="accNotesHeader">
+                <div style="display: flex; align-items: center; gap: 0.45rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                  <span>Notes Internes (optionnel)</span>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+
+              <!-- Submit Button -->
+              <button class="ci-btn-submit" id="btnSubmitDecision" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Soumettre et Clôturer le Dossier</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Live SLA Countdown
+      let slaSecs = 14 * 60 + 22;
+      const slaEl = document.getElementById('ciSlaClock');
+      setInterval(() => {
+        if (slaSecs > 0) {
+          slaSecs--;
+          const m = Math.floor(slaSecs / 60);
+          const s = slaSecs % 60;
+          if (slaEl) slaEl.textContent = `${m}m ${String(s).padStart(2, '0')}s`;
+        }
+      }, 1000);
+
+      // 2. Decision Card Selection
+      const optionCards = document.querySelectorAll('.ci-option-card');
+      optionCards.forEach(card => {
+        card.addEventListener('click', () => {
+          optionCards.forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+        });
+      });
+
+      // 3. Justification Character Counter
+      const textarea = document.getElementById('txtJustification');
+      const counter = document.getElementById('charCount');
+      textarea.addEventListener('input', () => {
+        const len = textarea.value.length;
+        counter.textContent = len;
+        if (len < 20) {
+          counter.style.color = '#dc2626';
+        } else {
+          counter.style.color = '#94a3b8';
+        }
+      });
+
+      // 4. Decision Submission Handler
+      const btnSubmit = document.getElementById('btnSubmitDecision');
+      const selectCode = document.getElementById('selectCodeMotif');
+      btnSubmit.addEventListener('click', () => {
+        const selectedOption = document.querySelector('.ci-option-card.selected');
+        const decision = selectedOption ? selectedOption.getAttribute('data-decision') : 'none';
+        const code = selectCode.value;
+        const text = textarea.value.trim();
+
+        if (!code) {
+          alert('Veuillez sélectionner un Code Motif obligatoire.');
+          selectCode.focus();
+          return;
+        }
+
+        if (text.length < 20) {
+          alert('Veuillez fournir une justification d\'au moins 20 caractères.');
+          textarea.focus();
+          return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = 'Traitement en cours...';
+
+        setTimeout(() => {
+          alert(`Décision [${decision.toUpperCase()}] enregistrée avec succès pour le dossier VG-2048 !`);
+          window.location.href = '/review-queue.html';
+        }, 800);
+      });
+    });
+  </script>
+</body>
+</html>

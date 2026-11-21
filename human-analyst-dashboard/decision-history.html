@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Decision History & Audit Trail</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+
+  <!-- Google Fonts: Geist Sans & Geist Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Global Base Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+
+  <!-- Bulletproof Embedded CSS for Decision History & Audit Trail -->
+  <style>
+    /* ── Reset & Body Lock ── */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f0f4fa;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* ── Global SVG Guard ── */
+    svg {
+      display: inline-block;
+      vertical-align: middle;
+      max-width: 100%;
+    }
+
+    /* ── Left Sidebar (Exact Vigilia Palette & Tokens) ── */
+    .sidebar.light-theme {
+      width: 250px !important;
+      min-width: 250px !important;
+      max-width: 250px !important;
+      background: #ffffff !important;
+      border-right: 1px solid #e2e8f0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      padding: 1.25rem 0.85rem !important;
+      height: 100vh !important;
+      box-sizing: border-box !important;
+      overflow-y: auto !important;
+      z-index: 100 !important;
+    }
+
+    .brand-link {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.75rem !important;
+      text-decoration: none !important;
+      padding: 0.25rem 0.5rem 1.25rem !important;
+    }
+
+    .brand-logo-img {
+      height: 32px !important;
+      width: 32px !important;
+      max-height: 32px !important;
+      max-width: 32px !important;
+      object-fit: contain !important;
+      display: block !important;
+    }
+
+    .brand-name {
+      font-size: 1.35rem !important;
+      font-weight: 800 !important;
+      color: #0f172a !important;
+      letter-spacing: -0.025em !important;
+    }
+
+    .sidebar .nav-item {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.85rem !important;
+      padding: 0.62rem 0.9rem !important;
+      border-radius: 9px !important;
+      font-size: 0.86rem !important;
+      font-weight: 600 !important;
+      color: #475569 !important;
+      text-decoration: none !important;
+      transition: all 0.15s ease !important;
+      box-sizing: border-box !important;
+    }
+
+    .sidebar .nav-item:hover {
+      background: #f1f5f9 !important;
+      color: #0f172a !important;
+    }
+
+    /* Active: Decision History */
+    .sidebar .nav-item.active {
+      background: #fdf4ed !important;
+      color: #c05621 !important;
+      font-weight: 700 !important;
+    }
+
+    .sidebar .nav-item.active svg {
+      stroke: #d97236 !important;
+    }
+
+    .sidebar .nav-item svg {
+      width: 18px !important;
+      height: 18px !important;
+      stroke: #64748b;
+      flex-shrink: 0 !important;
+    }
+
+    .nav-badge {
+      margin-left: auto !important;
+      background: #ea580c !important;
+      color: #ffffff !important;
+      font-size: 0.7rem !important;
+      font-weight: 700 !important;
+      padding: 2px 7px !important;
+      border-radius: 9999px !important;
+    }
+
+    .sidebar-security-box {
+      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+      border: 1px solid #dbeafe;
+      border-radius: 12px;
+      padding: 0.65rem 0.45rem;
+      display: flex;
+      gap: 0.75rem;
+      margin-top: auto;
+    }
+
+    .sidebar-security-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #1e3a8a;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-security-icon svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+
+    /* ── Top Navbar ── */
+    .app-main-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .top-navbar {
+      height: 58px;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.75rem;
+      flex-shrink: 0;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex: 1;
+    }
+
+    .search-container {
+      position: relative;
+      max-width: 440px;
+      width: 100%;
+    }
+
+    .search-container svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px !important;
+      height: 16px !important;
+      color: #94a3b8;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 38px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 9999px;
+      padding: 0 45px 0 38px;
+      font-size: 0.84rem;
+      color: #0f172a;
+      outline: none;
+      box-sizing: border-box;
+      transition: all 0.15s ease;
+    }
+
+    .search-input:focus {
+      background: #ffffff;
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .notification-btn {
+      position: relative;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #64748b;
+      padding: 6px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notification-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .notification-btn svg {
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: #ea580c;
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ffffff;
+    }
+
+    .profile-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .profile-pill:hover {
+      background: #f8fafc;
+    }
+
+    .profile-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #091522;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    /* ── Main Stage Scrollable ── */
+    .main-stage {
+      flex: 1;
+      height: calc(100vh - 58px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 18px 24px 35px;
+      background-color: #f0f4fa;
+      box-sizing: border-box;
+    }
+
+    /* ── 2-Column Workspace Grid ── */
+    .dh-workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 315px;
+      gap: 1.15rem;
+    }
+
+    .dh-left-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    /* 1. Hero Banner: Decision History & Audit Trail */
+    .dh-hero-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 1.25rem 1.75rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dh-hero-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      z-index: 2;
+    }
+
+    .dh-hero-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.025em;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .dh-hero-subtext {
+      font-size: 0.88rem;
+      color: #64748b;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    .dh-hero-graphic {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 75px;
+      z-index: 2;
+    }
+
+    .dh-shield-glow {
+      position: absolute;
+      width: 140px;
+      height: 75px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, rgba(255, 255, 255, 0) 70%);
+      filter: blur(8px);
+      pointer-events: none;
+    }
+
+    .dh-hero-shield-img {
+      height: 75px !important;
+      max-height: 75px !important;
+      width: auto !important;
+      max-width: 150px !important;
+      object-fit: contain !important;
+      display: block !important;
+      position: relative;
+      z-index: 2;
+      filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.2));
+    }
+
+    /* 2. Filter & Export Controls Bar */
+    .dh-filter-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 0.7rem 0.95rem;
+      box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .dh-filter-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .dh-search-box {
+      position: relative;
+      min-width: 170px;
+      flex: 1;
+    }
+
+    .dh-search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px !important;
+      height: 15px !important;
+      color: #94a3b8;
+    }
+
+    .dh-search-input {
+      width: 100%;
+      height: 38px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 0 12px 0 36px;
+      font-size: 0.82rem;
+      color: #0f172a;
+      outline: none;
+      box-sizing: border-box;
+      transition: all 0.15s ease;
+    }
+
+    .dh-search-input:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .dh-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 0 0.75rem;
+      height: 38px;
+    }
+
+    .dh-select-wrap svg {
+      width: 14px !important;
+      height: 14px !important;
+      color: #64748b;
+    }
+
+    .dh-select {
+      border: none;
+      outline: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #0f172a;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .dh-filter-right {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .dh-btn-csv {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 0 0.95rem;
+      height: 38px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .dh-btn-csv:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .dh-btn-csv svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    .dh-btn-ml {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: #0f172a;
+      border: 1px solid #0f172a;
+      border-radius: 9px;
+      padding: 0 1rem;
+      height: 38px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .dh-btn-ml:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+
+    .dh-btn-ml svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    /* 3. KPI Metrics Cards Strip (4 Cards) */
+    .dh-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .dh-kpi-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-sizing: border-box;
+      transition: transform 0.15s;
+    }
+
+    .dh-kpi-card:hover {
+      transform: translateY(-1px);
+    }
+
+    .dh-kpi-icon-wrap {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .dh-kpi-icon-wrap svg {
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    .dh-kpi-icon-total { background: #dcfce7; color: #16a34a; }
+    .dh-kpi-icon-app { background: #dcfce7; color: #16a34a; }
+    .dh-kpi-icon-rej { background: #fee2e2; color: #dc2626; }
+    .dh-kpi-icon-esc { background: #fef3c7; color: #d97706; }
+
+    .dh-kpi-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .dh-kpi-title {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .dh-kpi-num-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .dh-kpi-num {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dh-kpi-rate {
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .dh-kpi-rate-green { color: #10b981; }
+    .dh-kpi-rate-red { color: #ef4444; }
+    .dh-kpi-rate-orange { color: #f59e0b; }
+
+    /* 4. Audit Log Table Card */
+    .dh-table-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+    }
+
+    .dh-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .dh-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .dh-table th {
+      background: #fafcff;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+      padding: 0.6rem 0.45rem;
+      white-space: nowrap;
+    }
+
+    .dh-table td {
+      padding: 0.65rem 0.45rem;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.82rem;
+      color: #0f172a;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .dh-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .dh-table tr.selected-row td {
+      background: #f0f7ff;
+    }
+
+    .dh-date-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .dh-date-d { font-weight: 700; color: #0f172a; font-size: 0.8rem; }
+    .dh-date-t { font-size: 0.72rem; color: #64748b; font-family: 'Geist Mono', monospace; }
+
+    .dh-case-code {
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .dh-analyst-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .dh-analyst-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #091522;
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dh-analyst-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .dh-domain-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dh-tag-domain {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .dh-tag-pur { background: #f3e8ff; color: #7c3aed; }
+    .dh-tag-tra { background: #eff6ff; color: #2563eb; }
+
+    .dh-amt-val {
+      font-weight: 700;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.82rem;
+    }
+
+    .dh-score-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .dh-score-val {
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .dh-score-tau {
+      font-size: 0.7rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Decision Status Pills */
+    .dh-pill-dec {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .dh-pill-app { background: #d1fae5; color: #047857; }
+    .dh-pill-rej { background: #fee2e2; color: #dc2626; }
+    .dh-pill-esc { background: #fef3c7; color: #b45309; }
+
+    .dh-pill-dec svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .dh-reason-code {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .dh-time-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .dh-time-cell svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+
+    .dh-btn-view {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .dh-btn-view:hover, .dh-btn-view.active {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .dh-btn-view svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+
+    /* Pagination */
+    .dh-pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+
+    .dh-pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .dh-page-num {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .dh-page-num.active {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #ea580c;
+    }
+
+    .dh-page-num:not(.active):hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .dh-page-nav {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+
+    .dh-page-nav:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+
+    .dh-page-nav svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    /* ── Right Column: Audit Details Panel ── */
+    .dh-right-panel {
+      display: flex;
+      flex-direction: column;
+      width: 315px;
+      max-width: 315px;
+      flex-shrink: 0;
+    }
+
+    .dh-audit-card {
+      background: #ffffff;
+      box-sizing: border-box;
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .dh-audit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dh-audit-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .dh-audit-close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .dh-audit-close-btn:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+
+    .dh-audit-close-btn svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+
+    /* Status Pill & Timestamp */
+    .dh-audit-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .dh-audit-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .dh-audit-status-pill svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    .dh-audit-time {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Case & Tx ID Bar */
+    .dh-audit-ids-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dh-audit-id-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dh-audit-id-lbl {
+      font-size: 0.7rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .dh-audit-id-val {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Decision Summary */
+    .dh-audit-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .dh-audit-sec-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dh-audit-sec-title svg {
+      width: 15px !important;
+      height: 15px !important;
+      color: #64748b;
+    }
+
+    .dh-audit-summary-p {
+      font-size: 0.78rem;
+      color: #475569;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    /* Model Insights Subcards Grid */
+    .dh-insights-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+
+    .dh-insight-subcard {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .dh-tau-badge {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      font-size: 0.68rem;
+      font-family: 'Geist Mono', monospace;
+      color: #2563eb;
+      font-weight: 700;
+    }
+
+    .dh-gauge-svg {
+      width: 90px;
+      height: 50px;
+    }
+
+    .dh-gauge-score {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      margin-top: -12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dh-gauge-sub {
+      font-size: 0.68rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .dh-conf-sub-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .dh-conf-sub-title svg {
+      width: 13px !important;
+      height: 13px !important;
+      color: #2563eb;
+    }
+
+    .dh-conf-set-txt {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0f172a;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 0.45rem;
+    }
+
+    .dh-conf-cov-tag {
+      font-size: 0.68rem;
+      color: #059669;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .dh-cov-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    /* SHAP Waterfall Mini */
+    .dh-shap-mini {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .dh-shap-m-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 35px;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.68rem;
+    }
+
+    .dh-shap-m-feat {
+      color: #475569;
+      font-family: 'Geist Mono', monospace;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dh-shap-m-track {
+      position: relative;
+      height: 6px;
+      background: #ffffff;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .dh-shap-m-axis {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #cbd5e1;
+    }
+
+    .dh-shap-m-bar {
+      position: absolute;
+      height: 5px;
+      border-radius: 1px;
+    }
+
+    .dh-bar-red { left: 50%; background: #f87171; }
+    .dh-bar-green { right: 50%; background: #34d399; }
+
+    .dh-shap-m-val {
+      font-family: 'Geist Mono', monospace;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    /* Justification & Notes Box */
+    .dh-just-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .dh-just-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .dh-just-lbl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .dh-just-count {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .dh-just-quote {
+      font-size: 0.74rem;
+      color: #475569;
+      font-style: italic;
+      margin: 0;
+      line-height: 1.35;
+    }
+
+    /* Close Button at Bottom */
+    .dh-btn-bottom-close {
+      width: 100%;
+      height: 38px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .dh-btn-bottom-close:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .dh-btn-bottom-close svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Full Application Shell -->
+  <div class="app-shell">
+
+    <!-- ── Left Light Sidebar (Decision History Active) ── -->
+    <aside class="sidebar light-theme" id="appSidebar">
+      <div style="display: flex; flex-direction: column;">
+        
+        <!-- Brand Link with Official Vigilia Logo Image -->
+        <a href="analyst-overview.html" class="brand-link">
+          <img src="assets/vigilia-logo-mark.png" alt="Vigilia Logo" class="brand-logo-img" style="height: 32px; width: 32px; max-width: 32px; object-fit: contain; display: block;" />
+          <span class="brand-name">Vigilia</span>
+        </a>
+
+        <!-- Navigation Group -->
+        <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
+          <a href="analyst-overview.html" class="nav-item" title="Analyst Overview">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span>Analyst Overview</span>
+          </a>
+
+          <a href="review-queue.html" class="nav-item" title="Review Queue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+              <line x1="4" y1="22" x2="4" y2="15"></line>
+            </svg>
+            <span>Review Queue</span>
+          </a>
+
+          <a href="case-investigation.html?case=VG-2048" class="nav-item" title="My Investigations">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>My Investigations</span>
+          </a>
+
+          <!-- ACTIVE: Decision History -->
+          <a href="decision-history.html" class="nav-item active" title="Decision History">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Decision History</span>
+          </a>
+
+          <div style="height: 1px; background: #e2e8f0; margin: 0.75rem 0.65rem 1rem;"></div>
+
+          <a href="#" class="nav-item" title="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Notifications</span>
+            <span class="nav-badge">3</span>
+          </a>
+
+          <a href="#" class="nav-item" title="Profile & Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Profile & Settings</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- Sidebar Security Box -->
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+        <div class="sidebar-security-box">
+          <div class="sidebar-security-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size: 0.78rem; font-weight: 700; color: #0f172a; margin-bottom: 2px;">Your security is our priority</div>
+            <div style="font-size: 0.72rem; color: #64748b; line-height: 1.35;">AI-powered fraud detection keeps your transactions safe.</div>
+          </div>
+        </div>
+
+        <a href="#" style="display: flex; align-items: center; gap: 0.65rem; padding: 0.75rem 0.5rem 0.25rem; font-size: 0.78rem; color: #64748b; text-decoration: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+          </svg>
+          <span>Need help? Contact support</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- ── Main App Wrapper (Top Navbar + Stage) ────────────────── -->
+    <div class="app-main-wrapper">
+
+      <!-- Top Navbar -->
+      <header class="top-navbar">
+        <div class="nav-left">
+          <!-- Search Bar -->
+          <div class="search-container">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              class="search-input" 
+              placeholder="Search by Transaction ID, Case ID, or Analyst..." 
+            />
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <!-- Notification Bell -->
+          <button class="notification-btn" aria-label="Notifications" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="notification-badge">3</span>
+          </button>
+
+          <!-- User Profile -->
+          <div class="profile-pill">
+            <div class="profile-avatar">AB</div>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.86rem; font-weight: 700; color: #0f172a; line-height: 1.2;">Aïcha Belk</span>
+              <span style="font-size: 0.72rem; color: #64748b;">Senior Analyst</span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" style="margin-left: 2px;">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Stage -->
+      <main class="main-stage">
+
+        <!-- 2-Column Main Workspace -->
+        <div class="dh-workspace-grid">
+
+          <!-- Left Stream: Hero + Filter Bar + 4 KPI Cards + Audit Table -->
+          <div class="dh-left-stream">
+
+            <!-- 1. Hero Banner -->
+            <section class="dh-hero-card">
+              <div class="dh-hero-left">
+                <h1 class="dh-hero-title">Decision History &amp; Audit Trail</h1>
+                <p class="dh-hero-subtext">Complete and immutable record of all analyst decisions.</p>
+              </div>
+
+              <!-- Fixed-Size 3D Shield Graphic Perfectly Positioned -->
+              <div class="dh-hero-graphic">
+                <div class="dh-shield-glow"></div>
+                <img src="assets/login-shield-illustration.png" alt="Vigilia Security Shield" class="dh-hero-shield-img" style="height: 75px; max-height: 75px; width: auto; object-fit: contain;" />
+              </div>
+            </section>
+
+            <!-- 2. Filter & Export Controls Bar -->
+            <section class="dh-filter-bar">
+              <div class="dh-filter-left">
+                <!-- Search Box -->
+                <div class="dh-search-box">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input 
+                    type="text" 
+                    id="dhSearchInput" 
+                    class="dh-search-input" 
+                    placeholder="Search by Transaction ID..." 
+                  />
+                </div>
+
+                <!-- Date Range Dropdown -->
+                <div class="dh-select-wrap">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <select class="dh-select" id="filterDateRange">
+                    <option value="30">Last 30 days</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="all">All time</option>
+                  </select>
+                </div>
+
+                <!-- Decisions Filter Dropdown -->
+                <div class="dh-select-wrap">
+                  <select class="dh-select" id="filterDecision">
+                    <option value="all">All Decisions</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Escalated">Escalated</option>
+                  </select>
+                </div>
+
+                <!-- Reason Codes Dropdown -->
+                <div class="dh-select-wrap">
+                  <select class="dh-select" id="filterReason">
+                    <option value="all">All Reason Codes</option>
+                    <option value="BENIGN_HIGH_SPENDER">BENIGN_HIGH_SPENDER</option>
+                    <option value="CARD_NOT_PRESENT_FRAUD">CARD_NOT_PRESENT_FRAUD</option>
+                    <option value="UNUSUAL_VELOCITY_SPIKE">UNUSUAL_VELOCITY_SPIKE</option>
+                    <option value="NORMAL_BEHAVIOR">NORMAL_BEHAVIOR</option>
+                    <option value="FRAUD_PATTERN">FRAUD_PATTERN</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Export Buttons -->
+              <div class="dh-filter-right">
+                <button class="dh-btn-csv" id="btnExportCsv" type="button">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span>Export CSV</span>
+                </button>
+                <button class="dh-btn-ml" id="btnExportMl" type="button">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                  <span>Export for ML</span>
+                </button>
+              </div>
+            </section>
+
+            <!-- 3. KPI Metric Strip (4 Cards) -->
+            <section class="dh-kpi-grid">
+              <!-- Card 1: Total Decisions -->
+              <div class="dh-kpi-card">
+                <div class="dh-kpi-icon-wrap dh-kpi-icon-total">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <div class="dh-kpi-body">
+                  <span class="dh-kpi-title">Total Decisions</span>
+                  <div class="dh-kpi-num-row">
+                    <span class="dh-kpi-num">1,248</span>
+                    <span class="dh-kpi-rate dh-kpi-rate-green">↑ +8% vs last month</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 2: Approved -->
+              <div class="dh-kpi-card">
+                <div class="dh-kpi-icon-wrap dh-kpi-icon-app">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <div class="dh-kpi-body">
+                  <span class="dh-kpi-title">Approved</span>
+                  <div class="dh-kpi-num-row">
+                    <span class="dh-kpi-num">892</span>
+                    <span class="dh-kpi-rate dh-kpi-rate-green">72%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 3: Rejected -->
+              <div class="dh-kpi-card">
+                <div class="dh-kpi-icon-wrap dh-kpi-icon-rej">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </div>
+                <div class="dh-kpi-body">
+                  <span class="dh-kpi-title">Rejected</span>
+                  <div class="dh-kpi-num-row">
+                    <span class="dh-kpi-num">301</span>
+                    <span class="dh-kpi-rate dh-kpi-rate-red">24%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 4: Escalated -->
+              <div class="dh-kpi-card">
+                <div class="dh-kpi-icon-wrap dh-kpi-icon-esc">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                </div>
+                <div class="dh-kpi-body">
+                  <span class="dh-kpi-title">Escalated</span>
+                  <div class="dh-kpi-num-row">
+                    <span class="dh-kpi-num">55</span>
+                    <span class="dh-kpi-rate dh-kpi-rate-orange">4%</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- 4. Audit Log Table Card -->
+            <section class="dh-table-card">
+              <div class="dh-table-wrap">
+                <table class="dh-table" id="dhTable">
+                  <thead>
+                    <tr>
+                      <th>Decision Date (UTC)</th>
+                      <th>Case / Tx ID</th>
+                      <th>Analyst</th>
+                      <th>Domain &amp; Amount</th>
+                      <th>Initial Score (τ)</th>
+                      <th>Decision</th>
+                      <th>Reason Code</th>
+                      <th>Processing Time</th>
+                      <th style="text-align: right;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dhTableBody">
+                    <!-- Row 1: Selected by default -->
+                    <tr class="selected-row" data-case="VG-2048" data-tx="TXN-78421" data-dec="Approved" data-score="0.93" data-tau="0.12" data-conf="['legitimate']" data-conf-level="High confidence (95%)" data-time="Nov 21, 2026 • 14:32:08 UTC" data-reason="BENIGN_HIGH_SPENDER" data-summary="Transaction approved as legitimate. Customer behavior matches historical patterns." data-just="Customer profile is consistent, no suspicious behavior detected." data-notes="Confirmed after checking device info.">
+                      <td>
+                        <div class="dh-date-cell">
+                          <span class="dh-date-d">Nov 21, 2026</span>
+                          <span class="dh-date-t">14:32:08</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-case-code">VG-2048</span>
+                      </td>
+                      <td>
+                        <div class="dh-analyst-cell">
+                          <div class="dh-analyst-avatar">AB</div>
+                          <span class="dh-analyst-name">Aïcha Belk</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-domain-cell">
+                          <span class="dh-tag-domain dh-tag-pur">Purchase</span>
+                          <span class="dh-amt-val">$4,850.00 CAD</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-score-cell">
+                          <span class="dh-score-val">0.93</span>
+                          <span class="dh-score-tau">(0.12)</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-pill-dec dh-pill-app">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <span>Approved</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="dh-reason-code">BENIGN_HIGH_SPENDER</span>
+                      </td>
+                      <td>
+                        <div class="dh-time-cell">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          <span>2m 15s</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <button class="dh-btn-view active" type="button">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    <!-- Row 2 -->
+                    <tr data-case="VG-2047" data-tx="TXN-78420" data-dec="Rejected" data-score="0.87" data-tau="0.33" data-conf="['fraud']" data-conf-level="High confidence (95%)" data-time="Nov 21, 2026 • 13:47:30 UTC" data-reason="CARD_NOT_PRESENT_FRAUD" data-summary="Transaction rejected. Velocity spike in card not present transactions from unknown IP." data-just="Suspicious overseas IP with velocity anomaly." data-notes="Card flagged for fraud team review.">
+                      <td>
+                        <div class="dh-date-cell">
+                          <span class="dh-date-d">Nov 21, 2026</span>
+                          <span class="dh-date-t">13:47:30</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-case-code">VG-2047</span>
+                      </td>
+                      <td>
+                        <div class="dh-analyst-cell">
+                          <div class="dh-analyst-avatar">AB</div>
+                          <span class="dh-analyst-name">Aïcha Belk</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-domain-cell">
+                          <span class="dh-tag-domain dh-tag-tra">Transfer</span>
+                          <span class="dh-amt-val">$12,300.00 MAD</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-score-cell">
+                          <span class="dh-score-val">0.87</span>
+                          <span class="dh-score-tau">(0.33)</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-pill-dec dh-pill-rej">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                          <span>Rejected</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="dh-reason-code">CARD_NOT_PRESENT_FRAUD</span>
+                      </td>
+                      <td>
+                        <div class="dh-time-cell">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          <span>3m 42s</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <button class="dh-btn-view" type="button">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    <!-- Row 3 -->
+                    <tr data-case="VG-2046" data-tx="TXN-78415" data-dec="Escalated" data-score="0.76" data-tau="0.12" data-conf="['legitimate', 'fraud']" data-conf-level="Ambiguous zone (coverage guarantee active)" data-time="Nov 21, 2026 • 12:21:17 UTC" data-reason="UNUSUAL_VELOCITY_SPIKE" data-summary="Case escalated to Tier 2 senior investigation team due to statistical ambiguity." data-just="Ambiguous conformal set, require further account verification." data-notes="Sent to senior queue with priority flag.">
+                      <td>
+                        <div class="dh-date-cell">
+                          <span class="dh-date-d">Nov 21, 2026</span>
+                          <span class="dh-date-t">12:21:17</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-case-code">VG-2046</span>
+                      </td>
+                      <td>
+                        <div class="dh-analyst-cell">
+                          <div class="dh-analyst-avatar">AB</div>
+                          <span class="dh-analyst-name">Aïcha Belk</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-domain-cell">
+                          <span class="dh-tag-domain dh-tag-pur">Purchase</span>
+                          <span class="dh-amt-val">$795.00 CAD</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-score-cell">
+                          <span class="dh-score-val">0.76</span>
+                          <span class="dh-score-tau">(0.12)</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-pill-dec dh-pill-esc">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                          <span>Escalated</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="dh-reason-code">UNUSUAL_VELOCITY_SPIKE</span>
+                      </td>
+                      <td>
+                        <div class="dh-time-cell">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          <span>5m 12s</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <button class="dh-btn-view" type="button">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    <!-- Row 4 -->
+                    <tr data-case="VG-2045" data-tx="TXN-78412" data-dec="Approved" data-score="0.71" data-tau="0.33" data-conf="['legitimate']" data-conf-level="High confidence (95%)" data-time="Nov 21, 2026 • 11:50:03 UTC" data-reason="NORMAL_BEHAVIOR" data-summary="Transaction approved. Verified recurring recipient." data-just="Known beneficiary, client confirmed transaction by SMS." data-notes="No further action needed.">
+                      <td>
+                        <div class="dh-date-cell">
+                          <span class="dh-date-d">Nov 21, 2026</span>
+                          <span class="dh-date-t">11:50:03</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-case-code">VG-2045</span>
+                      </td>
+                      <td>
+                        <div class="dh-analyst-cell">
+                          <div class="dh-analyst-avatar">AB</div>
+                          <span class="dh-analyst-name">Aïcha Belk</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-domain-cell">
+                          <span class="dh-tag-domain dh-tag-tra">Transfer</span>
+                          <span class="dh-amt-val">$2,200.00 EUR</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-score-cell">
+                          <span class="dh-score-val">0.71</span>
+                          <span class="dh-score-tau">(0.33)</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-pill-dec dh-pill-app">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <span>Approved</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="dh-reason-code">NORMAL_BEHAVIOR</span>
+                      </td>
+                      <td>
+                        <div class="dh-time-cell">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          <span>1m 58s</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <button class="dh-btn-view" type="button">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    <!-- Row 5 -->
+                    <tr data-case="VG-2044" data-tx="TXN-78409" data-dec="Rejected" data-score="0.79" data-tau="0.12" data-conf="['fraud']" data-conf-level="High confidence (95%)" data-time="Nov 21, 2026 • 10:12:45 UTC" data-reason="FRAUD_PATTERN" data-summary="Card compromised in known data breach, blocked instantly." data-just="Known stolen credential credential stuffing attack." data-notes="Account frozen pending card reissuance.">
+                      <td>
+                        <div class="dh-date-cell">
+                          <span class="dh-date-d">Nov 21, 2026</span>
+                          <span class="dh-date-t">10:12:45</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-case-code">VG-2044</span>
+                      </td>
+                      <td>
+                        <div class="dh-analyst-cell">
+                          <div class="dh-analyst-avatar">AB</div>
+                          <span class="dh-analyst-name">Aïcha Belk</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-domain-cell">
+                          <span class="dh-tag-domain dh-tag-pur">Purchase</span>
+                          <span class="dh-amt-val">$6,750.00 USD</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dh-score-cell">
+                          <span class="dh-score-val">0.79</span>
+                          <span class="dh-score-tau">(0.12)</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="dh-pill-dec dh-pill-rej">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                          <span>Rejected</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="dh-reason-code">FRAUD_PATTERN</span>
+                      </td>
+                      <td>
+                        <div class="dh-time-cell">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          <span>4m 20s</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <button class="dh-btn-view" type="button">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Pagination Footer -->
+              <div class="dh-pagination-bar">
+                <span id="dhShowingText">Showing 1–5 of 1,248 decisions</span>
+                <div class="dh-pagination-controls">
+                  <span class="dh-page-nav">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </span>
+                  <span class="dh-page-num active">1</span>
+                  <span class="dh-page-num">2</span>
+                  <span class="dh-page-num">3</span>
+                  <span class="dh-page-num">4</span>
+                  <span class="dh-page-num">5</span>
+                  <span class="dh-page-nav">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </span>
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- Right Column: Audit Details Panel -->
+          <div class="dh-right-panel" id="dhAuditPanel">
+            <div class="dh-audit-card">
+              <div class="dh-audit-header">
+                <h2 class="dh-audit-title">Audit Details</h2>
+                <button class="dh-audit-close-btn" id="btnCloseAudit" type="button" aria-label="Close">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+
+              <!-- Status Pill & UTC Timestamp -->
+              <div class="dh-audit-status-row">
+                <span class="dh-audit-status-pill" id="auditStatusPill">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span id="auditStatusText">Approved</span>
+                </span>
+                <span class="dh-audit-time" id="auditTimeText">Nov 21, 2026 • 14:32:08 UTC</span>
+              </div>
+
+              <!-- Case & Tx IDs -->
+              <div class="dh-audit-ids-box">
+                <div class="dh-audit-id-col">
+                  <span class="dh-audit-id-lbl">Case ID</span>
+                  <span class="dh-audit-id-val" id="auditCaseId">VG-2048</span>
+                </div>
+                <div class="dh-audit-id-col" style="text-align: right;">
+                  <span class="dh-audit-id-lbl">Transaction ID</span>
+                  <span class="dh-audit-id-val" id="auditTxId">TXN-78421</span>
+                </div>
+              </div>
+
+              <!-- Decision Summary -->
+              <div class="dh-audit-section">
+                <div class="dh-audit-sec-title">Decision Summary</div>
+                <p class="dh-audit-summary-p" id="auditSummaryText">
+                  Transaction approved as legitimate. Customer behavior matches historical patterns.
+                </p>
+              </div>
+
+              <!-- Model Insights -->
+              <div class="dh-audit-section">
+                <div class="dh-audit-sec-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                  <span>Model Insights</span>
+                </div>
+
+                <div class="dh-insights-grid">
+                  <!-- Risk Score Semicircle Gauge -->
+                  <div class="dh-insight-subcard">
+                    <span class="dh-tau-badge" id="auditTauBadge">τ = 0.12</span>
+                    <svg width="90" height="50" class="dh-gauge-svg" viewBox="0 0 100 60">
+                      <path d="M 15 52 A 35 35 0 0 1 85 52" fill="none" stroke="#f1f5f9" stroke-width="8" stroke-linecap="round"></path>
+                      <path id="auditGaugeFill" d="M 15 52 A 35 35 0 0 1 85 52" fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round" stroke-dasharray="110" stroke-dashoffset="7.7"></path>
+                    </svg>
+                    <div class="dh-gauge-score" id="auditScoreVal">0.93</div>
+                    <span class="dh-gauge-sub">Risk Score</span>
+                  </div>
+
+                  <!-- Conformal Set -->
+                  <div class="dh-insight-subcard" style="justify-content: center;">
+                    <div class="dh-conf-sub-title">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                      <span>Conformal Set</span>
+                    </div>
+                    <span class="dh-conf-set-txt" id="auditConfSet">['legitimate']</span>
+                    <div class="dh-conf-cov-tag">
+                      <span class="dh-cov-dot"></span>
+                      <span id="auditConfLevel">High confidence (95%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SHAP Waterfall Mini -->
+              <div class="dh-audit-section">
+                <div class="dh-audit-sec-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                  <span>SHAP Top Features</span>
+                </div>
+
+                <div class="dh-shap-mini">
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">amt</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-red" style="width: 45%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #dc2626;">+0.38</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">hour_of_day</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-red" style="width: 25%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #dc2626;">+0.19</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">category_risk_score</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-red" style="width: 18%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #dc2626;">+0.14</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">merchant_risk</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-red" style="width: 14%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #dc2626;">+0.11</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">card_age_days</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-green" style="width: 14%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #059669;">-0.11</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">customer_age</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-green" style="width: 12%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #059669;">-0.09</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">avg_transaction_30d</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-green" style="width: 9%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #059669;">-0.07</span>
+                  </div>
+                  <div class="dh-shap-m-row">
+                    <span class="dh-shap-m-feat">country_risk</span>
+                    <div class="dh-shap-m-track">
+                      <div class="dh-shap-m-axis"></div>
+                      <div class="dh-shap-m-bar dh-bar-green" style="width: 8%;"></div>
+                    </div>
+                    <span class="dh-shap-m-val" style="color: #059669;">-0.06</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Justification & Notes -->
+              <div class="dh-audit-section">
+                <div class="dh-just-box">
+                  <div class="dh-just-row">
+                    <div class="dh-just-lbl-row">
+                      <span>Analyst Justification :</span>
+                      <span class="dh-just-count">(42 chars)</span>
+                    </div>
+                    <p class="dh-just-quote" id="auditJustText">
+                      "Customer profile is consistent, no suspicious behavior detected."
+                    </p>
+                  </div>
+                  <div class="dh-just-row">
+                    <div class="dh-just-lbl-row">
+                      <span>Internal Notes :</span>
+                      <span class="dh-just-count">(34 chars)</span>
+                    </div>
+                    <p class="dh-just-quote" id="auditNotesText">
+                      "Confirmed after checking device info."
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bottom Close Button -->
+              <button class="dh-btn-bottom-close" id="btnBottomClose" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <span>Close</span>
+              </button>
+
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tableRows = document.querySelectorAll('#dhTableBody tr');
+      const searchInput = document.getElementById('dhSearchInput');
+      const decisionSelect = document.getElementById('filterDecision');
+      const reasonSelect = document.getElementById('filterReason');
+
+      // 1. Row selection updates Audit Details Panel
+      tableRows.forEach(row => {
+        const btnView = row.querySelector('.dh-btn-view');
+        const handleSelect = () => {
+          tableRows.forEach(r => {
+            r.classList.remove('selected-row');
+            const b = r.querySelector('.dh-btn-view');
+            if (b) b.classList.remove('active');
+          });
+          row.classList.add('selected-row');
+          if (btnView) btnView.classList.add('active');
+
+          // Update panel fields
+          const caseId = row.getAttribute('data-case');
+          const txId = row.getAttribute('data-tx');
+          const dec = row.getAttribute('data-dec');
+          const score = row.getAttribute('data-score');
+          const tau = row.getAttribute('data-tau');
+          const conf = row.getAttribute('data-conf');
+          const confLevel = row.getAttribute('data-conf-level');
+          const time = row.getAttribute('data-time');
+          const summary = row.getAttribute('data-summary');
+          const just = row.getAttribute('data-just');
+          const notes = row.getAttribute('data-notes');
+
+          document.getElementById('auditCaseId').textContent = caseId;
+          document.getElementById('auditTxId').textContent = txId;
+          document.getElementById('auditStatusText').textContent = dec;
+          document.getElementById('auditTimeText').textContent = time;
+          document.getElementById('auditSummaryText').textContent = summary;
+          document.getElementById('auditScoreVal').textContent = score;
+          document.getElementById('auditTauBadge').textContent = `τ = ${tau}`;
+          document.getElementById('auditConfSet').textContent = conf;
+          document.getElementById('auditConfLevel').textContent = confLevel;
+          document.getElementById('auditJustText').textContent = `"${just}"`;
+          document.getElementById('auditNotesText').textContent = `"${notes}"`;
+
+          const statusPill = document.getElementById('auditStatusPill');
+          const gaugeFill = document.getElementById('auditGaugeFill');
+          if (dec === 'Approved') {
+            statusPill.className = 'dh-audit-status-pill';
+            statusPill.style.background = '#d1fae5';
+            statusPill.style.color = '#047857';
+            gaugeFill.setAttribute('stroke', '#10b981');
+          } else if (dec === 'Rejected') {
+            statusPill.className = 'dh-audit-status-pill';
+            statusPill.style.background = '#fee2e2';
+            statusPill.style.color = '#dc2626';
+            gaugeFill.setAttribute('stroke', '#ef4444');
+          } else {
+            statusPill.className = 'dh-audit-status-pill';
+            statusPill.style.background = '#fef3c7';
+            statusPill.style.color = '#b45309';
+            gaugeFill.setAttribute('stroke', '#f59e0b');
+          }
+        };
+
+        if (btnView) btnView.addEventListener('click', handleSelect);
+        row.addEventListener('click', handleSelect);
+      });
+
+      // 2. Filters Logic
+      function filterTable() {
+        const query = searchInput.value.toLowerCase().trim();
+        const selectedDec = decisionSelect.value;
+        const selectedReason = reasonSelect.value;
+        let count = 0;
+
+        tableRows.forEach(row => {
+          const text = row.textContent.toLowerCase();
+          const dec = row.getAttribute('data-dec');
+          const reason = row.getAttribute('data-reason');
+
+          const matchQuery = !query || text.includes(query);
+          const matchDec = selectedDec === 'all' || dec === selectedDec;
+          const matchReason = selectedReason === 'all' || reason === selectedReason;
+
+          if (matchQuery && matchDec && matchReason) {
+            row.style.display = '';
+            count++;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+
+        document.getElementById('dhShowingText').textContent = `Showing 1–${count} of 1,248 decisions`;
+      }
+
+      searchInput.addEventListener('input', filterTable);
+      decisionSelect.addEventListener('change', filterTable);
+      reasonSelect.addEventListener('change', filterTable);
+
+      // 3. Export CSV handler
+      document.getElementById('btnExportCsv').addEventListener('click', () => {
+        const csvContent = "data:text/csv;charset=utf-8,Decision_Date,Case_ID,Analyst,Domain,Amount,Score,Tau,Decision,Reason_Code\n" +
+          "2026-11-21 14:32:08,VG-2048,Aicha Belk,Purchase,4850.00 CAD,0.93,0.12,Approved,BENIGN_HIGH_SPENDER\n" +
+          "2026-11-21 13:47:30,VG-2047,Aicha Belk,Transfer,12300.00 MAD,0.87,0.33,Rejected,CARD_NOT_PRESENT_FRAUD\n" +
+          "2026-11-21 12:21:17,VG-2046,Aicha Belk,Purchase,795.00 CAD,0.76,0.12,Escalated,UNUSUAL_VELOCITY_SPIKE\n" +
+          "2026-11-21 11:50:03,VG-2045,Aicha Belk,Transfer,2200.00 EUR,0.71,0.33,Approved,NORMAL_BEHAVIOR\n" +
+          "2026-11-21 10:12:45,VG-2044,Aicha Belk,Purchase,6750.00 USD,0.79,0.12,Rejected,FRAUD_PATTERN";
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "vigilia_audit_decisions.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+
+      // 4. Export for ML Active Learning Handler
+      document.getElementById('btnExportMl').addEventListener('click', () => {
+        const mlData = {
+          export_timestamp: new Date().toISOString(),
+          purpose: "Active Learning & Retraining Feed",
+          records_count: 5,
+          cases: [
+            { case_id: "VG-2048", domain: "purchase", amount: 4850.0, ml_score: 0.93, tau: 0.12, decision: "Approved", reason: "BENIGN_HIGH_SPENDER" },
+            { case_id: "VG-2047", domain: "transfer", amount: 12300.0, ml_score: 0.87, tau: 0.33, decision: "Rejected", reason: "CARD_NOT_PRESENT_FRAUD" },
+            { case_id: "VG-2046", domain: "purchase", amount: 795.0, ml_score: 0.76, tau: 0.12, decision: "Escalated", reason: "UNUSUAL_VELOCITY_SPIKE" }
+          ]
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mlData, null, 2));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", "vigilia_active_learning_feed.json");
+        document.body.appendChild(dl);
+        dl.click();
+        document.body.removeChild(dl);
+      });
+
+      // 5. Close panel
+      const panel = document.getElementById('dhAuditPanel');
+      document.getElementById('btnCloseAudit').addEventListener('click', () => {
+        panel.style.opacity = '0.4';
+        setTimeout(() => panel.style.opacity = '1', 200);
+      });
+      document.getElementById('btnBottomClose').addEventListener('click', () => {
+        panel.style.opacity = '0.4';
+        setTimeout(() => panel.style.opacity = '1', 200);
+      });
+    });
+  </script>
+</body>
+</html>
