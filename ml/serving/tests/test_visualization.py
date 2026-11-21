@@ -407,32 +407,39 @@ def test_api_unsupported_umap_returns_404(test_client: TestClient):
     assert data["code"] == "METHOD_NOT_SUPPORTED"
 
 
-def test_api_absent_artifact_returns_404(test_client: TestClient):
+def test_api_absent_artifact_returns_404(
+    test_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Verifies unseeded artifact returns HTTP 404 VISUALIZATION_NOT_FOUND."""
+    empty_dir = tmp_path / "empty_artifacts"
+    empty_dir.mkdir(exist_ok=True)
+    mgr = VisualizationManager(search_paths=[empty_dir])
+    import visualization_loader
+    monkeypatch.setattr(visualization_loader, "_visualization_manager_instance", mgr)
+
     resp = test_client.get("/visualization/purchase/pca")
     assert resp.status_code == 404
     data = resp.json()
+    assert data["status"] == 404
     assert data["code"] == "VISUALIZATION_NOT_FOUND"
 
 
-def test_api_corrupted_artifact_handling(test_client: TestClient, tmp_path: Path):
+def test_api_corrupted_artifact_handling(
+    test_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Verifies corrupted file on disk returns HTTP 503 VISUALIZATION_CORRUPTED."""
     # Write corrupt JSON
     corrupt_file = tmp_path / "purchase_pca_points.json"
     corrupt_file.write_text("{invalid_json: true", encoding="utf-8")
 
     mgr = VisualizationManager(search_paths=[tmp_path])
-    from visualization_loader import _instance_lock, _visualization_manager_instance
     import visualization_loader
-    visualization_loader._visualization_manager_instance = mgr
+    monkeypatch.setattr(visualization_loader, "_visualization_manager_instance", mgr)
 
-    try:
-        resp = test_client.get("/visualization/purchase/pca")
-        assert resp.status_code == 503
-        data = resp.json()
-        assert data["code"] == "VISUALIZATION_CORRUPTED"
-    finally:
-        visualization_loader._visualization_manager_instance = None
+    resp = test_client.get("/visualization/purchase/pca")
+    assert resp.status_code == 503
+    data = resp.json()
+    assert data["code"] == "VISUALIZATION_CORRUPTED"
 
 
 def test_concurrent_access_thread_safety():

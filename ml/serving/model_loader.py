@@ -788,6 +788,13 @@ def warmup_model(model: Any, family: str) -> None:
     logger.info("Model warm-up completed successfully for family '%s'.", clean_family)
 
 
+class _CallableTuple(tuple):
+    """Tuple subclass that is callable, allowing both method and property access."""
+
+    def __call__(self) -> Tuple[str, ...]:
+        return self
+
+
 class ModelRegistry:
     """
     Thread-safe registry managing independent model families.
@@ -822,8 +829,8 @@ class ModelRegistry:
         }
 
     @property
-    def get_supported_families(self) -> Tuple[str, ...]:
-        return self.SUPPORTED_FAMILIES
+    def get_supported_families(self) -> _CallableTuple:
+        return _CallableTuple(self.SUPPORTED_FAMILIES)
 
     def _validate_family(self, family: str) -> None:
         if family not in self.SUPPORTED_FAMILIES:
@@ -1341,7 +1348,7 @@ def load_all_models(tracking_uri: Optional[str] = None) -> Dict[str, Tuple[Any, 
     """Attempts to load all supported model families. Returns loaded models per family."""
     registry = get_model_registry()
     results = {}
-    for family in registry.get_supported_families:
+    for family in registry.get_supported_families():
         try:
             model, version = load_family_model(family=family, tracking_uri=tracking_uri)
             results[family] = (model, version)
@@ -1358,7 +1365,7 @@ def _background_loader_loop() -> None:
     attempt = 0
 
     while not _STOP_EVENT.is_set():
-        for family in registry.get_supported_families:
+        for family in registry.get_supported_families():
             if not registry.is_family_startup_complete(family):
                 if not acquire_reload_guard(family):
                     continue
@@ -1477,7 +1484,7 @@ def set_cached_model(
             registry.mark_startup_complete(family, True)
     else:
         # Legacy: sets for all supported families
-        for fam in registry.get_supported_families:
+        for fam in registry.get_supported_families():
             registry.set_model(fam, model, version)
             if mark_started:
                 registry.mark_startup_complete(fam, True)

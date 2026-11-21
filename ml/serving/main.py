@@ -225,7 +225,7 @@ def get_models() -> ModelsListResponse:
     registry = get_model_registry()
     models_metadata: Dict[str, ModelMetadata] = {}
 
-    for family in registry.get_supported_families:
+    for family in registry.get_supported_families():
         entry = registry.get_entry(family)
         status_str = registry.get_loading_status(family)
         default_name = current_settings.get_model_name_for_family(family)
@@ -568,13 +568,13 @@ def reload_model_family(
     current_settings = get_settings()
 
     # 1. Validate family parameter
-    if family not in registry.get_supported_families:
+    if family not in registry.get_supported_families():
         raise ServingException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code=ERROR_CODE_VALIDATION_ERROR,
             title="Invalid model family",
-            detail=f"Unknown model family '{family}'. Supported families: {list(registry.get_supported_families)}",
-            errors=[ValidationErrorItem(field="family", message=f"Must be one of {list(registry.get_supported_families)}")],
+            detail=f"Unknown model family '{family}'. Supported families: {list(registry.get_supported_families())}",
+            errors=[ValidationErrorItem(field="family", message=f"Must be one of {list(registry.get_supported_families())}")],
         )
 
     # 2. Acquire per-family concurrency guard to prevent duplicate concurrent reloads
