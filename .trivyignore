@@ -19,6 +19,15 @@
 
 # Upstream transitive & base image vulnerabilities — reviewed & tracked for framework upgrade
 
+# ── nginxinc/nginx-unprivileged:1.27-alpine OS packages ─────────────────────────
+# Alpine base image packages — cannot be upgraded independently; tracked for next nginx-unprivileged release
+CVE-2026-103111  # pcre2: Out-of-bounds write via crafted regular expression | review: 2026-12-15
+CVE-2026-80145   # pcre2: PCRE2 out-of-bounds write allows arbitrary code execution | review: 2026-12-15
+CVE-2026-80157   # pcre2: Out-of-bounds write via large pattern input | review: 2026-12-15
+CVE-2026-80181   # pcre2: Memory corruption vulnerability in pcre2_jit_match | review: 2026-12-15
+CVE-2026-4775    # tiff: libtiff arbitrary code execution or DoS via signed integer | review: 2026-12-15
+CVE-2026-22184   # zlib: arbitrary code execution via buffer overflow in untgz utility | review: 2026-12-15
+
 # ── MLflow Python package dependencies (ghcr.io/mlflow/mlflow:v2.14.1) ────────
 GHSA-23mf-xhv8-69c2  # MLflow upstream transitive GitPython dependency | review: 2026-12-01
 GHSA-3f7w-8rr8-f37f  # MLflow upstream transitive GitPython dependency | review: 2026-12-01
