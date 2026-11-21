@@ -1,4 +1,4 @@
-import logoUrl from '../../assets/vigilia-logo-mark.png';
+import logoUrl from '../../../assets/vigilia-logo-mark.png';
 
 /**
  * Vigilia Platform — Top Navbar Web Component (<vigilia-top-navbar>)

@@ -1,0 +1,46 @@
+/** Vigilia — Transactions page · transactions.css */
+
+/* ── Merchant cell ── */
+.tx-merchant { display:flex; align-items:center; gap:10px; }
+.tx-info { display:flex; flex-direction:column; }
+.tx-name { font-size:13.5px; font-weight:700; color:#0f172a; }
+.tx-date-sm { font-size:11.5px; color:#64748b; }
+.tx-icon {
+  width:34px; height:34px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:800; flex-shrink:0;
+}
+.tx-icon.netflix  { background:#000; color:#e50914; }
+.tx-icon.spotify  { background:#121212; color:#1ed760; }
+.tx-icon.amazon   { background:#fff3e0; color:#0f172a; border:1px solid #e2e8f0; }
+.tx-icon.transfer { background:#eff6ff; color:#2563eb; }
+.tx-icon.user     { background:#f1f5f9; color:#475569; font-size:11px; }
+.tx-icon.deposit  { background:#ecfdf5; color:#10b981; font-size:16px; font-weight:900; }
+.tx-icon.merchant { background:#fdf3eb; color:#c25e2e; }
+
+.tx-num  { color:#94a3b8; font-size:12.5px; font-weight:600; }
+.tx-date { color:#64748b; font-size:13px; white-space:nowrap; }
+.tx-amount { text-align:right; font-weight:700; font-size:13.5px; }
+.tx-amount.neg { color:#0f172a; }
+.tx-amount.pos { color:#10b981; }
+
+/* ── Pagination ── */
+.tx-pagination {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 0 0; margin-top:4px;
+  border-top: 1px solid #f1f5f9;
+}
+.tx-page-btn {
+  padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600;
+  color:#64748b; border:1px solid #e2e8f0; background:#fff; cursor:pointer;
+  transition:all .15s;
+}
+.tx-page-btn:hover:not(:disabled) { background:#f8fafc; color:#0f172a; }
+.tx-page-btn:disabled { opacity:.4; cursor:not-allowed; }
+.tx-page-nums { display:flex; gap:4px; }
+.tx-page-num {
+  width:34px; height:34px; border-radius:8px; font-size:13px; font-weight:700;
+  color:#64748b; border:1px solid #e2e8f0; background:#fff; cursor:pointer;
+}
+.tx-page-num.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+

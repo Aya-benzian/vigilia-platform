@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Customer Overview</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="css/customer-overview.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- Reusable Customer Sidebar Component -->
+    <customer-sidebar active="overview" workspace="CUSTOMER WORKSPACE"></customer-sidebar>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         MAIN APPLICATION AREA
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="app-main-wrapper">
+
+      <!-- Reusable Customer Top Navbar Component -->
+      <customer-navbar></customer-navbar>
+
+      <!-- Main Stage Container -->
+      <main class="main-stage">
+
+        <!-- Top Header & Direct Action Bar -->
+        <header class="cst-cockpit-header">
+          <div class="cst-header-left">
+            <h1 class="cst-page-title">
+              <span id="cstGreetingTime" class="cst-greeting-text">Good afternoon,</span> <span id="cstHeroName" class="cst-hero-name">Aya Belk</span>
+            </h1>
+            <p class="cst-page-desc">Here's a quick overview of your account and recent activity.</p>
+          </div>
+
+          <div class="cst-header-actions">
+            <a href="send-money.html" class="cst-btn-cta primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <span>Send Money</span>
+            </a>
+            <button type="button" class="cst-btn-cta secondary" id="cstTopUpBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Top Up</span>
+            </button>
+            <a href="merchant-pay.html" class="cst-btn-cta outline">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              <span>Pay Merchant</span>
+            </a>
+          </div>
+        </header>
+
+        <!-- 4-Card Unified Metrics Strip -->
+        <section class="cst-metrics-row">
+
+          <!-- Card 1: Total Balance -->
+          <div class="cst-metric-card">
+            <div class="cst-metric-top">
+              <div class="cst-metric-label-group">
+                <span class="cst-metric-label">Total Balance</span>
+                <button class="cst-eye-toggle" id="cstEyeToggle" aria-label="Toggle balance visibility" title="Hide/Show Balance">
+                  <svg id="cstEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <span class="cst-metric-icon-box blue">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 10h20"/><circle cx="18" cy="15" r="1.5"/></svg>
+              </span>
+            </div>
+            <div class="cst-metric-val-row">
+              <span class="cst-curr" id="cstTbCurrency">$</span>
+              <span class="cst-metric-val" id="cstTotalBalance">0.00</span>
+            </div>
+            <div class="cst-metric-footer positive" id="cstBalanceTrend">
+              <span class="cst-status-dot ready live-pulse"></span>
+              <span id="cstBalanceTrendText">Real-time ledger balance</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Available Funds -->
+          <div class="cst-metric-card">
+            <div class="cst-metric-top">
+              <span class="cst-metric-label">Available to Spend</span>
+              <span class="cst-metric-icon-box green">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              </span>
+            </div>
+            <div class="cst-metric-val-row">
+              <span class="cst-curr" id="cstAvailCurrency">$</span>
+              <span class="cst-metric-val" id="cstAvailableFunds">0.00</span>
+            </div>
+            <div class="cst-metric-footer positive">
+              <span class="cst-status-dot ready"></span>
+              <span>Available for instant transfer</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Funds On Hold -->
+          <div class="cst-metric-card">
+            <div class="cst-metric-top">
+              <span class="cst-metric-label">In AI Review (On Hold)</span>
+              <span class="cst-metric-icon-box amber">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+            </div>
+            <div class="cst-metric-val-row">
+              <span class="cst-curr" id="cstHoldCurrency">$</span>
+              <span class="cst-metric-val" id="cstOnHoldFunds">0.00</span>
+            </div>
+            <div class="cst-metric-footer warning">
+              <span class="cst-status-dot review"></span>
+              <span>1 transfer flagged for validation</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Monthly Outflow -->
+          <div class="cst-metric-card">
+            <div class="cst-metric-top">
+              <span class="cst-metric-label">Spent This Month</span>
+              <span class="cst-metric-icon-box purple">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </span>
+            </div>
+            <div class="cst-metric-val-row">
+              <span class="cst-curr">$</span>
+              <span class="cst-metric-val" id="cstSpentAmount">0.00</span>
+            </div>
+            <div class="cst-metric-footer neutral">
+              <span class="cst-status-dot neutral"></span>
+              <span id="cstMonthlySpentDesc">Calculated from settled debits</span>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- 2-Column Responsive Body Layout -->
+        <div class="cst-cockpit-grid">
+
+          <!-- LEFT COLUMN (67% width) -->
+          <div class="cst-grid-main">
+
+            <!-- Card: Cash Flow & Activity Chart -->
+            <div class="cst-card cst-chart-card">
+              <div class="cst-card-header">
+                <div class="cst-card-title-group">
+                  <h3 class="cst-card-title">Cash Flow & Activity</h3>
+                  <div class="cst-chart-legend">
+                    <span class="cst-legend-item"><span class="cst-legend-dot incoming"></span>Incoming</span>
+                    <span class="cst-legend-item"><span class="cst-legend-dot outgoing"></span>Outgoing</span>
+                  </div>
+                </div>
+
+                <div class="cst-time-dropdown-wrap">
+                  <button class="cst-dropdown-pill" id="cstTimeRangeDropdown" type="button" aria-expanded="false">
+                    <span class="cst-dropdown-label">Last 30 days</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="cst-time-menu" id="cstTimeMenu">
+                    <button class="cst-select-item" data-days="7" type="button">Last 7 days</button>
+                    <button class="cst-select-item active" data-days="30" type="button">Last 30 days</button>
+                    <button class="cst-select-item" data-days="90" type="button">Last 90 days</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick cash flow stats strip -->
+              <div class="cst-chart-summary-strip">
+                <div class="cst-summary-item">
+                  <span class="cst-sum-label">Total Inflow</span>
+                  <span class="cst-sum-val green font-mono" id="cstInflowVal">+$3,850.00</span>
+                </div>
+                <div class="cst-summary-divider"></div>
+                <div class="cst-summary-item">
+                  <span class="cst-sum-label">Total Outflow</span>
+                  <span class="cst-sum-val orange font-mono" id="cstOutflowVal">-$1,400.00</span>
+                </div>
+                <div class="cst-summary-divider"></div>
+                <div class="cst-summary-item">
+                  <span class="cst-sum-label">Net Cash Flow</span>
+                  <span class="cst-sum-val blue font-mono" id="cstNetVal">+$2,450.00</span>
+                </div>
+              </div>
+
+              <!-- Interactive Chart Visual Canvas/SVG -->
+              <div class="cst-chart-container">
+                <div class="cst-chart-y-axis">
+                  <span>$4k</span>
+                  <span>$3k</span>
+                  <span>$2k</span>
+                  <span>$1k</span>
+                  <span>$0</span>
+                </div>
+                <div class="cst-chart-viewport" id="cstChartViewport">
+                  <svg viewBox="0 0 560 170" class="cst-activity-svg" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="gradIncoming" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22"/>
+                        <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0"/>
+                      </linearGradient>
+                      <linearGradient id="gradOutgoing" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#c25e2e" stop-opacity="0.18"/>
+                        <stop offset="100%" stop-color="#c25e2e" stop-opacity="0.0"/>
+                      </linearGradient>
+                    </defs>
+
+                    <!-- Horizontal Grid lines -->
+                    <line x1="0" y1="10"  x2="560" y2="10"  stroke="#f1f5f9" stroke-width="1"/>
+                    <line x1="0" y1="48"  x2="560" y2="48"  stroke="#f1f5f9" stroke-width="1"/>
+                    <line x1="0" y1="86"  x2="560" y2="86"  stroke="#f1f5f9" stroke-width="1"/>
+                    <line x1="0" y1="124" x2="560" y2="124" stroke="#f1f5f9" stroke-width="1"/>
+                    <line x1="0" y1="160" x2="560" y2="160" stroke="#f1f5f9" stroke-width="1"/>
+
+                    <!-- Area fills -->
+                    <path id="cstAreaIncoming" d="M 10,125 Q 90,50 160,90 T 300,90 T 440,95 T 550,65 L 550,160 L 10,160 Z" fill="url(#gradIncoming)"/>
+                    <path id="cstAreaOutgoing" d="M 10,135 Q 90,95 160,105 T 300,125 T 440,110 T 550,100 L 550,160 L 10,160 Z" fill="url(#gradOutgoing)"/>
+
+                    <!-- Lines -->
+                    <path id="cstPathIncoming" class="cst-curve-line incoming" d="M 10,125 Q 90,50 160,90 T 300,90 T 440,95 T 550,65" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+                    <path id="cstPathOutgoing" class="cst-curve-line outgoing" d="M 10,135 Q 90,95 160,105 T 300,125 T 440,110 T 550,100" fill="none" stroke="#c25e2e" stroke-width="2.5" stroke-linecap="round"/>
+
+                    <!-- Data dots -->
+                    <circle cx="10"  cy="125" r="3.5" fill="#2563eb" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="160" cy="90"  r="3.5" fill="#2563eb" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="300" cy="90"  r="3.5" fill="#2563eb" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="440" cy="95"  r="3.5" fill="#2563eb" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="550" cy="65"  r="4.5" fill="#2563eb" stroke="#ffffff" stroke-width="2"   class="cst-dot-node"/>
+
+                    <circle cx="10"  cy="135" r="3.5" fill="#c25e2e" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="160" cy="105" r="3.5" fill="#c25e2e" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="300" cy="125" r="3.5" fill="#c25e2e" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="440" cy="110" r="3.5" fill="#c25e2e" stroke="#ffffff" stroke-width="1.5" class="cst-dot-node"/>
+                    <circle cx="550" cy="100" r="4.5" fill="#c25e2e" stroke="#ffffff" stroke-width="2"   class="cst-dot-node"/>
+                  </svg>
+                  <div class="cst-chart-x-axis">
+                    <span>Apr 1</span>
+                    <span>Apr 7</span>
+                    <span>Apr 14</span>
+                    <span>Apr 21</span>
+                    <span>Apr 28</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card: Recent Transactions (High Density, Enterprise Table) -->
+            <div class="cst-card cst-tx-feed-card">
+              <div class="cst-card-header">
+                <div class="cst-card-title-group">
+                  <h3 class="cst-card-title">Recent Transactions</h3>
+                  <span class="cst-feed-count-tag" id="cstTxCountTag">5 records</span>
+                </div>
+                <div class="cst-header-actions-row">
+                  <div class="cst-table-search-box">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="cstLocalSearchInput" placeholder="Filter transactions..." />
+                  </div>
+                  <a href="transactions.html" class="cst-view-all-link">Full ledger →</a>
+                </div>
+              </div>
+
+              <div class="cst-tx-table-wrap">
+                <div class="cst-tx-list-modern" id="cstRecentTxList">
+                  <!-- Rendered dynamically by JS -->
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /cst-grid-main -->
+
+          <!-- RIGHT COLUMN (33% width) -->
+          <div class="cst-grid-side">
+
+            <!-- Card: Linked Cards (PayPal Sandbox style) -->
+            <div class="cst-card cst-virtual-card-widget">
+              <div class="cst-card-header no-border">
+                <div class="cst-card-title-group">
+                  <h3 class="cst-card-title">Linked Payment Cards</h3>
+                  <span class="cst-sandbox-tag">Sandbox</span>
+                </div>
+                <button type="button" class="cst-link-card-btn" id="cstOpenLinkCardBtn" title="Link a new test debit/credit card">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                  <span>Link Card</span>
+                </button>
+              </div>
+
+              <!-- Empty State when no card is linked -->
+              <div class="cst-empty-card-state" id="cstEmptyCardState" style="display: none;">
+                <div class="cst-empty-card-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                </div>
+                <strong class="cst-empty-card-title">No Payment Card Linked</strong>
+                <p class="cst-empty-card-desc">Connect a test card (Visa, Mastercard) to enable instant wallet top-ups.</p>
+                <button type="button" class="cst-empty-link-btn" id="cstEmptyLinkCardBtn">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                  <span>Link a Card</span>
+                </button>
+              </div>
+
+              <!-- Realistic Modern Glassmorphic Debit Card displaying active linked card -->
+              <div class="cst-obsidian-card" id="cstActiveLinkedCardVisual">
+                <div class="cst-card-glow-bg"></div>
+                <div class="cst-card-top-row">
+                  <div class="cst-card-brand-logo">
+                    <span class="cst-v-mark" id="cstLinkedCardBrandMark">V</span>
+                    <span class="cst-card-brand-name" id="cstLinkedCardBrand">VISA</span>
+                  </div>
+                  <span class="cst-card-badge-chip">Linked Test Card</span>
+                </div>
+
+                <div class="cst-card-chip-row">
+                  <div class="cst-chip-gold">
+                    <div class="cst-chip-line"></div>
+                    <div class="cst-chip-line horiz"></div>
+                  </div>
+                </div>
+
+                <div class="cst-card-num-row font-mono" id="cstVirtualCardNumber">
+                  <span>••••</span> <span>••••</span> <span>••••</span> <span id="cstCardLast4">4242</span>
+                </div>
+
+                <div class="cst-card-footer-row">
+                  <div>
+                    <span class="cst-cf-label">CARDHOLDER</span>
+                    <span class="cst-cf-val" id="cstCardHolderName">DEMO CUSTOMER</span>
+                  </div>
+                  <div>
+                    <span class="cst-cf-label">EXPIRES</span>
+                    <span class="cst-cf-val font-mono" id="cstCardExpiry">12/28</span>
+                  </div>
+                  <div class="cst-card-network-pill" id="cstCardTypePill">TEST</div>
+                </div>
+              </div>
+
+              <div class="cst-card-actions-strip">
+                <button type="button" class="cst-card-action-btn primary" id="cstCardTopUpActionBtn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+                  <span>Top Up from Card</span>
+                </button>
+                <button type="button" class="cst-card-action-btn" id="cstSwitchCardBtn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                  <span id="cstSwitchCardText">Add / Switch</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card: Instant Transfer to Beneficiaries -->
+            <div class="cst-card cst-quick-transfer-card">
+              <div class="cst-card-header">
+                <h3 class="cst-card-title">Quick Transfer</h3>
+                <a href="beneficiaries.html" class="cst-view-all-link">Manage →</a>
+              </div>
+
+              <div class="cst-beneficiaries-avatars-row" id="cstBeneficiariesList">
+                <a href="beneficiaries.html" class="cst-ben-avatar-btn add" title="Add recipient">
+                  <span class="cst-ben-avatar add">+</span>
+                  <span class="cst-ben-name">Add</span>
+                </a>
+              </div>
+
+              <div class="cst-instant-send-form">
+                <div class="cst-instant-input-wrap">
+                  <span class="cst-input-currency">$</span>
+                  <input type="number" id="cstQuickAmountInput" placeholder="50.00" value="50.00" min="1" step="0.01" />
+                  <div class="cst-preset-pills">
+                    <button type="button" class="cst-preset-pill" data-amount="20">$20</button>
+                    <button type="button" class="cst-preset-pill active" data-amount="50">$50</button>
+                    <button type="button" class="cst-preset-pill" data-amount="100">$100</button>
+                  </div>
+                </div>
+                <button type="button" class="cst-btn-instant-send" id="cstQuickSendSubmitBtn">
+                  <span id="cstQuickSendLabel">Send $50.00 to Sarah Smith</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card: AI Security & Guardrails Cockpit -->
+            <div class="cst-card cst-ai-guardrail-card">
+              <div class="cst-card-header">
+                <div class="cst-ai-shield-title">
+                  <div class="cst-shield-pulse-dot"></div>
+                  <h3 class="cst-card-title">AI Fraud Shield</h3>
+                </div>
+                <span class="cst-ai-accuracy-tag" id="cstAiAccuracyTag">99.8% Precision</span>
+              </div>
+
+              <div class="cst-ai-security-status-body">
+                <div class="cst-security-metric-row">
+                  <div class="cst-sec-item-left">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                    <span>Behavioral Anomaly Scanner</span>
+                  </div>
+                  <span class="cst-sec-item-badge ok" id="cstAnomalyScannerBadge">Optimal</span>
+                </div>
+
+                <div class="cst-security-metric-row">
+                  <div class="cst-sec-item-left">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                    <span>ML Inference Latency</span>
+                  </div>
+                  <span class="cst-sec-item-badge blue font-mono" id="cstLatencyBadge">&lt; 15 ms</span>
+                </div>
+
+                <div class="cst-security-metric-row">
+                  <div class="cst-sec-item-left">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span>Pending Anomaly Reviews</span>
+                  </div>
+                  <span class="cst-sec-item-badge amber" id="cstPendingReviewsBadge">0 Flagged</span>
+                </div>
+              </div>
+
+              <a href="security-overview.html" class="cst-security-hub-btn">
+                <span>View Security Audit & Device Log</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </a>
+            </div>
+
+          </div><!-- /cst-grid-side -->
+
+        </div><!-- /cst-cockpit-grid -->
+
+      </main>
+
+    </div><!-- /app-main-wrapper -->
+
+  </div><!-- /app-shell -->
+
+  <!-- Top-Up Modal (via Linked Card) -->
+  <div class="cst-modal-backdrop" id="cstTopUpModal" style="display: none;">
+    <div class="cst-modal-card">
+      <div class="cst-modal-header">
+        <h3 class="cst-modal-title">Deposit Funds (Top Up)</h3>
+        <button class="cst-modal-close" id="cstCloseTopUpModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="cst-modal-body">
+        <label class="cst-input-label">Funding Source</label>
+        <div class="cst-funding-card-pill" id="cstTopUpFundingSource">
+          <span class="cst-funding-brand" id="cstFundingBrand">VISA</span>
+          <span class="cst-funding-text">•••• <span id="cstFundingLast4">4242</span></span>
+          <span class="cst-funding-sub">Sandbox Test Card</span>
+        </div>
+
+        <label for="cstTopUpAmount" class="cst-input-label" style="margin-top: 14px;">Amount to deposit</label>
+        <div class="cst-input-group">
+          <span class="cst-input-prefix">$</span>
+          <input type="number" id="cstTopUpAmount" placeholder="100.00" min="1" step="0.01" value="100.00" />
+        </div>
+
+        <div class="cst-preset-amounts">
+          <button type="button" class="cst-preset-btn" data-amt="50">+$50</button>
+          <button type="button" class="cst-preset-btn active" data-amt="100">+$100</button>
+          <button type="button" class="cst-preset-btn" data-amt="250">+$250</button>
+          <button type="button" class="cst-preset-btn" data-amt="500">+$500</button>
+        </div>
+
+        <p class="cst-modal-hint">Funds are credited to your Vigilia wallet ledger immediately via our Sandbox Acquirer Simulator.</p>
+      </div>
+      <div class="cst-modal-footer">
+        <button class="cst-btn secondary" id="cstCancelTopUp">Cancel</button>
+        <button class="cst-btn primary" id="cstSubmitTopUp">Deposit Funds</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Link Card Modal (PayPal Sandbox Style) -->
+  <div class="cst-modal-backdrop" id="cstLinkCardModal" style="display: none;">
+    <div class="cst-modal-card">
+      <div class="cst-modal-header">
+        <h3 class="cst-modal-title">Link a Card</h3>
+        <button class="cst-modal-close" id="cstCloseLinkCardModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="cst-modal-body">
+        <p class="cst-modal-intro">Link a test Visa or Mastercard to deposit funds into your Vigilia wallet.</p>
+        
+        <div class="cst-form-field">
+          <label for="cstNewCardHolder" class="cst-input-label">Name on card</label>
+          <input type="text" id="cstNewCardHolder" class="cst-modal-input" placeholder="e.g. Julie Moreau" />
+        </div>
+
+        <div class="cst-form-field">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+            <label for="cstNewCardNumber" class="cst-input-label" style="margin-bottom: 0;">Card number (16 digits)</label>
+            <button type="button" class="cst-fill-test-btn" id="cstFillTestCardBtn">Fill Test Card (4242)</button>
+          </div>
+          <div class="cst-card-input-wrap">
+            <input type="text" id="cstNewCardNumber" class="cst-modal-input font-mono" placeholder="4242 4242 4242 4242" maxlength="19" />
+            <span class="cst-card-brand-preview" id="cstBrandPreview">VISA</span>
+          </div>
+          <span class="cst-input-hint">Enter a 16-digit card number (e.g. <strong>4242 4242 4242 4242</strong>).</span>
+        </div>
+
+        <div class="cst-form-row-2">
+          <div class="cst-form-field">
+            <label for="cstNewCardExp" class="cst-input-label">Expires</label>
+            <input type="text" id="cstNewCardExp" class="cst-modal-input font-mono" placeholder="MM/YY" maxlength="5" />
+          </div>
+          <div class="cst-form-field">
+            <label for="cstNewCardCvv" class="cst-input-label">Security code</label>
+            <input type="password" id="cstNewCardCvv" class="cst-modal-input font-mono" placeholder="CVV" maxlength="4" />
+          </div>
+        </div>
+
+        <div class="cst-sandbox-notice">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>PCI-DSS Compliant Sandbox. Full PAN is never stored. Card verified via Luhn algorithm.</span>
+        </div>
+      </div>
+      <div class="cst-modal-footer">
+        <button class="cst-btn secondary" id="cstCancelLinkCard">Cancel</button>
+        <button class="cst-btn primary" id="cstSubmitLinkCard">Link Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="cst-toast" id="cstToast" style="display: none;">
+    <span id="cstToastMsg">Copied!</span>
+  </div>
+
+  <script type="module" src="js/customer-overview.js"></script>
+</body>
+</html>

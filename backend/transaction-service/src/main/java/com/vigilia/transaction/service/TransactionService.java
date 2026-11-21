@@ -5,8 +5,10 @@ import com.vigilia.transaction.dto.TransactionCreateRequest;
 import com.vigilia.transaction.dto.TransactionPageResponse;
 import com.vigilia.transaction.dto.TransactionResponse;
 import com.vigilia.transaction.dto.TransactionType;
+import com.vigilia.transaction.dto.WalletResponse;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -39,4 +41,9 @@ public interface TransactionService {
      * Resolves a transaction suspended in PENDING_REVIEW by applying a human analyst decision.
      */
     TransactionResponse resolveAnalystDecision(UUID transactionId, RiskStatus decision, String reason, String analystId);
+
+    /**
+     * Top-up / deposit funds into customer wallet using a linked test card.
+     */
+    WalletResponse topUpWallet(UUID customerId, BigDecimal amount, String cardBrand, String cardLast4, String clientIp);
 }

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Send Money</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="css/customer-pages.css" />
+  <link rel="stylesheet" href="css/send-money.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <customer-sidebar active="send-money" workspace="CUSTOMER WORKSPACE"></customer-sidebar>
+    <div class="app-main-wrapper">
+      <customer-navbar></customer-navbar>
+      <main class="main-stage">
+        <div class="pg-content-wrap">
+
+          <!-- Header -->
+          <div class="pg-header">
+            <div class="pg-header-left">
+              <div class="pg-breadcrumb"><a href="overview.html">Overview</a><span>›</span><span>Send Money</span></div>
+              <h1 class="pg-title">Send Money</h1>
+              <p class="pg-subtitle">Transfer funds securely to any Vigilia customer</p>
+            </div>
+          </div>
+
+          <!-- Centered Form -->
+          <div class="sm-form-wrap">
+
+            <!-- Step Indicators -->
+            <div class="sm-steps">
+              <div class="sm-step active" data-step="1"><div class="sm-step-num">1</div><span>Recipient</span></div>
+              <div class="sm-step-line"></div>
+              <div class="sm-step" data-step="2"><div class="sm-step-num">2</div><span>Amount</span></div>
+              <div class="sm-step-line"></div>
+              <div class="sm-step" data-step="3"><div class="sm-step-num">3</div><span>Confirm</span></div>
+            </div>
+
+            <div class="pg-card sm-card">
+
+              <!-- ── Step 1: Recipient ── -->
+              <div id="stepRecipient">
+                <h3 class="sm-step-title">Who are you sending to?</h3>
+
+                <div class="pg-form-group">
+                  <label class="pg-label" for="recipientSearch">Recipient</label>
+                  <div class="pg-search-input">
+                    <span class="pg-search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                    <input type="text" id="recipientSearch" placeholder="Name, email, or account number..." />
+                  </div>
+                </div>
+
+                <p class="sm-recent-label">Recent beneficiaries</p>
+                <div class="sm-recipient-list" id="recipientList">
+
+                  <button class="sm-recipient-card" data-name="Sara Smith" data-email="sara.smith@vigilia.io" data-initials="SS" data-color="green">
+                    <div class="sm-rec-avatar green">SS</div>
+                    <div class="sm-rec-info">
+                      <strong>Sara Smith</strong>
+                      <span>sara.smith@vigilia.io</span>
+                    </div>
+                    <span class="sm-rec-select">Select →</span>
+                  </button>
+
+                  <button class="sm-recipient-card" data-name="John Doe" data-email="john.doe@vigilia.io" data-initials="JD" data-color="blue">
+                    <div class="sm-rec-avatar blue">JD</div>
+                    <div class="sm-rec-info">
+                      <strong>John Doe</strong>
+                      <span>john.doe@vigilia.io</span>
+                    </div>
+                    <span class="sm-rec-select">Select →</span>
+                  </button>
+
+                  <button class="sm-recipient-card" data-name="Emma Wilson" data-email="emma.wilson@vigilia.io" data-initials="EW" data-color="amber">
+                    <div class="sm-rec-avatar amber">EW</div>
+                    <div class="sm-rec-info">
+                      <strong>Emma Wilson</strong>
+                      <span>emma.wilson@vigilia.io</span>
+                    </div>
+                    <span class="sm-rec-select">Select →</span>
+                  </button>
+
+                  <button class="sm-recipient-card" data-name="Carlos Ruiz" data-email="carlos.ruiz@vigilia.io" data-initials="CR" data-color="copper">
+                    <div class="sm-rec-avatar copper">CR</div>
+                    <div class="sm-rec-info">
+                      <strong>Carlos Ruiz</strong>
+                      <span>carlos.ruiz@vigilia.io</span>
+                    </div>
+                    <span class="sm-rec-select">Select →</span>
+                  </button>
+
+                </div>
+
+                <button class="btn btn-primary sm-btn-full" id="btnStep1Continue" disabled>Continue →</button>
+              </div>
+
+              <!-- ── Step 2: Amount ── -->
+              <div id="stepAmount" hidden>
+                <h3 class="sm-step-title">How much to send?</h3>
+
+                <!-- Selected Recipient Banner -->
+                <div class="sm-selected-banner">
+                  <div class="sm-sel-avatar" id="selectedAvatar">SS</div>
+                  <div class="sm-sel-info">
+                    <strong id="selectedRecipientName">Sara Smith</strong>
+                    <span id="selectedRecipientEmail">sara.smith@vigilia.io</span>
+                  </div>
+                  <button class="sm-change-btn" id="btnChangeRecipient">Change</button>
+                </div>
+
+                <div class="pg-form-group">
+                  <label class="pg-label">Amount (USD)</label>
+                  <div class="pg-input-group">
+                    <span class="pg-input-prefix">$</span>
+                    <input type="number" id="sendAmount" placeholder="0.00" min="0.01" step="0.01" />
+                  </div>
+                  <p class="pg-hint sm-balance-hint">Available balance: <strong>$2,250.00</strong></p>
+                </div>
+
+                <div class="pg-form-group">
+                  <label class="pg-label" for="sendNote">Note (optional)</label>
+                  <textarea id="sendNote" class="pg-input sm-textarea" placeholder="What's this for?" rows="3"></textarea>
+                </div>
+
+                <div class="sm-btn-row">
+                  <button class="btn btn-outline" id="btnStep2Back">← Back</button>
+                  <button class="btn btn-primary" id="btnStep2Continue">Continue →</button>
+                </div>
+              </div>
+
+              <!-- ── Step 3: Confirm ── -->
+              <div id="stepConfirm" hidden>
+                <h3 class="sm-step-title">Confirm your transfer</h3>
+
+                <div class="sm-summary-card">
+                  <div class="sm-summary-row">
+                    <span>To</span>
+                    <span id="confirmName">Sara Smith</span>
+                  </div>
+                  <div class="sm-summary-row">
+                    <span>Email</span>
+                    <span class="sm-muted" id="confirmEmail">sara.smith@vigilia.io</span>
+                  </div>
+                  <div class="sm-summary-row">
+                    <span>Amount</span>
+                    <strong class="sm-confirm-amount" id="confirmAmount">$0.00</strong>
+                  </div>
+                  <div class="sm-summary-row">
+                    <span>Note</span>
+                    <span class="sm-muted" id="confirmNote">—</span>
+                  </div>
+                  <div class="sm-summary-divider"></div>
+                  <div class="sm-summary-row">
+                    <span>Transaction Fee</span>
+                    <span class="sm-fee-free">Free</span>
+                  </div>
+                  <div class="sm-summary-row sm-total-row">
+                    <strong>Total Deducted</strong>
+                    <strong id="confirmTotal">$0.00</strong>
+                  </div>
+                </div>
+
+                <div class="sm-info-banner">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Funds arrive instantly to Vigilia accounts. No fees for Vigilia-to-Vigilia transfers.
+                </div>
+
+                <div class="sm-btn-row">
+                  <button class="btn btn-outline" id="btnStep3Back">← Back</button>
+                  <button class="btn btn-copper sm-btn-send" id="btnSend">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Send $0.00
+                  </button>
+                </div>
+              </div>
+
+              <!-- ── Success State ── -->
+              <div id="stepSuccess" hidden>
+                <div class="sm-success">
+                  <div class="sm-success-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="32" height="32"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <h3 class="sm-success-title">Transfer Sent!</h3>
+                  <p class="sm-success-desc">Your transfer of <strong id="successAmount">$0.00</strong> to <strong id="successName">Sara Smith</strong> was sent successfully.</p>
+                  <div class="sm-success-actions">
+                    <a href="overview.html" class="btn btn-primary">Back to Overview</a>
+                    <button class="btn btn-outline" id="btnSendAnother">Send Another</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="js/send-money.js"></script>
+</body>
+</html>

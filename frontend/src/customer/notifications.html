@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Notifications</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="css/customer-pages.css" />
+  <link rel="stylesheet" href="css/notifications.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <customer-sidebar active="notifications" workspace="CUSTOMER WORKSPACE"></customer-sidebar>
+    <div class="app-main-wrapper">
+      <customer-navbar></customer-navbar>
+      <main class="main-stage">
+        <div class="pg-content-wrap">
+
+          <div class="pg-header">
+            <div class="pg-header-left">
+              <div class="pg-breadcrumb"><a href="overview.html">Overview</a><span>›</span><span>Notifications</span></div>
+              <h1 class="pg-title">Notifications</h1>
+              <p class="pg-subtitle">Your alerts, security events, and transaction updates</p>
+            </div>
+            <div class="pg-header-actions">
+              <button class="btn btn-outline" id="markAllReadBtn">Mark all as read</button>
+            </div>
+          </div>
+
+          <!-- Two-col: Notification list + Settings panel -->
+          <div class="notif-layout">
+
+            <!-- Notifications Feed -->
+            <div class="notif-feed">
+
+              <p class="pg-section-label">Today</p>
+
+              <div class="pg-card notif-group">
+                <div class="notif-item unread" data-id="1">
+                  <div class="notif-icon ok">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div class="notif-content">
+                    <strong class="notif-title">Transaction Approved</strong>
+                    <p class="notif-body">Payment to <strong>Netflix</strong> · $12.99 was approved successfully.</p>
+                    <span class="notif-time">2 hours ago</span>
+                  </div>
+                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+                </div>
+
+                <div class="notif-item unread" data-id="2">
+                  <div class="notif-icon warn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
+                  <div class="notif-content">
+                    <strong class="notif-title">Transfer Under Review</strong>
+                    <p class="notif-body">Transfer of <strong>$250.00</strong> to John Doe is under review by our security team.</p>
+                    <span class="notif-time">5 hours ago</span>
+                  </div>
+                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+                </div>
+              </div>
+
+              <p class="pg-section-label" style="margin-top:20px">Yesterday</p>
+
+              <div class="pg-card notif-group">
+                <div class="notif-item" data-id="3">
+                  <div class="notif-icon info">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <div class="notif-content">
+                    <strong class="notif-title">New Login Detected</strong>
+                    <p class="notif-body">A new login was detected from <strong>Casablanca, Morocco</strong>. If this wasn't you, secure your account immediately.</p>
+                    <span class="notif-time">1 day ago</span>
+                  </div>
+                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+                </div>
+
+                <div class="notif-item" data-id="4">
+                  <div class="notif-icon ok">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div class="notif-content">
+                    <strong class="notif-title">Transaction Approved</strong>
+                    <p class="notif-body">Payment to <strong>Amazon</strong> · $89.90 was approved successfully.</p>
+                    <span class="notif-time">1 day ago</span>
+                  </div>
+                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+                </div>
+
+                <div class="notif-item" data-id="5">
+                  <div class="notif-icon ok">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div class="notif-content">
+                    <strong class="notif-title">Transfer Completed</strong>
+                    <p class="notif-body">Transfer of <strong>$120.00</strong> to Sarah Smith was sent successfully.</p>
+                    <span class="notif-time">2 days ago</span>
+                  </div>
+                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Notification Settings Panel -->
+            <div class="notif-settings-col">
+              <div class="pg-card">
+                <h3 class="notif-settings-title">Notification Preferences</h3>
+                <p class="notif-settings-sub">Choose what alerts you receive</p>
+
+                <div class="pg-toggle-row">
+                  <div class="pg-toggle-info">
+                    <div class="pg-toggle-title">Transaction updates</div>
+                    <div class="pg-toggle-desc">Approvals, declines, and receipts</div>
+                  </div>
+                  <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                </div>
+                <div class="pg-toggle-row">
+                  <div class="pg-toggle-info">
+                    <div class="pg-toggle-title">Security alerts</div>
+                    <div class="pg-toggle-desc">Logins, password changes</div>
+                  </div>
+                  <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                </div>
+                <div class="pg-toggle-row">
+                  <div class="pg-toggle-info">
+                    <div class="pg-toggle-title">Transfer reviews</div>
+                    <div class="pg-toggle-desc">When a transfer is under review</div>
+                  </div>
+                  <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                </div>
+                <div class="pg-toggle-row">
+                  <div class="pg-toggle-info">
+                    <div class="pg-toggle-title">Promotional updates</div>
+                    <div class="pg-toggle-desc">Features and product news</div>
+                  </div>
+                  <label class="pg-switch"><input type="checkbox" /><span class="pg-switch-track"></span></label>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="js/notifications.js"></script>
+</body>
+</html>
+

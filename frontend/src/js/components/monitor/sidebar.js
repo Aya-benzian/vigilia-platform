@@ -1,4 +1,4 @@
-import logoUrl from '../../assets/vigilia-logo-mark.png';
+import logoUrl from '../../../assets/vigilia-logo-mark.png';
 
 /**
  * Vigilia Platform — Dark Navy Workspace Sidebar (<vigilia-sidebar>)
@@ -14,7 +14,7 @@ class VigiliaSidebar extends HTMLElement {
       {
         id: 'command-center',
         title: 'Command Center',
-        href: '/monitor-dashboard.html',
+        href: '/monitor/dashboard.html',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -24,7 +24,7 @@ class VigiliaSidebar extends HTMLElement {
       {
         id: 'live-transactions',
         title: 'Live Transactions',
-        href: '/live-transactions.html',
+        href: '/monitor/live-transactions.html',
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>

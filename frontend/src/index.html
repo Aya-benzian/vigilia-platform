@@ -1924,7 +1924,7 @@
               <span>Prometheus, Grafana & Alertmanager hooks</span>
             </li>
           </ul>
-          <a href="monitor-dashboard.html" class="persona-cta-btn">
+          <a href="/monitor/dashboard.html" class="persona-cta-btn">
             <span>Open Monitor Center</span>
             <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
           </a>
@@ -2215,6 +2215,15 @@
         const userRole = (user.role || 'CUSTOMER').toUpperCase();
         const displayName = userEmail.length > 20 ? userEmail.slice(0, 18) + '...' : userEmail;
 
+        let dashboardUrl = '/customer/overview.html';
+        if (userRole === 'ADMIN' || userRole === 'MONITOR' || userRole === 'SRE') {
+          dashboardUrl = '/monitor/dashboard.html';
+        } else if (userRole === 'ANALYST') {
+          dashboardUrl = '/monitor/live-transactions.html';
+        } else {
+          dashboardUrl = '/customer/overview.html';
+        }
+
         navContainer.innerHTML = `
           <div class="user-nav-badge">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2223,7 +2232,7 @@
             <span>${displayName}</span>
             <span class="user-nav-role">${userRole}</span>
           </div>
-          <a href="/monitor-dashboard.html" class="btn-nav-primary">
+          <a href="${dashboardUrl}" class="btn-nav-primary">
             <span>Dashboard</span>
             <svg viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -2231,6 +2240,14 @@
           </a>
           <button type="button" class="btn-nav-signout" id="btn-logout" title="Sign Out">Sign Out</button>
         `;
+
+        // Also update customer persona card button if logged in as customer
+        if (userRole === 'CUSTOMER') {
+          const customerCardBtn = document.querySelector('a[href="login.html?role=customer"]');
+          if (customerCardBtn) {
+            customerCardBtn.setAttribute('href', '/customer/overview.html');
+          }
+        }
 
         const btnLogout = document.getElementById('btn-logout');
         if (btnLogout) {

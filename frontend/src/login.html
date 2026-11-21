@@ -1123,11 +1123,11 @@
           // Role-based routing
           const userRole = (user && user.role) ? user.role.toUpperCase() : '';
           if (userRole === 'ADMIN' || currentRole === 'monitor') {
-            window.location.href = '/monitor-dashboard.html';
+            window.location.href = '/monitor/dashboard.html';
           } else if (userRole === 'ANALYST' || currentRole === 'analyst') {
-            window.location.href = '/monitor-dashboard.html';
+            window.location.href = '/monitor/live-transactions.html';
           } else {
-            window.location.href = '/index.html?portal=customer';
+            window.location.href = '/customer/overview.html';
           }
         }, 800);
 
