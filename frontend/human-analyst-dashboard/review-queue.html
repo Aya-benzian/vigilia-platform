@@ -13,316 +13,11 @@
 
   <!-- Global Base Stylesheets -->
   <link rel="stylesheet" href="css/variables.css" />
-  <link rel="stylesheet" href="css/layout.css" />
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/analyst-shared.css" />
 
   <!-- Bulletproof Embedded CSS: Guarantees Exact Visual Palette, Zero Browser Caching Delay & Zero SVG Overflow -->
   <style>
-    /* ── Reset & Body Lock ── */
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      overflow: hidden;
-      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #f0f4fa;
-      color: #0f172a;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    *, *::before, *::after {
-      box-sizing: border-box;
-    }
-
-    .app-shell {
-      display: flex;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-    }
-
-    /* ── SVG Global Guard ── */
-    svg {
-      display: inline-block;
-      vertical-align: middle;
-      max-width: 100%;
-    }
-
-    /* ── Left Sidebar (Exact Vigilia Palette & Tokens) ── */
-    .sidebar.light-theme {
-      width: 250px !important;
-      min-width: 250px !important;
-      max-width: 250px !important;
-      background: #ffffff !important;
-      border-right: 1px solid #e2e8f0 !important;
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: space-between !important;
-      padding: 1.25rem 0.85rem !important;
-      height: 100vh !important;
-      box-sizing: border-box !important;
-      overflow-y: auto !important;
-      z-index: 100 !important;
-    }
-
-    .brand-link {
-      display: flex !important;
-      align-items: center !important;
-      gap: 0.75rem !important;
-      text-decoration: none !important;
-      padding: 0.25rem 0.5rem 1.25rem !important;
-    }
-
-    .brand-logo-img {
-      height: 32px !important;
-      width: 32px !important;
-      max-height: 32px !important;
-      max-width: 32px !important;
-      object-fit: contain !important;
-      display: block !important;
-    }
-
-    .brand-name {
-      font-size: 1.35rem !important;
-      font-weight: 800 !important;
-      color: #0f172a !important;
-      letter-spacing: -0.025em !important;
-    }
-
-    .sidebar .nav-item {
-      display: flex !important;
-      align-items: center !important;
-      gap: 0.85rem !important;
-      padding: 0.62rem 0.9rem !important;
-      border-radius: 9px !important;
-      font-size: 0.86rem !important;
-      font-weight: 600 !important;
-      color: #475569 !important;
-      text-decoration: none !important;
-      transition: all 0.15s ease !important;
-      box-sizing: border-box !important;
-    }
-
-    .sidebar .nav-item:hover {
-      background: #f1f5f9 !important;
-      color: #0f172a !important;
-    }
-
-    /* Active item: Review Queue */
-    .sidebar .nav-item.active {
-      background: #fdf4ed !important;
-      color: #c05621 !important;
-      font-weight: 700 !important;
-    }
-
-    .sidebar .nav-item.active svg {
-      stroke: #d97236 !important;
-    }
-
-    .sidebar .nav-item svg {
-      width: 18px !important;
-      height: 18px !important;
-      stroke: #64748b;
-      flex-shrink: 0 !important;
-    }
-
-    .nav-badge {
-      margin-left: auto !important;
-      background: #ea580c !important;
-      color: #ffffff !important;
-      font-size: 0.7rem !important;
-      font-weight: 700 !important;
-      padding: 2px 7px !important;
-      border-radius: 9999px !important;
-    }
-
-    .sidebar-security-box {
-      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
-      border: 1px solid #dbeafe;
-      border-radius: 12px;
-      padding: 0.85rem 0.95rem;
-      display: flex;
-      gap: 0.75rem;
-      margin-top: auto;
-    }
-
-    .sidebar-security-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: #1e3a8a;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .sidebar-security-icon svg {
-      width: 16px !important;
-      height: 16px !important;
-    }
-
-    /* ── Top Navbar ── */
-    .app-main-wrapper {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-      min-width: 0;
-    }
-
-    .top-navbar {
-      height: 58px;
-      background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1.75rem;
-      flex-shrink: 0;
-    }
-
-    .nav-left {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      flex: 1;
-    }
-
-    .search-container {
-      position: relative;
-      max-width: 420px;
-      width: 100%;
-    }
-
-    .search-container svg {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 16px !important;
-      height: 16px !important;
-      color: #94a3b8;
-    }
-
-    .search-input {
-      width: 100%;
-      height: 38px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 9999px;
-      padding: 0 45px 0 38px;
-      font-size: 0.84rem;
-      color: #0f172a;
-      outline: none;
-      box-sizing: border-box;
-      transition: all 0.15s ease;
-    }
-
-    .search-input:focus {
-      background: #ffffff;
-      border-color: #94a3b8;
-      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
-    }
-
-    .search-kbd-shortcut {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 0.72rem;
-      color: #94a3b8;
-      font-weight: 600;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      padding: 1px 6px;
-      border-radius: 4px;
-    }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-    }
-
-    .notification-btn {
-      position: relative;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      color: #64748b;
-      padding: 6px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .notification-btn:hover {
-      background: #f1f5f9;
-      color: #0f172a;
-    }
-
-    .notification-btn svg {
-      width: 20px !important;
-      height: 20px !important;
-    }
-
-    .notification-badge {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      background: #ea580c;
-      color: #ffffff;
-      font-size: 0.65rem;
-      font-weight: 700;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2px solid #ffffff;
-    }
-
-    .profile-pill {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      padding: 0.35rem 0.65rem;
-      border-radius: 9px;
-      cursor: pointer;
-    }
-
-    .profile-pill:hover {
-      background: #f8fafc;
-    }
-
-    .profile-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: #091522;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.82rem;
-    }
-
-    /* ── Main Stage Scrollable ── */
-    .main-stage {
-      flex: 1;
-      height: calc(100vh - 58px);
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 20px 28px 40px;
-      background-color: #f0f4fa;
-      box-sizing: border-box;
-    }
+    /* ── Page-Specific Review Queue Styles (Shared styles in analyst-shared.css) ── */
 
     /* ── Hero Banner: Cases Workspace ── */
     .rq-hero-card {
@@ -1098,11 +793,7 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input 
-              type="text" 
-              class="search-input" 
-              placeholder="Search cases, transactions, or customers..." 
-            />
+            <label for="rqTopSearch" class="sr-only">Search cases, transactions, or customers</label><input type="text" id="rqTopSearch" name="rqTopSearch" class="search-input" placeholder="Search cases, transactions, or customers..." aria-label="Search cases, transactions, or customers..." />
             <span class="search-kbd-shortcut">⌘K</span>
           </div>
         </div>
@@ -1178,12 +869,7 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input 
-              type="text" 
-              id="rqCaseSearch" 
-              class="rq-search-input" 
-              placeholder="Search by Case ID, Transaction ID or customer..." 
-            />
+            <label for="rqCaseSearch" class="sr-only">Search cases</label><input type="text" id="rqCaseSearch" name="rqCaseSearch" class="rq-search-input" placeholder="Search by Case ID, Transaction ID or customer..." aria-label="Search by Case ID, Transaction ID or customer..." />
           </div>
 
           <!-- Domain Select -->
@@ -1210,7 +896,7 @@
           <!-- Ambiguous Only Switch -->
           <label class="rq-toggle-wrap" for="toggleAmbiguous">
             <div class="rq-switch">
-              <input type="checkbox" id="toggleAmbiguous" />
+              <label for="toggleAmbiguous" class="sr-only">Ambiguous Only</label><input type="checkbox" id="toggleAmbiguous" name="toggleAmbiguous" aria-label="Ambiguous Only" />
               <span class="rq-slider"></span>
             </div>
             <span class="rq-toggle-text">
@@ -1248,24 +934,25 @@
         <!-- 4. Cases Data Table -->
         <section class="rq-table-card">
           <div class="rq-table-wrap">
-            <table class="rq-table" id="rqTable">
+            <table aria-label="File de Révision des Dossiers" class="rq-table" id="rqTable">
+              <caption class="sr-only">File de Révision des Dossiers</caption>
               <thead>
                 <tr>
                   <th style="width: 38px; text-align: center;">
-                    <input type="checkbox" class="rq-checkbox" id="checkAll" />
+                    <input type="checkbox" class="rq-checkbox" id="checkAll" name="checkAll" aria-label="Select all cases" />
                   </th>
-                  <th>Case / Tx ID</th>
-                  <th>
+                  <th scope="col">Case / Tx ID</th>
+                  <th scope="col">
                     <span style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
                       <span>Date / Time</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
                     </span>
                   </th>
-                  <th>Type &amp; Domain</th>
-                  <th>Amount</th>
-                  <th>Score ML</th>
-                  <th>Conformal Set</th>
-                  <th>
+                  <th scope="col">Type &amp; Domain</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Score ML</th>
+                  <th scope="col">Conformal Set</th>
+                  <th scope="col">
                     <span style="display: inline-flex; align-items: center; gap: 0.35rem;">
                       <span>Waiting Time / SLA</span>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
@@ -1279,7 +966,7 @@
                 <!-- Row 1: VG-2048 -->
                 <tr data-domain="purchase" data-risk="0.93" data-ambiguous="false" data-amount="4850">
                   <td style="text-align: center;">
-                    <input type="checkbox" class="rq-checkbox" />
+                    <input type="checkbox" class="rq-checkbox" id="checkCase2048" name="checkCase2048" aria-label="Select case VG-2048" />
                   </td>
                   <td>
                     <div class="rq-case-cell">
@@ -1331,7 +1018,7 @@
                 <!-- Row 2: VG-2045 -->
                 <tr data-domain="transfer" data-risk="0.87" data-ambiguous="true" data-amount="12300">
                   <td style="text-align: center;">
-                    <input type="checkbox" class="rq-checkbox" />
+                    <input type="checkbox" class="rq-checkbox" id="checkCase2045" name="checkCase2045" aria-label="Select case VG-2045" />
                   </td>
                   <td>
                     <div class="rq-case-cell">
@@ -1383,7 +1070,7 @@
                 <!-- Row 3: VG-2039 -->
                 <tr data-domain="purchase" data-risk="0.76" data-ambiguous="false" data-amount="795">
                   <td style="text-align: center;">
-                    <input type="checkbox" class="rq-checkbox" />
+                    <input type="checkbox" class="rq-checkbox" id="checkCase2039" name="checkCase2039" aria-label="Select case VG-2039" />
                   </td>
                   <td>
                     <div class="rq-case-cell">
@@ -1435,7 +1122,7 @@
                 <!-- Row 4: VG-2036 -->
                 <tr data-domain="transfer" data-risk="0.71" data-ambiguous="false" data-amount="2200">
                   <td style="text-align: center;">
-                    <input type="checkbox" class="rq-checkbox" />
+                    <input type="checkbox" class="rq-checkbox" id="checkCase2036" name="checkCase2036" aria-label="Select case VG-2036" />
                   </td>
                   <td>
                     <div class="rq-case-cell">
@@ -1487,7 +1174,7 @@
                 <!-- Row 5: VG-2031 -->
                 <tr data-domain="purchase" data-risk="0.79" data-ambiguous="true" data-amount="6750">
                   <td style="text-align: center;">
-                    <input type="checkbox" class="rq-checkbox" />
+                    <input type="checkbox" class="rq-checkbox" id="checkCase2031" name="checkCase2031" aria-label="Select case VG-2031" />
                   </td>
                   <td>
                     <div class="rq-case-cell">
