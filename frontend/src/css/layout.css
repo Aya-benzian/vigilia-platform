@@ -19,11 +19,13 @@
   overflow: hidden;
 }
 
-vigilia-sidebar {
+vigilia-sidebar,
+customer-sidebar {
   display: contents;
 }
 
-vigilia-top-navbar {
+vigilia-top-navbar,
+customer-navbar {
   display: block;
   flex-shrink: 0;
   width: 100%;

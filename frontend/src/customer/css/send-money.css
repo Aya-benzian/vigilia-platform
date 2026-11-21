@@ -1,0 +1,155 @@
+/** Vigilia — Send Money page · send-money.css */
+
+/* ── Centered Form Wrapper ── */
+.sm-form-wrap { max-width: 640px; margin: 0 auto; }
+.sm-card { padding: 28px; }
+
+/* ── Step Indicators ── */
+.sm-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 28px;
+}
+.sm-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  transition: color .2s;
+}
+.sm-step.active { color: #c25e2e; }
+.sm-step.done   { color: #10b981; }
+.sm-step-num {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  transition: all .2s;
+}
+.sm-step.active .sm-step-num { background: #c25e2e; border-color: #c25e2e; color: #fff; }
+.sm-step.done .sm-step-num   { background: #10b981; border-color: #10b981; color: #fff; }
+.sm-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  min-width: 60px;
+  margin-bottom: 24px;
+  transition: background .2s;
+}
+
+/* ── Step Titles ── */
+.sm-step-title {
+  font-size: 17px; font-weight: 800; color: #0f172a;
+  margin-bottom: 20px;
+}
+
+/* ── Recent Label ── */
+.sm-recent-label {
+  font-size: 11.5px; font-weight: 700; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.7px;
+  margin-bottom: 10px;
+}
+
+/* ── Recipient List ── */
+.sm-recipient-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.sm-recipient-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px;
+  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px;
+  cursor: pointer; text-align: left; width: 100%; font-family: inherit;
+  transition: all .15s;
+}
+.sm-recipient-card:hover { border-color: #c25e2e; background: #fdf3eb; }
+.sm-recipient-card.selected { border-color: #c25e2e; background: #fdf3eb; }
+.sm-rec-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; flex-shrink: 0;
+}
+.sm-rec-avatar.green  { background: #ecfdf5; color: #047857; }
+.sm-rec-avatar.blue   { background: #eff6ff; color: #2563eb; }
+.sm-rec-avatar.amber  { background: #fffbeb; color: #b45309; }
+.sm-rec-avatar.copper { background: #fdf3eb; color: #c25e2e; }
+.sm-rec-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.sm-rec-info strong { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+.sm-rec-info span   { font-size: 12px; color: #64748b; }
+.sm-rec-select { font-size: 12.5px; font-weight: 600; color: #c25e2e; }
+
+/* ── Full-width button ── */
+.sm-btn-full { width: 100%; justify-content: center; }
+
+/* ── Selected Recipient Banner ── */
+.sm-selected-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: #fdf3eb; border: 1px solid #fae0ce; border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 20px;
+}
+.sm-sel-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #c25e2e; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800;
+}
+.sm-sel-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.sm-sel-info strong { font-size: 14px; font-weight: 700; color: #0f172a; }
+.sm-sel-info span   { font-size: 12px; color: #64748b; }
+.sm-change-btn {
+  font-size: 12.5px; font-weight: 700; color: #c25e2e;
+  border: none; background: none; cursor: pointer;
+}
+.sm-balance-hint { margin-top: 6px; }
+.sm-textarea { resize: vertical; min-height: 80px; }
+
+/* ── Button Row ── */
+.sm-btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+
+/* ── Summary Card ── */
+.sm-summary-card {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 16px;
+}
+.sm-summary-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 13.5px; color: #64748b;
+}
+.sm-summary-row strong { color: #0f172a; }
+.sm-summary-divider { border-top: 1px solid #e2e8f0; margin: 6px 0; }
+.sm-muted { color: #94a3b8; font-size: 13px; }
+.sm-fee-free { font-size: 13px; font-weight: 700; color: #10b981; }
+.sm-total-row { margin-top: 4px; font-size: 15px; }
+.sm-confirm-amount { font-size: 20px; font-weight: 800; color: #0f172a; }
+
+/* ── Info Banner ── */
+.sm-info-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+  padding: 12px 14px; font-size: 13px; color: #1e40af;
+  margin-bottom: 20px;
+}
+.sm-info-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Send Button ── */
+.sm-btn-send { justify-content: center; padding: 11px 24px; }
+
+/* ── Success ── */
+.sm-success {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 40px 20px; text-align: center; gap: 10px;
+}
+.sm-success-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #ecfdf5; color: #10b981;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px;
+}
+.sm-success-title { font-size: 20px; font-weight: 800; color: #0f172a; }
+.sm-success-desc  { font-size: 14px; color: #64748b; max-width: 300px; }
+.sm-success-actions { display: flex; gap: 10px; margin-top: 8px; }
+

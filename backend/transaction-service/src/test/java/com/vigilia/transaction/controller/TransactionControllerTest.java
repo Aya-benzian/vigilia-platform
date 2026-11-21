@@ -8,9 +8,11 @@ import com.vigilia.transaction.dto.TransactionCreateRequest;
 import com.vigilia.transaction.dto.TransactionPageResponse;
 import com.vigilia.transaction.dto.TransactionResponse;
 import com.vigilia.transaction.dto.TransactionType;
+import com.vigilia.transaction.dto.WalletResponse;
 import com.vigilia.transaction.exception.GlobalExceptionHandler;
 import com.vigilia.transaction.security.SecurityContextHelper;
 import com.vigilia.transaction.service.TransactionService;
+import com.vigilia.transaction.service.WalletService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +50,9 @@ class TransactionControllerTest {
 
     @Mock
     private TransactionService transactionService;
+
+    @Mock
+    private WalletService walletService;
 
     @Spy
     private SecurityContextHelper securityContextHelper = new SecurityContextHelper();
@@ -269,5 +275,71 @@ class TransactionControllerTest {
                         .header("X-User-Role", "ANALYST"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(0));
+    }
+
+    // =========================================================================
+    // 4. GET /api/v1/transactions/wallet
+    // =========================================================================
+
+    @Test
+    @DisplayName("GET /api/v1/transactions/wallet - Client consulte son propre portefeuille (200 OK)")
+    void getWallet_CustomerOwnWallet_Success() throws Exception {
+        WalletResponse wallet = new WalletResponse(
+                UUID.randomUUID(),
+                customerId,
+                "VIG-7823-9012-0412",
+                "EUR",
+                new BigDecimal("2250.00"),
+                new BigDecimal("200.00"),
+                Instant.now()
+        );
+
+        when(walletService.getWalletByCustomerId(customerId)).thenReturn(wallet);
+
+        mockMvc.perform(get("/api/v1/transactions/wallet")
+                        .header("X-User-Id", customerId.toString())
+                        .header("X-User-Role", "CUSTOMER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountNumber").value("VIG-7823-9012-0412"))
+                .andExpect(jsonPath("$.availableBalance").value(2250.00))
+                .andExpect(jsonPath("$.heldBalance").value(200.00))
+                .andExpect(jsonPath("$.totalBalance").value(2450.00));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/transactions/wallet - Client requêtant le portefeuille d'un tiers (403 Forbidden)")
+    void getWallet_CustomerQueryingOtherCustomer_Forbidden() throws Exception {
+        mockMvc.perform(get("/api/v1/transactions/wallet")
+                        .param("customerId", otherCustomerId.toString())
+                        .header("X-User-Id", customerId.toString())
+                        .header("X-User-Role", "CUSTOMER"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/transactions/topup - Dépôt de fonds réussi (200 OK)")
+    void topUp_Success() throws Exception {
+        WalletResponse wallet = new WalletResponse(
+                UUID.randomUUID(),
+                customerId,
+                "VIG-7823-9012-0412",
+                "USD",
+                new BigDecimal("100.00"),
+                BigDecimal.ZERO,
+                Instant.now()
+        );
+
+        when(transactionService.topUpWallet(eq(customerId), eq(new BigDecimal("100.00")), eq("VISA"), eq("4242"), anyString()))
+                .thenReturn(wallet);
+
+        mockMvc.perform(post("/api/v1/transactions/topup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 100.00, \"cardBrand\": \"VISA\", \"cardLast4\": \"4242\"}")
+                        .header("X-User-Id", customerId.toString())
+                        .header("X-User-Role", "CUSTOMER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableBalance").value(100.00))
+                .andExpect(jsonPath("$.totalBalance").value(100.00));
     }
 }

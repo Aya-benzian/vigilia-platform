@@ -59,12 +59,30 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
     public WalletEntity getWalletEntityByCustomerId(UUID customerId) {
         if (customerId == null) {
             throw new InvalidOperationException("customerId ne doit pas être null");
         }
         return walletRepository.findByCustomerId(customerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Portefeuille introuvable pour le client: " + customerId));
+                .orElseGet(() -> autoProvisionWallet(customerId));
+    }
+
+    private WalletEntity autoProvisionWallet(UUID customerId) {
+        String cleanUuid = customerId.toString().replace("-", "").toUpperCase();
+        String part1 = cleanUuid.substring(0, 4);
+        String part2 = cleanUuid.substring(4, 8);
+        String part3 = cleanUuid.substring(8, 12);
+        String accountNumber = "VGL-FR-" + part1 + "-" + part2 + "-" + part3;
+
+        if (walletRepository.findByAccountNumber(accountNumber).isPresent()) {
+            accountNumber = "VGL-FR-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+        }
+
+        WalletEntity wallet = new WalletEntity(customerId, accountNumber, "USD", BigDecimal.ZERO);
+        WalletEntity saved = walletRepository.save(wallet);
+        log.info("Auto-provisioned fresh 0.00 balance wallet for customer [customerId={}, accountNumber={}]", customerId, accountNumber);
+        return saved;
     }
 
     @Override

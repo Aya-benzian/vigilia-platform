@@ -1,13 +1,17 @@
 package com.vigilia.transaction.controller;
 
 import com.vigilia.transaction.dto.RiskStatus;
+import com.vigilia.transaction.dto.TopUpRequest;
 import com.vigilia.transaction.dto.TransactionCreateRequest;
 import com.vigilia.transaction.dto.TransactionPageResponse;
 import com.vigilia.transaction.dto.TransactionResponse;
 import com.vigilia.transaction.dto.TransactionType;
+import com.vigilia.transaction.dto.WalletResponse;
 import com.vigilia.transaction.exception.ForbiddenException;
+import com.vigilia.transaction.exception.UnauthorizedException;
 import com.vigilia.transaction.security.SecurityContextHelper;
 import com.vigilia.transaction.service.TransactionService;
+import com.vigilia.transaction.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -37,10 +41,12 @@ public class TransactionController {
     private static final Logger log = LoggerFactory.getLogger(TransactionController.class);
 
     private final TransactionService transactionService;
+    private final WalletService walletService;
     private final SecurityContextHelper securityContextHelper;
 
-    public TransactionController(TransactionService transactionService, SecurityContextHelper securityContextHelper) {
+    public TransactionController(TransactionService transactionService, WalletService walletService, SecurityContextHelper securityContextHelper) {
         this.transactionService = transactionService;
+        this.walletService = walletService;
         this.securityContextHelper = securityContextHelper;
     }
 
@@ -68,7 +74,7 @@ public class TransactionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
     public ResponseEntity<TransactionResponse> getTransactionById(
             @PathVariable("id") UUID id,
             HttpServletRequest request) {
@@ -109,6 +115,48 @@ public class TransactionController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/wallet")
+    public ResponseEntity<WalletResponse> getWallet(
+            @RequestParam(value = "customerId", required = false) UUID customerId,
+            HttpServletRequest request) {
+
+        UUID effectiveCustomerId = customerId;
+        if (!securityContextHelper.hasPrivilegedRole(request)) {
+            UUID authenticatedUserId = securityContextHelper.requireCurrentUserId(request);
+            if (customerId != null && !authenticatedUserId.equals(customerId)) {
+                throw new ForbiddenException("Accès refusé : vous ne pouvez pas consulter le portefeuille d'un tiers");
+            }
+            effectiveCustomerId = authenticatedUserId;
+        } else if (effectiveCustomerId == null) {
+            effectiveCustomerId = securityContextHelper.resolveCurrentUserId(request);
+        }
+
+        if (effectiveCustomerId == null) {
+            throw new UnauthorizedException("Identité utilisateur non authentifiée");
+        }
+
+        WalletResponse wallet = walletService.getWalletByCustomerId(effectiveCustomerId);
+        return ResponseEntity.ok(wallet);
+    }
+
+    @PostMapping("/topup")
+    public ResponseEntity<WalletResponse> topUp(
+            @Valid @RequestBody TopUpRequest request,
+            HttpServletRequest httpRequest) {
+
+        UUID customerId = securityContextHelper.requireCurrentUserId(httpRequest);
+        String clientIp = resolveClientIp(httpRequest);
+
+        WalletResponse wallet = transactionService.topUpWallet(
+                customerId,
+                request.getAmount(),
+                request.getCardBrand(),
+                request.getCardLast4(),
+                clientIp
+        );
+        return ResponseEntity.ok(wallet);
     }
 
     private String resolveClientIp(HttpServletRequest request) {
