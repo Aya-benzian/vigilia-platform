@@ -27,7 +27,7 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM nginxinc/nginx-unprivileged:alpine
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 # Copy compiled static bundle from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
