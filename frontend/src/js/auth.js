@@ -91,7 +91,7 @@ export const VigiliaAuth = {
 if (typeof window !== 'undefined') {
   window.addEventListener('pageshow', (event) => {
     // If navigating back to protected page without token
-    const isProtected = window.location.pathname.includes('monitor-dashboard.html');
+    const isProtected = window.location.pathname.includes('/monitor/') || window.location.pathname.includes('monitor-dashboard.html');
     if (isProtected && !VigiliaAuth.isAuthenticated()) {
       window.location.replace('/login.html');
     }

@@ -1,0 +1,164 @@
+.sec-score-card {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-bottom: 20px;
+}
+
+.sec-score-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.sec-score-circle {}
+
+.sec-score-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sec-score-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.sec-score-desc {
+  font-size: 13px;
+  color: #64748b;
+  max-width: 260px;
+  line-height: 1.45;
+}
+
+.sec-score-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.sec-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.sec-check-item.ok   { color: #10b981; }
+.sec-check-item.warn { color: #f59e0b; }
+
+.sec-events-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.sec-event-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sec-event-item:last-child { border-bottom: none; }
+
+.sec-event-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sec-event-icon.ok   { background: #ecfdf5; color: #10b981; }
+.sec-event-icon.warn { background: #fffbeb; color: #f59e0b; }
+.sec-event-icon.info { background: #eff6ff; color: #2563eb; }
+.sec-event-icon.danger { background: #fef2f2; color: #ef4444; }
+
+.sec-event-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sec-event-info strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sec-event-info span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.sec-event-time {
+  font-size: 11.5px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.sec-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sec-devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.sec-device-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.sec-device-card.current {
+  border-color: #c25e2e;
+  background: #fdf3eb;
+}
+
+.sec-device-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.sec-device-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sec-device-info strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sec-device-info span {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+@media (max-width: 700px) {
+  .sec-score-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sec-score-right { margin-left: 0; }
+}
+

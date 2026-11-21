@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — My Wallet</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="css/customer-pages.css" />
+  <link rel="stylesheet" href="css/wallet.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <customer-sidebar active="wallet" workspace="CUSTOMER WORKSPACE"></customer-sidebar>
+
+    <div class="app-main-wrapper">
+      <customer-navbar></customer-navbar>
+
+      <main class="main-stage">
+        <div class="pg-content-wrap">
+
+          <!-- Page Header -->
+          <div class="pg-header">
+            <div class="pg-header-left">
+              <div class="pg-breadcrumb">
+                <a href="overview.html">Overview</a><span>›</span><span>My Wallet</span>
+              </div>
+              <h1 class="pg-title">My Wallet</h1>
+              <p class="pg-subtitle">Manage your balance, top up, and view card details</p>
+            </div>
+            <div class="pg-header-actions">
+              <button class="btn btn-outline" id="walletTopUpBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Top Up
+              </button>
+            </div>
+          </div>
+
+          <!-- Balance Stats Row -->
+          <div class="pg-stats-row cols-3">
+
+            <!-- Total Balance (Dark Card) -->
+            <div class="wlt-balance-card">
+              <div class="wlt-balance-bg-lines" aria-hidden="true">
+                <svg viewBox="0 0 240 140" fill="none" preserveAspectRatio="none">
+                  <path d="M120 0 C155 30 175 75 175 140" stroke="rgba(255,255,255,0.07)" stroke-width="1.5" fill="none"/>
+                  <path d="M160 0 C195 30 215 75 215 140" stroke="rgba(255,255,255,0.07)" stroke-width="1.5" fill="none"/>
+                  <path d="M200 0 C235 30 255 75 255 140" stroke="rgba(255,255,255,0.07)" stroke-width="1.5" fill="none"/>
+                </svg>
+              </div>
+              <div class="wlt-balance-header">
+                <span class="wlt-balance-label">Total Balance</span>
+                <button class="wlt-eye-btn" id="wltEyeBtn" aria-label="Toggle visibility">
+                  <svg id="wltEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="wlt-balance-amount">
+                <span class="wlt-currency">$</span>
+                <span class="wlt-amount" id="wltTotalBalance">0.00</span>
+                <span class="wlt-available-pill">Available</span>
+              </div>
+              <div class="wlt-balance-footer">
+                <span class="wlt-acct font-mono" id="wltAccountNum">••••-••••-••••</span>
+                <button class="wlt-copy-btn" id="walletCopyBtn" aria-label="Copy account number">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Available Funds -->
+            <div class="pg-stat-card">
+              <div class="pg-stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <span class="pg-stat-label">Available Funds</span>
+              <div class="pg-stat-value" id="wltAvailableFunds">$0.00</div>
+              <span class="pg-stat-sub wlt-status-ready">● Ready to use</span>
+            </div>
+
+            <!-- On Hold -->
+            <div class="pg-stat-card">
+              <div class="pg-stat-icon amber">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <span class="pg-stat-label">On Hold</span>
+              <div class="pg-stat-value" id="wltOnHoldFunds">$0.00</div>
+              <span class="pg-stat-sub wlt-status-review">● Pending review</span>
+            </div>
+
+          </div>
+
+          <!-- Two-column grid: Card + Quick Actions -->
+          <div class="wlt-two-col">
+
+            <!-- Virtual Card -->
+            <div class="pg-card">
+              <div class="wlt-card-header">
+                <h3 class="wlt-section-title">Virtual Card</h3>
+                <span class="pg-badge green"><span class="dot"></span> Active</span>
+              </div>
+              <div class="wlt-card-visual">
+                <svg viewBox="0 0 320 190" width="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="wltCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#0d1e34"/><stop offset="100%" stop-color="#162a45"/>
+                    </linearGradient>
+                    <filter id="wltCardShadow">
+                      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#0f172a" flood-opacity="0.3"/>
+                    </filter>
+                  </defs>
+                  <rect x="10" y="10" width="300" height="170" rx="16" fill="url(#wltCardGrad)" filter="url(#wltCardShadow)"/>
+                  <path d="M200 10 C240 40 265 80 265 180" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" fill="none"/>
+                  <path d="M230 10 C270 40 295 80 295 180" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" fill="none"/>
+                  <rect x="30" y="65" width="36" height="28" rx="4" fill="#f59e0b"/>
+                  <line x1="48" y1="65" x2="48" y2="93" stroke="#d97706" stroke-width="1"/>
+                  <line x1="30" y1="79" x2="66" y2="79" stroke="#d97706" stroke-width="1"/>
+                  <text x="275" y="45" font-family="'Plus Jakarta Sans', sans-serif" font-size="22" font-weight="800" fill="rgba(255,255,255,0.9)" text-anchor="end">V</text>
+                  <text x="276" y="55" font-family="sans-serif" font-size="8" font-weight="600" fill="rgba(255,255,255,0.4)" text-anchor="end">VIGILIA</text>
+                  <text x="30" y="130" font-family="'JetBrains Mono', monospace" font-size="16" fill="rgba(255,255,255,0.9)" letter-spacing="2">•••• •••• •••• 0412</text>
+                  <text x="30" y="158" font-family="monospace" font-size="11" fill="rgba(255,255,255,0.5)">EXPIRY</text>
+                  <text x="30" y="172" font-family="'JetBrains Mono', monospace" font-size="13" fill="rgba(255,255,255,0.85)">04 / 27</text>
+                  <text x="130" y="158" font-family="monospace" font-size="11" fill="rgba(255,255,255,0.5)">CVV</text>
+                  <text x="130" y="172" font-family="'JetBrains Mono', monospace" font-size="13" fill="rgba(255,255,255,0.85)">•••</text>
+                  <path d="M270 148 Q278 140 278 130 Q278 120 270 112" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+                  <path d="M262 145 Q272 136 272 130 Q272 124 262 115" stroke="rgba(255,255,255,0.3)" stroke-width="2" fill="none" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="wlt-card-details">
+                <div class="wlt-detail-row">
+                  <span class="wlt-detail-label">Account Number</span>
+                  <span class="wlt-detail-value font-mono">VIG-7823-9914-0412</span>
+                </div>
+                <div class="wlt-detail-row">
+                  <span class="wlt-detail-label">Card Type</span>
+                  <span class="wlt-detail-value">Virtual · Vigilia Pay</span>
+                </div>
+                <div class="wlt-detail-row">
+                  <span class="wlt-detail-label">Currency</span>
+                  <span class="wlt-detail-value">USD — US Dollar</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="pg-card">
+              <h3 class="wlt-section-title" style="margin-bottom:16px">Quick Actions</h3>
+              <div class="wlt-actions-list">
+                <a href="send-money.html" class="wlt-action-row">
+                  <div class="wlt-action-icon copper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+                  <div class="wlt-action-text"><strong>Send Money</strong><span>Transfer to a Vigilia customer</span></div>
+                  <span class="wlt-action-arrow">→</span>
+                </a>
+                <a href="merchant-pay.html" class="wlt-action-row">
+                  <div class="wlt-action-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+                  <div class="wlt-action-text"><strong>Pay a Merchant</strong><span>Shop securely with Vigilia</span></div>
+                  <span class="wlt-action-arrow">→</span>
+                </a>
+                <a href="beneficiaries.html" class="wlt-action-row">
+                  <div class="wlt-action-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                  <div class="wlt-action-text"><strong>Manage Beneficiaries</strong><span>Add or remove recipients</span></div>
+                  <span class="wlt-action-arrow">→</span>
+                </a>
+                <button class="wlt-action-row" id="wltTopUpAction">
+                  <div class="wlt-action-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                  <div class="wlt-action-text"><strong>Top Up Wallet</strong><span>Deposit funds instantly</span></div>
+                  <span class="wlt-action-arrow">→</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Recent Transactions Table -->
+          <div class="pg-card">
+            <div class="wlt-txn-header">
+              <h3 class="wlt-section-title">Recent Transactions</h3>
+              <a href="transactions.html" class="wlt-view-all">View all →</a>
+            </div>
+            <div class="pg-table-wrap">
+              <table class="pg-table">
+                <thead>
+                  <tr>
+                    <th>Merchant / Recipient</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th style="text-align:right">Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><div class="wlt-merchant"><div class="wlt-merchant-icon netflix">N</div><span>Netflix</span></div></td><td class="wlt-date-cell">Apr 28, 2025</td><td><span class="pg-badge grey">Payment</span></td><td class="wlt-amount-cell font-mono">- $12.99</td><td><span class="pg-badge green"><span class="dot"></span>Approved</span></td></tr>
+                  <tr><td><div class="wlt-merchant"><div class="wlt-merchant-icon transfer">↔</div><span>John Doe</span></div></td><td class="wlt-date-cell">Apr 27, 2025</td><td><span class="pg-badge grey">Transfer</span></td><td class="wlt-amount-cell font-mono">- $250.00</td><td><span class="pg-badge amber"><span class="dot"></span>Under review</span></td></tr>
+                  <tr><td><div class="wlt-merchant"><div class="wlt-merchant-icon amazon">a</div><span>Amazon</span></div></td><td class="wlt-date-cell">Apr 26, 2025</td><td><span class="pg-badge grey">Payment</span></td><td class="wlt-amount-cell font-mono">- $89.90</td><td><span class="pg-badge green"><span class="dot"></span>Approved</span></td></tr>
+                  <tr><td><div class="wlt-merchant"><div class="wlt-merchant-icon user">SS</div><span>Sarah Smith</span></div></td><td class="wlt-date-cell">Apr 25, 2025</td><td><span class="pg-badge grey">Transfer</span></td><td class="wlt-amount-cell font-mono">- $120.00</td><td><span class="pg-badge green"><span class="dot"></span>Approved</span></td></tr>
+                  <tr><td><div class="wlt-merchant"><div class="wlt-merchant-icon spotify">S</div><span>Spotify</span></div></td><td class="wlt-date-cell">Apr 24, 2025</td><td><span class="pg-badge grey">Payment</span></td><td class="wlt-amount-cell font-mono">- $9.99</td><td><span class="pg-badge green"><span class="dot"></span>Approved</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Top Up Modal -->
+  <div class="wlt-modal-backdrop" id="topUpModal" style="display:none">
+    <div class="wlt-modal">
+      <div class="wlt-modal-header">
+        <h3>Top Up Wallet</h3>
+        <button class="wlt-modal-close" id="closeTopUpModal">✕</button>
+      </div>
+      <div class="wlt-modal-body">
+        <div class="pg-form-group">
+          <label class="pg-label" for="topUpAmount">Amount to deposit</label>
+          <div class="pg-input-group">
+            <span class="pg-input-prefix">$</span>
+            <input type="number" id="topUpAmount" placeholder="100.00" min="1" step="0.01"/>
+          </div>
+          <p class="pg-hint">Funds are immediately available upon completion.</p>
+        </div>
+      </div>
+      <div class="wlt-modal-footer">
+        <button class="btn btn-outline" id="cancelTopUp">Cancel</button>
+        <button class="btn btn-primary" id="submitTopUp">Deposit Funds</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/wallet.js"></script>
+</body>
+</html>

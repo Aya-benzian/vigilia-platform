@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Profile & Settings</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="css/customer-pages.css" />
+  <link rel="stylesheet" href="css/profile.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <customer-sidebar active="profile" workspace="CUSTOMER WORKSPACE"></customer-sidebar>
+    <div class="app-main-wrapper">
+      <customer-navbar></customer-navbar>
+      <main class="main-stage">
+        <div class="pg-content-wrap">
+
+          <div class="pg-header">
+            <div class="pg-header-left">
+              <div class="pg-breadcrumb"><a href="overview.html">Overview</a><span>›</span><span>Profile & Settings</span></div>
+              <h1 class="pg-title">Profile & Settings</h1>
+              <p class="pg-subtitle">Manage your personal information and preferences</p>
+            </div>
+          </div>
+
+          <div class="profile-layout">
+
+            <!-- Left: Avatar & Nav -->
+            <div class="profile-sidebar-col">
+              <div class="pg-card profile-avatar-card">
+                <div class="profile-avatar-circle">AB</div>
+                <strong class="profile-name">Aya Belk</strong>
+                <span class="profile-email">aya.belk@vigilia.io</span>
+                <span class="pg-badge green profile-status"><span class="dot"></span>Verified</span>
+              </div>
+
+              <nav class="profile-nav pg-card">
+                <button class="profile-nav-item active" data-section="personal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Personal Info
+                </button>
+                <button class="profile-nav-item" data-section="security">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  Security
+                </button>
+                <button class="profile-nav-item" data-section="preferences">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  Preferences
+                </button>
+              </nav>
+            </div>
+
+            <!-- Right: Section Content -->
+            <div class="profile-content-col">
+
+              <!-- Personal Info -->
+              <div class="profile-section" id="sectionPersonal">
+                <div class="pg-card">
+                  <h3 class="profile-section-title">Personal Information</h3>
+                  <div class="profile-form-grid">
+                    <div class="pg-form-group">
+                      <label class="pg-label">First Name</label>
+                      <input class="pg-input" type="text" value="Aya" />
+                    </div>
+                    <div class="pg-form-group">
+                      <label class="pg-label">Last Name</label>
+                      <input class="pg-input" type="text" value="Belk" />
+                    </div>
+                    <div class="pg-form-group">
+                      <label class="pg-label">Email Address</label>
+                      <input class="pg-input" type="email" value="aya.belk@vigilia.io" />
+                    </div>
+                    <div class="pg-form-group">
+                      <label class="pg-label">Phone Number</label>
+                      <input class="pg-input" type="tel" value="+212 6XX XXX XXX" />
+                    </div>
+                    <div class="pg-form-group" style="grid-column:1/-1">
+                      <label class="pg-label">City / Location</label>
+                      <input class="pg-input" type="text" value="Casablanca, Morocco" />
+                    </div>
+                  </div>
+                  <div class="profile-form-actions">
+                    <button class="btn btn-primary">Save Changes</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Security -->
+              <div class="profile-section" id="sectionSecurity" hidden>
+                <div class="pg-card">
+                  <h3 class="profile-section-title">Security Settings</h3>
+
+                  <div class="profile-security-item">
+                    <div class="profile-sec-info">
+                      <strong>Password</strong>
+                      <span>Last changed 3 months ago</span>
+                    </div>
+                    <button class="btn btn-outline">Change Password</button>
+                  </div>
+                  <div class="profile-security-item">
+                    <div class="profile-sec-info">
+                      <strong>Two-Factor Authentication</strong>
+                      <span>Adds an extra layer of security</span>
+                    </div>
+                    <span class="pg-badge green"><span class="dot"></span>Enabled</span>
+                  </div>
+                  <div class="profile-security-item">
+                    <div class="profile-sec-info">
+                      <strong>Active Sessions</strong>
+                      <span>1 device — Casablanca, Morocco</span>
+                    </div>
+                    <button class="btn btn-danger">Revoke All</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Preferences -->
+              <div class="profile-section" id="sectionPreferences" hidden>
+                <div class="pg-card">
+                  <h3 class="profile-section-title">Preferences</h3>
+                  <div class="pg-toggle-row">
+                    <div class="pg-toggle-info"><div class="pg-toggle-title">Email Notifications</div><div class="pg-toggle-desc">Receive alerts via email</div></div>
+                    <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                  </div>
+                  <div class="pg-toggle-row">
+                    <div class="pg-toggle-info"><div class="pg-toggle-title">Transaction Receipts</div><div class="pg-toggle-desc">Auto-send receipt for each payment</div></div>
+                    <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                  </div>
+                  <div class="pg-toggle-row">
+                    <div class="pg-toggle-info"><div class="pg-toggle-title">Dark Mode</div><div class="pg-toggle-desc">Coming soon</div></div>
+                    <label class="pg-switch"><input type="checkbox" disabled /><span class="pg-switch-track"></span></label>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="js/profile.js"></script>
+</body>
+</html>
+

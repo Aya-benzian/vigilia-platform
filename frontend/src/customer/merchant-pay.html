@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vigilia — Pay a Merchant</title>
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="css/customer-pages.css" />
+  <link rel="stylesheet" href="css/merchant-pay.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <customer-sidebar active="send-money" workspace="CUSTOMER WORKSPACE"></customer-sidebar>
+    <div class="app-main-wrapper">
+      <customer-navbar></customer-navbar>
+      <main class="main-stage">
+        <div class="pg-content-wrap">
+
+          <div class="pg-header">
+            <div class="pg-header-left">
+              <div class="pg-breadcrumb"><a href="overview.html">Overview</a><span>›</span><span>Pay a Merchant</span></div>
+              <h1 class="pg-title">Pay a Merchant</h1>
+              <p class="pg-subtitle">Shop securely at any Vigilia-enabled merchant</p>
+            </div>
+          </div>
+
+          <!-- Merchant Payment Form -->
+          <div class="mp-form-wrap">
+            <div class="pg-card mp-card">
+
+              <!-- Merchant Search -->
+              <h3 class="mp-step-title">Find Merchant</h3>
+              <div class="pg-form-group">
+                <label class="pg-label">Merchant Name or ID</label>
+                <div class="pg-search-input">
+                  <span class="pg-search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                  <input type="text" id="merchantSearch" placeholder="Search merchant name or ID..." />
+                </div>
+              </div>
+
+              <!-- Suggested Merchants -->
+              <p class="pg-section-label">Suggested Merchants</p>
+              <div class="mp-merchant-grid">
+                <button class="mp-merchant-tile" data-name="Netflix" data-id="MERCH-NF-001">
+                  <div class="mp-merch-icon netflix">N</div>
+                  <span>Netflix</span>
+                </button>
+                <button class="mp-merchant-tile" data-name="Amazon" data-id="MERCH-AZ-002">
+                  <div class="mp-merch-icon amazon">a</div>
+                  <span>Amazon</span>
+                </button>
+                <button class="mp-merchant-tile" data-name="Spotify" data-id="MERCH-SP-003">
+                  <div class="mp-merch-icon spotify">S</div>
+                  <span>Spotify</span>
+                </button>
+                <button class="mp-merchant-tile" data-name="Zara" data-id="MERCH-ZR-004">
+                  <div class="mp-merch-icon zara">Z</div>
+                  <span>Zara</span>
+                </button>
+                <button class="mp-merchant-tile" data-name="Carrefour" data-id="MERCH-CF-005">
+                  <div class="mp-merch-icon carrefour">C</div>
+                  <span>Carrefour</span>
+                </button>
+                <button class="mp-merchant-tile" data-name="Apple" data-id="MERCH-AP-006">
+                  <div class="mp-merch-icon apple">🍎</div>
+                  <span>Apple</span>
+                </button>
+              </div>
+
+              <!-- Amount -->
+              <div class="mp-amount-section" id="mpAmountSection" style="display:none">
+                <div class="mp-selected-banner">
+                  <div class="mp-merch-selected-icon" id="mpSelectedIcon">N</div>
+                  <strong id="mpSelectedName">Netflix</strong>
+                  <span class="mp-selected-id" id="mpSelectedId">MERCH-NF-001</span>
+                </div>
+                <div class="pg-form-group">
+                  <label class="pg-label">Amount (USD)</label>
+                  <div class="pg-input-group">
+                    <span class="pg-input-prefix">$</span>
+                    <input type="number" id="mpAmount" placeholder="0.00" min="0.01" step="0.01"/>
+                  </div>
+                  <p class="pg-hint">Available: <strong>$2,250.00</strong></p>
+                </div>
+                <div class="pg-form-group">
+                  <label class="pg-label">Reference / Invoice No. (optional)</label>
+                  <input class="pg-input" type="text" id="mpReference" placeholder="e.g. INV-2025-0042" />
+                </div>
+                <div class="mp-pay-btn-row">
+                  <button class="btn btn-outline" id="mpClearBtn">Clear</button>
+                  <button class="btn btn-copper mp-pay-btn" id="mpPayBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    Pay Now
+                  </button>
+                </div>
+              </div>
+
+              <!-- Success -->
+              <div class="mp-success" id="mpSuccess" style="display:none">
+                <div class="sm-success-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="32" height="32"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h3 class="sm-success-title">Payment Sent!</h3>
+                <p class="sm-success-desc">Your payment to <strong id="mpSuccessName">Netflix</strong> was processed successfully.</p>
+                <a href="overview.html" class="btn btn-primary" style="margin-top:16px">Back to Overview</a>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="js/merchant-pay.js"></script>
+</body>
+</html>
+

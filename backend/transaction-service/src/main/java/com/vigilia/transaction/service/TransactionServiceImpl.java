@@ -10,6 +10,7 @@ import com.vigilia.transaction.dto.TransactionCreateRequest;
 import com.vigilia.transaction.dto.TransactionPageResponse;
 import com.vigilia.transaction.dto.TransactionResponse;
 import com.vigilia.transaction.dto.TransactionType;
+import com.vigilia.transaction.dto.WalletResponse;
 import com.vigilia.transaction.entity.MerchantEntity;
 import com.vigilia.transaction.entity.PaymentEntity;
 import com.vigilia.transaction.entity.TransactionEntity;
@@ -372,6 +373,54 @@ public class TransactionServiceImpl implements TransactionService {
                 txn.getId(), fromStatus, decision.name(), analystId);
 
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public WalletResponse topUpWallet(UUID customerId, BigDecimal amount, String cardBrand, String cardLast4, String clientIp) {
+        if (customerId == null) {
+            throw new InvalidOperationException("customerId ne doit pas être null");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException("Le montant du rechargement doit être supérieur à zéro");
+        }
+
+        WalletEntity wallet = walletService.getWalletEntityByCustomerId(customerId);
+
+        // 1. Record transaction and merchant metadata first (to satisfy FK constraint on wallet_ledger)
+        String brand = (cardBrand != null && !cardBrand.isBlank()) ? cardBrand.toUpperCase() : "VISA";
+        String last4 = (cardLast4 != null && !cardLast4.isBlank()) ? cardLast4 : "4242";
+        String merchantName = "Wallet Deposit (" + brand + " •••• " + last4 + ")";
+        MerchantEntity merchant = resolveOrCreateMerchant(merchantName, "DEPOSIT");
+
+        TransactionEntity txn = new TransactionEntity(
+                TransactionType.DEPOSIT.name(),
+                customerId,
+                amount,
+                wallet.getCurrency(),
+                RiskStatus.APPROVED.name()
+        );
+        txn.setFinalizedAt(Instant.now());
+        txn.setIpAddress(clientIp);
+        TransactionEntity savedTxn = transactionRepository.saveAndFlush(txn);
+        UUID txnId = savedTxn.getId();
+
+        // 2. Credit the wallet ledger
+        walletService.creditFunds(wallet.getId(), txnId, amount);
+
+        // 3. Record payment details
+        PaymentEntity payment = new PaymentEntity(txnId, merchant.getId());
+        payment.setProductId("DEPOSIT_FUNDS");
+        payment.setProductName(merchantName);
+        payment.setMerchantCategory("DEPOSIT");
+        payment.setCardBrand(brand);
+        payment.setCardLast4(last4);
+        paymentRepository.save(payment);
+
+        recordStatusHistory(txnId, "PENDING", "APPROVED", "Sandbox direct card deposit", "SYSTEM", "gateway-simulator");
+        log.info("Top-up effectué avec succès pour le client [customerId={}, amount={}, card={}****{}]", customerId, amount, brand, last4);
+
+        return walletService.getWalletByCustomerId(customerId);
     }
 
     @Override
