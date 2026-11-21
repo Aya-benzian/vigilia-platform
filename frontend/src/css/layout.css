@@ -135,7 +135,15 @@ vigilia-top-navbar {
 .sidebar-nav-group {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0;
+}
+
+/* ── Grouped nav sections ───────────────────────────────────────────────── */
+.sidebar-nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .sidebar .nav-item,
@@ -182,10 +190,10 @@ vigilia-top-navbar {
 .sidebar .nav-item.active,
 .sidebar.light-theme .nav-item.active,
 .sidebar.dark-theme .nav-item.active {
-  background: linear-gradient(135deg, #d97236, #c66935);
+  background: linear-gradient(135deg, #e05822, #ea580c);
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(217, 114, 54, 0.28);
+  box-shadow: 0 4px 14px rgba(224, 88, 34, 0.32);
 }
 
 .sidebar .nav-item.active svg,

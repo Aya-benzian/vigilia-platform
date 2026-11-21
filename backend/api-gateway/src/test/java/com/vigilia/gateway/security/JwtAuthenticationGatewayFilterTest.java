@@ -341,4 +341,87 @@ class JwtAuthenticationGatewayFilterTest {
         assertEquals("ANALYST", downstreamExchange.get().getRequest().getHeaders().getFirst("X-User-Role"));
         assertEquals("ROLE_ANALYST", downstreamExchange.get().getRequest().getHeaders().getFirst("X-User-Roles"));
     }
+
+    @Test
+    @DisplayName("RBAC Visualization : Sans jeton d'authentification sur /api/v1/visualization/purchase/pca -> 401 UNAUTHORIZED")
+    void testVisualizationWithoutTokenUnauthorized() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/visualization/purchase/pca").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        GatewayFilterChain chain = ex -> Mono.empty();
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("RBAC Visualization : Rôle CUSTOMER tente d'accéder à /api/v1/visualization/purchase/pca -> 403 FORBIDDEN")
+    void testRbacCustomerForbiddenOnVisualizationRoute() {
+        UUID userId = UUID.randomUUID();
+        String token = createToken(userId, "cust@example.com", "CUSTOMER", List.of("ROLE_CUSTOMER"), issuer, Instant.now().plus(15, ChronoUnit.MINUTES));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/visualization/purchase/pca")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        GatewayFilterChain chain = ex -> Mono.empty();
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("RBAC Visualization : Rôle ANALYST accède à /api/v1/visualization/purchase/pca -> Autorisé")
+    void testRbacAnalystAllowedOnVisualizationRoute() {
+        UUID userId = UUID.randomUUID();
+        String token = createToken(userId, "analyst@example.com", "ANALYST", List.of("ROLE_ANALYST"), issuer, Instant.now().plus(15, ChronoUnit.MINUTES));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/visualization/purchase/pca")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        AtomicReference<ServerWebExchange> downstreamExchange = new AtomicReference<>();
+        GatewayFilterChain chain = ex -> {
+            downstreamExchange.set(ex);
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        assertNotNull(downstreamExchange.get());
+        assertEquals("ANALYST", downstreamExchange.get().getRequest().getHeaders().getFirst("X-User-Role"));
+        assertEquals("ROLE_ANALYST", downstreamExchange.get().getRequest().getHeaders().getFirst("X-User-Roles"));
+    }
+
+    @Test
+    @DisplayName("RBAC Visualization : Rôle ADMIN accède à /api/v1/visualization/transfer/tsne -> Autorisé")
+    void testRbacAdminAllowedOnVisualizationRoute() {
+        UUID userId = UUID.randomUUID();
+        String token = createToken(userId, "admin@example.com", "ADMIN", List.of("ROLE_ADMIN"), issuer, Instant.now().plus(15, ChronoUnit.MINUTES));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/visualization/transfer/tsne")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        AtomicReference<ServerWebExchange> downstreamExchange = new AtomicReference<>();
+        GatewayFilterChain chain = ex -> {
+            downstreamExchange.set(ex);
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        assertNotNull(downstreamExchange.get());
+        assertEquals("ADMIN", downstreamExchange.get().getRequest().getHeaders().getFirst("X-User-Role"));
+        assertEquals("ROLE_ADMIN", downstreamExchange.get().getRequest().getHeaders().getFirst("X-User-Roles"));
+    }
 }

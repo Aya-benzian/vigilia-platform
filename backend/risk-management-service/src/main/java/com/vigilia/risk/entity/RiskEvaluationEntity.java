@@ -1,11 +1,13 @@
 package com.vigilia.risk.entity;
 
 import jakarta.persistence.*;
+import com.vigilia.risk.dto.ShapContribution;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,7 +57,7 @@ public class RiskEvaluationEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "shap_values", columnDefinition = "jsonb")
-    private String shapValues;
+    private List<ShapContribution> shapValues;
 
     @Column(name = "inference_ms")
     private Integer inferenceMs;
@@ -117,8 +119,8 @@ public class RiskEvaluationEntity {
     public BigDecimal getUncertainty() { return uncertainty; }
     public void setUncertainty(BigDecimal uncertainty) { this.uncertainty = uncertainty; }
 
-    public String getShapValues() { return shapValues; }
-    public void setShapValues(String shapValues) { this.shapValues = shapValues; }
+    public List<ShapContribution> getShapValues() { return shapValues; }
+    public void setShapValues(List<ShapContribution> shapValues) { this.shapValues = shapValues; }
 
     public Integer getInferenceMs() { return inferenceMs; }
     public void setInferenceMs(Integer inferenceMs) { this.inferenceMs = inferenceMs; }
