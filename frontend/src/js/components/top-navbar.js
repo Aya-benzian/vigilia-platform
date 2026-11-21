@@ -6,14 +6,14 @@ import logoUrl from '../../assets/vigilia-logo-mark.png';
  */
 class VigiliaTopNavbar extends HTMLElement {
   connectedCallback() {
-    const placeholder = this.getAttribute('search-placeholder') || 'Search clusters, pods, services, logs, or anything...';
-    const notificationCount = this.getAttribute('notifications') || '3';
+    const placeholder = this.getAttribute('search-placeholder') || 'Search customers, cards, searches, logs, or anything...';
+    const notificationCount = this.getAttribute('notifications') || '1';
     const showBrand = this.getAttribute('show-brand') === 'true';
 
     // Retrieve active user info from auth helper or localStorage
-    let displayName = 'Operator';
-    let displayRole = 'Monitor';
-    let initials = 'OP';
+    let displayName = 'Monitor';
+    let displayRole = 'Admin';
+    let initials = 'MO';
 
     if (window.VigiliaAuth) {
       const user = window.VigiliaAuth.getUser();

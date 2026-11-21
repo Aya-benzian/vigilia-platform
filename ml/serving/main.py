@@ -11,9 +11,10 @@ Milestone 1 Implementation:
 
 from contextlib import asynccontextmanager
 import logging
-from typing import AsyncGenerator, Dict, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Response, status
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from prometheus_client import Counter, Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -51,6 +52,7 @@ from schemas import (
     ModelsListResponse,
     PredictionRequest,
     PredictionResponse,
+    ProblemDetail,
     ReloadResponse,
     ServingException,
     UnauthorizedError,
@@ -98,6 +100,36 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # Register RFC 7807 standardized problem detail exception handlers
 register_error_handlers(app)
+
+# Register Data Visualization router (Design 2 / Final v4.2)
+from routers.visualization import router as visualization_router
+app.include_router(visualization_router)
+
+
+def custom_openapi() -> Dict[str, Any]:
+    """
+    Custom OpenAPI schema generator ensuring explicit null values in PredictionResponse example
+    and accurate RFC 7807 problem detail representations.
+    """
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=app.openapi_version,
+        description=app.description,
+        routes=app.routes,
+    )
+    schemas = openapi_schema.get("components", {}).get("schemas", {})
+    if "PredictionResponse" in schemas and "example" in schemas["PredictionResponse"]:
+        schemas["PredictionResponse"]["example"]["label"] = None
+        schemas["PredictionResponse"]["example"]["uncertainty"] = None
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi  # type: ignore[method-assign]
+
 
 
 @app.get("/health/live", response_model=HealthResponse, tags=["Health"])
@@ -193,7 +225,7 @@ def get_models() -> ModelsListResponse:
     registry = get_model_registry()
     models_metadata: Dict[str, ModelMetadata] = {}
 
-    for family in registry.get_supported_families:
+    for family in registry.get_supported_families():
         entry = registry.get_entry(family)
         status_str = registry.get_loading_status(family)
         default_name = current_settings.get_model_name_for_family(family)
@@ -262,7 +294,29 @@ def _handle_prediction(family: str, request: PredictionRequest) -> PredictionRes
         logger.error("Inference execution error for family '%s': %s", clean_fam, exc)
         raise InferenceError(detail=f"Inference execution failed for family '{clean_fam}'.")
 
-    # 5. Uncertainty & Threshold decisions:
+    # 5. Split Conformal Prediction Evaluation (Online nonconformity check)
+    prediction_set: Optional[List[str]] = None
+    conformal_status: Optional[str] = None
+    is_ambiguous: Optional[bool] = None
+
+    if entry.conformal_evaluator is not None:
+        try:
+            conf_result = entry.conformal_evaluator.evaluate(fraud_prob)
+            prediction_set = conf_result.prediction_set
+            conformal_status = conf_result.status.value
+            is_ambiguous = conf_result.is_ambiguous
+        except Exception as exc:
+            clean_fam = str(family).replace("\r", "").replace("\n", "")
+            logger.warning(
+                "Conformal evaluation failed for family '%s': %s. Returning prediction without conformal set.",
+                clean_fam,
+                exc,
+            )
+            prediction_set = None
+            conformal_status = None
+            is_ambiguous = None
+
+    # 6. Uncertainty & Threshold decisions:
     # Do NOT assume 0.5 threshold, do NOT reuse 0.1948 legacy threshold, do NOT invent uncertainty formula.
     # Unresolved values are safely kept as None (reported as blockers for full decisioning).
     label: Optional[str] = None
@@ -280,6 +334,9 @@ def _handle_prediction(family: str, request: PredictionRequest) -> PredictionRes
         model_version=entry.model_version,
         feature_spec_version=canonical_version,
         inference_ms=inference_ms,
+        prediction_set=prediction_set,
+        conformal_status=conformal_status,
+        is_ambiguous=is_ambiguous,
     )
 
 
@@ -288,17 +345,48 @@ def _handle_prediction(family: str, request: PredictionRequest) -> PredictionRes
     response_model=PredictionResponse,
     responses={
         200: {"description": "Fraud prediction successfully computed for purchase transaction"},
-        409: {"description": "Feature specification version mismatch"},
-        422: {"description": "Feature validation error or malformed request payload"},
-        503: {"description": "Purchase model not loaded or not ready"},
-        500: {"description": "Inference execution error"},
+        400: {"description": "Malformed request payload", "model": ProblemDetail},
+        409: {"description": "Feature specification version mismatch", "model": ProblemDetail},
+        422: {"description": "Feature validation error or malformed request payload", "model": ProblemDetail},
+        500: {"description": "Inference execution error", "model": ProblemDetail},
+        503: {"description": "Purchase model not loaded or not ready", "model": ProblemDetail},
     },
     tags=["Prediction"],
 )
 def predict_purchase(request: PredictionRequest, response: Response) -> PredictionResponse:
     """
     Executes fraud prediction for card/merchant purchase transactions (Design 2 Section 15.3).
-    Validates complete 29-feature vector (purchase-v2) and invokes active purchase model.
+
+    Requires canonical feature specification 'purchase-v2' with exactly 29 mandatory features:
+    - amount (float): Transaction amount
+    - log_amount (float): Natural log of amount
+    - hour_of_day (int): Hour of transaction [0-23]
+    - day_of_week (int): Day of week [0-6]
+    - is_weekend (int): 1 if weekend, 0 otherwise
+    - is_night (int): 1 if night transaction, 0 otherwise
+    - customer_age (float): Cardholder age in years
+    - distance_home_merchant_km (float): Geodesic distance in km
+    - city_pop_log (float): Log of city population
+    - merchant_category (string): Merchant business category
+    - customer_avg_amount (float): Historical average transaction amount
+    - customer_std_amount (float): Historical standard deviation
+    - customer_max_amount (float): Historical maximum amount
+    - amount_to_avg_ratio (float): Ratio amount / customer_avg_amount
+    - amount_zscore_customer (float): Z-score of amount
+    - hour_share (float): Frequency share of transactions in this hour
+    - category_share (float): Frequency share in this merchant category
+    - merchant_visit_count (int): Prior visits to merchant
+    - avg_distance_home_km (float): Historical average distance
+    - distance_zscore (float): Z-score of distance
+    - txn_count_1h (int): Velocity in past 1 hour
+    - txn_count_24h (int): Velocity in past 24 hours
+    - txn_count_7d (int): Velocity in past 7 days
+    - amount_sum_24h (float): Cumulative amount spent in past 24 hours
+    - time_since_last_txn_s (float): Seconds elapsed since last transaction
+    - is_new_merchant (int): 1 if first transaction with merchant, 0 otherwise
+    - is_new_category (int): 1 if first transaction in category, 0 otherwise
+    - history_length (int): Total historical transaction count
+    - days_since_first_txn (float): Days since customer account creation
     """
     response.headers["X-Request-Id"] = request.request_id
     return _handle_prediction(family="purchase", request=request)
@@ -309,17 +397,39 @@ def predict_purchase(request: PredictionRequest, response: Response) -> Predicti
     response_model=PredictionResponse,
     responses={
         200: {"description": "Fraud prediction successfully computed for transfer transaction"},
-        409: {"description": "Feature specification version mismatch"},
-        422: {"description": "Feature validation error or malformed request payload"},
-        503: {"description": "Transfer model not loaded or not ready"},
-        500: {"description": "Inference execution error"},
+        400: {"description": "Malformed request payload", "model": ProblemDetail},
+        409: {"description": "Feature specification version mismatch", "model": ProblemDetail},
+        422: {"description": "Feature validation error or malformed request payload", "model": ProblemDetail},
+        500: {"description": "Inference execution error", "model": ProblemDetail},
+        503: {"description": "Transfer model not loaded or not ready", "model": ProblemDetail},
     },
     tags=["Prediction"],
 )
 def predict_transfer(request: PredictionRequest, response: Response) -> PredictionResponse:
     """
     Executes fraud prediction for peer/account transfer transactions (Design 2 Section 15.3).
-    Validates complete 20-feature vector (transfer-v2) and invokes active transfer model.
+
+    Requires canonical feature specification 'transfer-v2' with exactly 20 mandatory features:
+    - amount (float): Transfer amount
+    - log_amount (float): Natural log of amount
+    - hour_of_day (int): Hour of transfer [0-23]
+    - day_of_week (int): Day of week [0-6]
+    - sender_avg_amount (float): Sender average transfer amount
+    - sender_std_amount (float): Sender standard deviation
+    - sender_max_amount (float): Sender maximum transfer amount
+    - amount_to_avg_ratio (float): Ratio amount / sender_avg_amount
+    - sender_amount_zscore (float): Z-score of sender transfer amount
+    - is_new_recipient (int): 1 if first transfer to recipient, 0 otherwise
+    - pair_transfer_count (int): Cumulative transfer count between pair
+    - recipient_share (float): Proportion of sender transfers to this recipient
+    - days_since_last_pair_transfer (float): Days since last transfer to recipient
+    - distinct_recipients_30d (int): Count of distinct recipients in last 30 days
+    - recipient_inbound_count_24h (int): Recipient inbound velocity in past 24h
+    - recipient_unique_senders_24h (int): Count of unique senders to recipient in past 24h
+    - sender_txn_count_1h (int): Sender velocity in past 1 hour
+    - sender_txn_count_24h (int): Sender velocity in past 24 hours
+    - amount_to_balance_ratio (float): Ratio amount / sender account balance
+    - history_length (int): Cumulative historical transfer count for sender
     """
     response.headers["X-Request-Id"] = request.request_id
     return _handle_prediction(family="transfer", request=request)
@@ -362,10 +472,11 @@ def _handle_explanation(family: str, request: PredictionRequest) -> ExplanationR
     response_model=ExplanationResponse,
     responses={
         200: {"description": "SHAP feature contributions successfully computed for purchase transaction"},
-        409: {"description": "Feature specification version mismatch"},
-        422: {"description": "Feature validation error or malformed request payload"},
-        503: {"description": "Purchase model not loaded or not explainable"},
-        500: {"description": "Explanation computation error"},
+        400: {"description": "Malformed request payload", "model": ProblemDetail},
+        409: {"description": "Feature specification version mismatch", "model": ProblemDetail},
+        422: {"description": "Feature validation error or malformed request payload", "model": ProblemDetail},
+        500: {"description": "Explanation computation error", "model": ProblemDetail},
+        503: {"description": "Purchase model not loaded or not explainable", "model": ProblemDetail},
     },
     tags=["Explainability"],
 )
@@ -373,7 +484,7 @@ def explain_purchase(request: PredictionRequest, response: Response) -> Explanat
     """
     Computes SHAP feature attributions for card/merchant purchase transactions (Design 2 Section 15.3).
     Validates complete 29-feature vector (purchase-v2), aggregates OneHotEncoder dummy columns
-    belonging to merchant_category, and returns contributions ordered by absolute importance.
+    belonging to merchant_category, and returns exactly 29 contributions ordered by absolute importance.
     """
     response.headers["X-Request-Id"] = request.request_id
     return _handle_explanation(family="purchase", request=request)
@@ -384,17 +495,18 @@ def explain_purchase(request: PredictionRequest, response: Response) -> Explanat
     response_model=ExplanationResponse,
     responses={
         200: {"description": "SHAP feature contributions successfully computed for transfer transaction"},
-        409: {"description": "Feature specification version mismatch"},
-        422: {"description": "Feature validation error or malformed request payload"},
-        503: {"description": "Transfer model not loaded or not explainable"},
-        500: {"description": "Explanation computation error"},
+        400: {"description": "Malformed request payload", "model": ProblemDetail},
+        409: {"description": "Feature specification version mismatch", "model": ProblemDetail},
+        422: {"description": "Feature validation error or malformed request payload", "model": ProblemDetail},
+        500: {"description": "Explanation computation error", "model": ProblemDetail},
+        503: {"description": "Transfer model not loaded or not explainable", "model": ProblemDetail},
     },
     tags=["Explainability"],
 )
 def explain_transfer(request: PredictionRequest, response: Response) -> ExplanationResponse:
     """
     Computes SHAP feature attributions for peer/account transfer transactions (Design 2 Section 15.3).
-    Validates complete 20-feature vector (transfer-v2) and returns contributions ordered by absolute importance.
+    Validates complete 20-feature vector (transfer-v2) and returns exactly 20 contributions ordered by absolute importance.
     """
     response.headers["X-Request-Id"] = request.request_id
     return _handle_explanation(family="transfer", request=request)
@@ -423,10 +535,10 @@ def _background_reload_worker(target_family: str) -> None:
     responses={
         200: {"description": "Model reloaded synchronously and active in registry"},
         202: {"description": "Model reload scheduled in background"},
-        401: {"description": "Missing or invalid administrative credentials"},
-        409: {"description": "Model reload already in progress for this family"},
-        422: {"description": "Invalid model family"},
-        500: {"description": "Model reload failed; active model preserved"},
+        401: {"description": "Missing or invalid administrative credentials", "model": ProblemDetail},
+        409: {"description": "Model reload already in progress for this family", "model": ProblemDetail},
+        422: {"description": "Invalid model family", "model": ProblemDetail},
+        500: {"description": "Model reload failed; active model preserved", "model": ProblemDetail},
     },
     tags=["Admin"],
 )
@@ -456,13 +568,13 @@ def reload_model_family(
     current_settings = get_settings()
 
     # 1. Validate family parameter
-    if family not in registry.get_supported_families:
+    if family not in registry.get_supported_families():
         raise ServingException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code=ERROR_CODE_VALIDATION_ERROR,
             title="Invalid model family",
-            detail=f"Unknown model family '{family}'. Supported families: {list(registry.get_supported_families)}",
-            errors=[ValidationErrorItem(field="family", message=f"Must be one of {list(registry.get_supported_families)}")],
+            detail=f"Unknown model family '{family}'. Supported families: {list(registry.get_supported_families())}",
+            errors=[ValidationErrorItem(field="family", message=f"Must be one of {list(registry.get_supported_families())}")],
         )
 
     # 2. Acquire per-family concurrency guard to prevent duplicate concurrent reloads

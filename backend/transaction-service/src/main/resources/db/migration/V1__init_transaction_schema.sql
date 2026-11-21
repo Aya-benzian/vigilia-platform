@@ -4,7 +4,12 @@
 -- Schema: transaction | Owner: Transaction Service
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+DO $$ 
+BEGIN 
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+EXCEPTION WHEN OTHERS THEN 
+    NULL;
+END $$;
 
 -- -----------------------------------------------------------------------------
 -- Table: merchants

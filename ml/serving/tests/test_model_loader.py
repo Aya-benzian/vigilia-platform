@@ -386,3 +386,22 @@ def test_model_registry_and_helpers_coverage_branches() -> None:
     assert get_loaded_model_version() == "leg-1"
     assert get_loaded_model() is p_dummy
 
+
+def test_registry_get_supported_families_callable_and_iterable() -> None:
+    """Verifies get_supported_families supports both method call and property iteration."""
+    registry = get_model_registry()
+    # Method call
+    families_call = registry.get_supported_families()
+    assert isinstance(families_call, tuple)
+    assert "purchase" in families_call
+    assert "transfer" in families_call
+    assert list(families_call) == ["purchase", "transfer"]
+
+    # Property access (backward compatibility)
+    families_prop = registry.get_supported_families
+    assert isinstance(families_prop, tuple)
+    assert "purchase" in families_prop
+    assert "transfer" in families_prop
+    assert list(families_prop) == ["purchase", "transfer"]
+
+

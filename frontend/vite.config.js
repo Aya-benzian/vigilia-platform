@@ -16,9 +16,10 @@ export default defineConfig(({ mode }) => {
       // Multi-page app: each .html file is its own entry point
       rollupOptions: {
         input: {
-          main:      'index.html',
-          login:     'login.html',
-          monitor:   'monitor-dashboard.html',
+          main:               'index.html',
+          login:              'login.html',
+          monitor:            'monitor-dashboard.html',
+          liveTransactions:   'live-transactions.html',
         },
       },
 

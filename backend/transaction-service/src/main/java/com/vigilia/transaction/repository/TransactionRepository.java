@@ -5,8 +5,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,4 +27,19 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     List<TransactionEntity> findByStatus(String status);
 
     boolean existsByCustomerIdAndIdempotencyKey(UUID customerId, String idempotencyKey);
+
+    // Count by type
+    long countByTransactionType(String transactionType);
+
+    // Count approved per type
+    @Query("SELECT COUNT(t) FROM TransactionEntity t WHERE t.transactionType = :type AND t.status = 'APPROVED'")
+    long countApprovedByType(@org.springframework.data.repository.query.Param("type") String type);
+
+    // Sum amount by type
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM TransactionEntity t WHERE t.transactionType = :type")
+    BigDecimal sumAmountByType(@org.springframework.data.repository.query.Param("type") String type);
+
+    // Average amount by type
+    @Query("SELECT COALESCE(AVG(t.amount), 0) FROM TransactionEntity t WHERE t.transactionType = :type")
+    BigDecimal avgAmountByType(@org.springframework.data.repository.query.Param("type") String type);
 }
