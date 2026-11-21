@@ -10,11 +10,11 @@
   "preprocessing_version": "v2",
   "evaluation_threshold": 0.12,
   "threshold_source": "cost_sensitive_f2_optimization",
-  "generated_at": "2026-11-21T14:38:56.964920+00:00",
+  "generated_at": "2026-11-21T14:57:28.532661+00:00",
   "points_count": 1000,
   "method": "tsne",
   "perplexity": 30.0,
-  "learning_rate": 200.0,
+  "learning_rate": "200.0",
   "max_iter": 1000,
   "random_state": 42,
   "points": [

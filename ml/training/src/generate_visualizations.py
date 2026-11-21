@@ -311,7 +311,7 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
         **base_meta,
         "method": "tsne",
         "perplexity": 30.0,
-        "learning_rate": 200.0,
+        "learning_rate": "200.0",
         "max_iter": 1000,
         "random_state": SEED,
         "points": points_tsne,
