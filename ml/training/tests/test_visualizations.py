@@ -25,13 +25,13 @@ def test_compute_prediction_set():
     # in_legit = (1 - 0.99) <= 0.05 -> True
     # in_fraud = (1 - 0.01) <= 0.05 -> False
     pred_set, is_ambig, status = compute_prediction_set(0.01, q_hat=0.05)
-    assert pred_set == ["LEGITIMATE"]
+    assert pred_set == ["legitimate"]
     assert not is_ambig
     assert status == "SINGLETON"
 
     # If prob_fraud = 0.99 -> prob_legit = 0.01
     pred_set, is_ambig, status = compute_prediction_set(0.99, q_hat=0.05)
-    assert pred_set == ["FRAUD"]
+    assert pred_set == ["fraud"]
     assert not is_ambig
     assert status == "SINGLETON"
 
@@ -39,7 +39,7 @@ def test_compute_prediction_set():
     # in_legit = 0.50 <= 0.60 -> True
     # in_fraud = 0.50 <= 0.60 -> True
     pred_set, is_ambig, status = compute_prediction_set(0.50, q_hat=0.60)
-    assert pred_set == ["LEGITIMATE", "FRAUD"]
+    assert pred_set == ["legitimate", "fraud"]
     assert is_ambig
     assert status == "AMBIGUOUS"
 
@@ -103,6 +103,7 @@ def test_visualization_artifacts_exist_and_conform():
             assert data["family"] == domain
             assert data["method"] == method
             assert data["dataset_split"] == "test"
+            assert data["feature_spec_version"] == f"{domain}-v2"
             assert data["points_count"] == len(data["points"])
             assert data["points_count"] > 0
 
@@ -121,9 +122,10 @@ def test_visualization_artifacts_exist_and_conform():
             for pt in data["points"][:10]:
                 for p_key in required_point_keys:
                     assert p_key in pt, f"Missing point key '{p_key}' in {art_name}"
-                assert pt["true_label"] in (0, 1)
-                assert pt["predicted_label"] in (0, 1)
+                assert pt["true_label"] in ("legitimate", "fraud")
+                assert pt["predicted_label"] in ("legitimate", "fraud")
                 assert pt["error_type"] in ("TP", "TN", "FP", "FN")
+                assert all(lbl in ("legitimate", "fraud") for lbl in pt["prediction_set"])
                 assert 0.0 <= pt["fraud_probability"] <= 1.0
 
 

@@ -59,6 +59,8 @@ TRANSFER_THRESHOLD = 0.3300
 PURCHASE_MODEL_NAME = "purchase-fraud-model"
 TRANSFER_MODEL_NAME = "transfer-fraud-model"
 
+LABEL_MAP = {0: "legitimate", 1: "fraud"}
+
 
 def load_conformal_q_hat(domain: str) -> float:
     """Load exact calibrated q_hat from existing conformal config artifact."""
@@ -85,9 +87,9 @@ def compute_prediction_set(
 
     prediction_set: list[str] = []
     if in_legit:
-        prediction_set.append("LEGITIMATE")
+        prediction_set.append("legitimate")
     if in_fraud:
-        prediction_set.append("FRAUD")
+        prediction_set.append("fraud")
 
     is_ambiguous = len(prediction_set) == 2
     if len(prediction_set) == 1:
@@ -252,8 +254,8 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
         base_attr = {
             "transaction_id": tx_id,
             "fraud_probability": p_fraud,
-            "true_label": y_true,
-            "predicted_label": y_pred,
+            "true_label": LABEL_MAP[y_true],
+            "predicted_label": LABEL_MAP[y_pred],
             "error_type": err_type,
             "prediction_set": pred_set,
             "is_ambiguous": is_ambig,
@@ -288,7 +290,7 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
         "sampling_strategy": "stratified_fraud_enriched_20pct",
         "model_name": model_name,
         "model_version": "2",
-        "feature_spec_version": "v2",
+        "feature_spec_version": f"{domain}-v2",
         "preprocessing_version": "v2",
         "evaluation_threshold": threshold,
         "threshold_source": "cost_sensitive_f2_optimization",
@@ -309,7 +311,7 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
         **base_meta,
         "method": "tsne",
         "perplexity": 30.0,
-        "learning_rate": 200.0,
+        "learning_rate": "200.0",
         "max_iter": 1000,
         "random_state": SEED,
         "points": points_tsne,
