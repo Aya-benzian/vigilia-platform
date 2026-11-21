@@ -168,14 +168,14 @@
       // Parse Metrics from live Prometheus data
       const totalServices = targets.length || 8;
       const healthyServices = targets.filter(t => t.health === 'up').length;
-      const cpuUsage = cpuResult.length > 0 ? parseFloat(cpuResult[0].value[1]).toFixed(1) : '0.0';
-      const jvmMemory = memResult.length > 0 ? Math.round(parseFloat(memResult[0].value[1])) : 0;
-      const mlLatency = mlLatencyResult.length > 0 ? Math.round(parseFloat(mlLatencyResult[0].value[1])) : 0;
+      const cpuUsage = cpuResult.length > 0 ? Number.parseFloat(cpuResult[0].value[1]).toFixed(1) : '0.0';
+      const jvmMemory = memResult.length > 0 ? Math.round(Number.parseFloat(memResult[0].value[1])) : 0;
+      const mlLatency = mlLatencyResult.length > 0 ? Math.round(Number.parseFloat(mlLatencyResult[0].value[1])) : 0;
 
       // FinTech & Model Drift Telemetry
-      const uncertainty = uncertaintyResult.length > 0 ? parseFloat(uncertaintyResult[0].value[1]) : 0;
+      const uncertainty = uncertaintyResult.length > 0 ? Number.parseFloat(uncertaintyResult[0].value[1]) : 0;
       const confidenceScore = ((1 - Math.min(1, uncertainty)) * 100).toFixed(1);
-      const rawTps = tpsResult.length > 0 ? parseFloat(tpsResult[0].value[1]) : 0;
+      const rawTps = tpsResult.length > 0 ? Number.parseFloat(tpsResult[0].value[1]) : 0;
       const tps = rawTps > 0 ? (rawTps < 1 ? rawTps.toFixed(2) : Math.round(rawTps)) : 0;
 
       return {

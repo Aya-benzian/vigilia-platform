@@ -1070,8 +1070,9 @@
 }
 
 .ltx-p-btn {
-  width: 24px;
+  min-width: 24px;
   height: 24px;
+  padding: 0 4px;
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
@@ -1085,8 +1086,13 @@
   transition: all 0.12s ease;
 }
 
-.ltx-p-btn:hover { background: #f1f5f9; color: #0f172a; }
+.ltx-p-btn:hover:not(:disabled) { background: #f1f5f9; color: #0f172a; }
 .ltx-p-btn.active { background: #0f172a; color: #ffffff; font-weight: 700; }
+.ltx-p-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 .ltx-p-dots {
   color: #94a3b8;
