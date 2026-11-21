@@ -27,7 +27,11 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:alpine
+
+# Upgrade base OS packages to pull latest security patches (mitigates Alpine CVEs)
+USER root
+RUN apk update && apk upgrade --no-cache
 
 # Copy compiled static bundle from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
