@@ -1,5 +1,5 @@
 """
-generate_visualizations.py — Data Visualization (PCA, t-SNE, Clustering, Outliers, Conformal).
+generate_visualizations.py — Data Visualization (PCA, t-SNE, UMAP, Clustering, Outliers, Conformal).
 
 Implements the contract for Member 2 (ML Serving) and Member 4 (Frontend Dashboard)
 in accordance with Section 7 of the Design 2 / Final v4.2 specification.
@@ -7,15 +7,18 @@ in accordance with Section 7 of the Design 2 / Final v4.2 specification.
 Key Deliverables:
     - ml/training/artifacts/purchase_pca_points.json
     - ml/training/artifacts/purchase_tsne_points.json
+    - ml/training/artifacts/purchase_umap_points.json
     - ml/training/artifacts/transfer_pca_points.json
     - ml/training/artifacts/transfer_tsne_points.json
+    - ml/training/artifacts/transfer_umap_points.json
     - ml/training/artifacts/purchase_pca_model.pkl
     - ml/training/artifacts/transfer_pca_model.pkl
 
 Properties:
     - PCA fitted ONLY on Part A (Train set); holdout test set never enters fit().
     - t-SNE executed offline with random_state=42 and controlled perplexity.
-    - Stable transaction_ids shared identically between PCA and t-SNE files per domain.
+    - UMAP executed offline with n_neighbors=15, min_dist=0.1, metric=euclidean, random_state=42.
+    - Stable transaction_ids shared identically between PCA, t-SNE, and UMAP files per domain.
     - Supervised error taxonomy (TP, TN, FP, FN) based on official champion thresholds:
       Purchase: 0.12 | Transfer: 0.33.
     - Conformal prediction sets and ambiguity status linked to each transaction.
@@ -33,6 +36,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import umap
 from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
@@ -217,6 +221,19 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
     )
     coords_tsne = tsne.fit_transform(X_sample_trans)
 
+    logger.info(
+        f"Computing 2D UMAP coordinates on test sample (n_neighbors=15, min_dist=0.1, random_state={SEED})..."
+    )
+    umap_reducer = umap.UMAP(
+        n_neighbors=15,
+        min_dist=0.1,
+        metric="euclidean",
+        random_state=SEED,
+        transform_seed=SEED,
+        compatibility_layout=True,
+    )
+    coords_umap = umap_reducer.fit_transform(X_sample_trans)
+
     # 7. Unsupervised Clustering & Outlier Detection on full preprocessed dimensions
     logger.info("Running DBSCAN clustering and IsolationForest outlier detection...")
     dbscan = DBSCAN(eps=dbscan_eps, min_samples=5)
@@ -234,6 +251,7 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
     # 9. Build aligned points lists
     points_pca: list[dict[str, Any]] = []
     points_tsne: list[dict[str, Any]] = []
+    points_umap: list[dict[str, Any]] = []
 
     generated_at = datetime.now(UTC).isoformat()
 
@@ -250,7 +268,7 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
         is_out = bool(iso_preds[idx] == -1)
         anom_score = round(float(iso_scores[idx]), 6)
 
-        # Base point attributes (shared between PCA and t-SNE)
+        # Base point attributes (shared identically between PCA, t-SNE, and UMAP)
         base_attr = {
             "transaction_id": tx_id,
             "fraud_probability": p_fraud,
@@ -280,6 +298,14 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
             "y": round(float(coords_tsne[idx, 1]), 6),
         }
         points_tsne.append(pt_tsne)
+
+        # UMAP Point
+        pt_umap = {
+            **base_attr,
+            "x": round(float(coords_umap[idx, 0]), 6),
+            "y": round(float(coords_umap[idx, 1]), 6),
+        }
+        points_umap.append(pt_umap)
 
     # 10. Assemble complete JSON artifacts adhering to VisualizationArtifact schema
     base_meta = {
@@ -317,35 +343,56 @@ def generate_domain_visualizations(domain: str) -> dict[str, Any]:
         "points": points_tsne,
     }
 
+    umap_artifact = {
+        **base_meta,
+        "method": "umap",
+        "n_neighbors": 15,
+        "min_dist": 0.1,
+        "metric": "euclidean",
+        "random_state": SEED,
+        "points": points_umap,
+    }
+
     # 11. Write JSON files
     pca_file = ARTIFACTS_DIR / f"{domain}_pca_points.json"
     tsne_file = ARTIFACTS_DIR / f"{domain}_tsne_points.json"
+    umap_file = ARTIFACTS_DIR / f"{domain}_umap_points.json"
 
     with open(pca_file, "w", encoding="utf-8") as fh:
         json.dump(pca_artifact, fh, indent=2)
     with open(tsne_file, "w", encoding="utf-8") as fh:
         json.dump(tsne_artifact, fh, indent=2)
+    with open(umap_file, "w", encoding="utf-8") as fh:
+        json.dump(umap_artifact, fh, indent=2)
 
     logger.info(f"Successfully exported: {pca_file}")
     logger.info(f"Successfully exported: {tsne_file}")
+    logger.info(f"Successfully exported: {umap_file}")
 
     return {
         "pca_file": pca_file,
         "tsne_file": tsne_file,
+        "umap_file": umap_file,
         "points_count": n_sample,
         "fraud_count": n_frauds,
     }
 
 
 def main():
-    logger.info("Starting offline Data Visualization generation (PCA, t-SNE, Clustering, Outliers)...")
+    logger.info("Starting offline Data Visualization generation (PCA, t-SNE, UMAP, Clustering, Outliers)...")
     res_p = generate_domain_visualizations("purchase")
     res_t = generate_domain_visualizations("transfer")
 
     logger.info("=" * 70)
     logger.info("DATA VISUALIZATION GENERATION COMPLETED SUCCESSFULLY!")
-    logger.info(f"Purchase: {res_p['points_count']} points exported to {res_p['pca_file'].name} & {res_p['tsne_file'].name}")
-    logger.info(f"Transfer: {res_t['points_count']} points exported to {res_t['pca_file'].name} & {res_t['tsne_file'].name}")
+    logger.info(
+        f"Purchase: {res_p['points_count']} points exported to "
+        f"{res_p['pca_file'].name}, {res_p['tsne_file'].name} & {res_p['umap_file'].name}"
+    )
+    logger.info(
+        f"Transfer: {res_t['points_count']} points exported to "
+        f"{res_t['pca_file'].name}, {res_t['tsne_file'].name} & {res_t['umap_file'].name}"
+    )
     logger.info("=" * 70)
 
 

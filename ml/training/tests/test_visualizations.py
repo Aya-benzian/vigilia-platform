@@ -89,7 +89,7 @@ def test_visualization_artifacts_exist_and_conform():
     ]
 
     for domain in ["purchase", "transfer"]:
-        for method in ["pca", "tsne"]:
+        for method in ["pca", "tsne", "umap"]:
             art_name = f"{domain}_{method}_points.json"
             art_path = ARTIFACTS_DIR / art_name
             assert art_path.exists(), f"Missing artifact: {art_name}"
@@ -117,6 +117,15 @@ def test_visualization_artifacts_exist_and_conform():
                 assert "learning_rate" in data
                 assert "max_iter" in data
                 assert "random_state" in data
+            elif method == "umap":
+                assert "n_neighbors" in data
+                assert "min_dist" in data
+                assert "metric" in data
+                assert "random_state" in data
+                assert data["n_neighbors"] == 15
+                assert data["min_dist"] == 0.1
+                assert data["metric"] == "euclidean"
+                assert data["random_state"] == 42
 
             # Verify point schema on first 10 points
             for pt in data["points"][:10]:
@@ -133,22 +142,29 @@ def test_pca_tsne_points_alignment():
     for domain in ["purchase", "transfer"]:
         pca_path = ARTIFACTS_DIR / f"{domain}_pca_points.json"
         tsne_path = ARTIFACTS_DIR / f"{domain}_tsne_points.json"
+        umap_path = ARTIFACTS_DIR / f"{domain}_umap_points.json"
 
         with open(pca_path, "r", encoding="utf-8") as f:
             pca_pts = json.load(f)["points"]
         with open(tsne_path, "r", encoding="utf-8") as f:
             tsne_pts = json.load(f)["points"]
+        with open(umap_path, "r", encoding="utf-8") as f:
+            umap_pts = json.load(f)["points"]
 
-        assert len(pca_pts) == len(tsne_pts)
+        assert len(pca_pts) == len(tsne_pts) == len(umap_pts)
 
-        for p, t in zip(pca_pts, tsne_pts):
-            assert p["transaction_id"] == t["transaction_id"]
-            assert p["true_label"] == t["true_label"]
-            assert p["predicted_label"] == t["predicted_label"]
-            assert p["error_type"] == t["error_type"]
-            assert p["cluster_id"] == t["cluster_id"]
-            assert p["anomaly_score"] == t["anomaly_score"]
-            assert p["fraud_probability"] == t["fraud_probability"]
+        for p, t, u in zip(pca_pts, tsne_pts, umap_pts):
+            assert p["transaction_id"] == t["transaction_id"] == u["transaction_id"]
+            assert p["true_label"] == t["true_label"] == u["true_label"]
+            assert p["predicted_label"] == t["predicted_label"] == u["predicted_label"]
+            assert p["error_type"] == t["error_type"] == u["error_type"]
+            assert p["cluster_id"] == t["cluster_id"] == u["cluster_id"]
+            assert p["anomaly_score"] == t["anomaly_score"] == u["anomaly_score"]
+            assert p["fraud_probability"] == t["fraud_probability"] == u["fraud_probability"]
+            assert p["prediction_set"] == t["prediction_set"] == u["prediction_set"]
+            assert p["is_ambiguous"] == t["is_ambiguous"] == u["is_ambiguous"]
+            assert p["conformal_status"] == t["conformal_status"] == u["conformal_status"]
+            assert p["is_outlier"] == t["is_outlier"] == u["is_outlier"]
 
 
 def test_pca_serialized_models_exist():
