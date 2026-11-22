@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tableRows.forEach(row => {
       const rowText = row.textContent.toLowerCase();
       const rowDomain = row.getAttribute('data-domain') || '';
-      const rowRisk = parseFloat(row.getAttribute('data-score') || '0');
+      const rowRisk = Number.parseFloat(row.getAttribute('data-score') || '0');
       const isAmbiguous = row.getAttribute('data-ambiguous') === 'true';
 
       let matchesSearch = !query || rowText.includes(query);
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const slaNodes = document.querySelectorAll('.rq-sla-timer-val');
   function tickSla() {
     slaNodes.forEach(node => {
-      let secs = parseInt(node.getAttribute('data-seconds') || '0', 10);
+      let secs = Number.parseInt(node.getAttribute('data-seconds') || '0', 10);
       if (secs > 0) {
         secs--;
         node.setAttribute('data-seconds', secs);

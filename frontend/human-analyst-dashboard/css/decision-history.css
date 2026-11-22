@@ -1,0 +1,939 @@
+/* ── Page-Specific Decision History Styles (Shared styles imported via analyst-shared.css) ── */
+
+    /* ── 2-Column Workspace Grid ── */
+    .dh-workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 315px;
+      gap: 1.15rem;
+    }
+
+    .dh-left-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    /* 1. Hero Banner: Decision History & Audit Trail */
+    .dh-hero-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 1.25rem 1.75rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dh-hero-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      z-index: 2;
+    }
+
+    .dh-hero-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.025em;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .dh-hero-subtext {
+      font-size: 0.88rem;
+      color: #64748b;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    .dh-hero-graphic {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 75px;
+      z-index: 2;
+    }
+
+    .dh-shield-glow {
+      position: absolute;
+      width: 140px;
+      height: 75px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, rgba(255, 255, 255, 0) 70%);
+      filter: blur(8px);
+      pointer-events: none;
+    }
+
+    .dh-hero-shield-img {
+      height: 75px !important;
+      max-height: 75px !important;
+      width: auto !important;
+      max-width: 150px !important;
+      object-fit: contain !important;
+      display: block !important;
+      position: relative;
+      z-index: 2;
+      filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.2));
+    }
+
+    /* 2. Filter & Export Controls Bar */
+    .dh-filter-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 0.7rem 0.95rem;
+      box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .dh-filter-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .dh-search-box {
+      position: relative;
+      min-width: 170px;
+      flex: 1;
+    }
+
+    .dh-search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px !important;
+      height: 15px !important;
+      color: #94a3b8;
+    }
+
+    .dh-search-input {
+      width: 100%;
+      height: 38px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 0 12px 0 36px;
+      font-size: 0.82rem;
+      color: #0f172a;
+      outline: none;
+      box-sizing: border-box;
+      transition: all 0.15s ease;
+    }
+
+    .dh-search-input:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .dh-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 0 0.75rem;
+      height: 38px;
+    }
+
+    .dh-select-wrap svg {
+      width: 14px !important;
+      height: 14px !important;
+      color: #64748b;
+    }
+
+    .dh-select {
+      border: none;
+      outline: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #0f172a;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .dh-filter-right {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .dh-btn-csv {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 0 0.95rem;
+      height: 38px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .dh-btn-csv:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .dh-btn-csv svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    .dh-btn-ml {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: #0f172a;
+      border: 1px solid #0f172a;
+      border-radius: 9px;
+      padding: 0 1rem;
+      height: 38px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .dh-btn-ml:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+
+    .dh-btn-ml svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    /* 3. KPI Metrics Cards Strip (4 Cards) */
+    .dh-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .dh-kpi-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-sizing: border-box;
+      transition: transform 0.15s;
+    }
+
+    .dh-kpi-card:hover {
+      transform: translateY(-1px);
+    }
+
+    .dh-kpi-icon-wrap {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .dh-kpi-icon-wrap svg {
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    .dh-kpi-icon-total { background: #dcfce7; color: #16a34a; }
+    .dh-kpi-icon-app { background: #dcfce7; color: #16a34a; }
+    .dh-kpi-icon-rej { background: #fee2e2; color: #dc2626; }
+    .dh-kpi-icon-esc { background: #fef3c7; color: #d97706; }
+
+    .dh-kpi-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .dh-kpi-title {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .dh-kpi-num-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .dh-kpi-num {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dh-kpi-rate {
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .dh-kpi-rate-green { color: #10b981; }
+    .dh-kpi-rate-red { color: #ef4444; }
+    .dh-kpi-rate-orange { color: #f59e0b; }
+
+    /* 4. Audit Log Table Card */
+    .dh-table-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+    }
+
+    .dh-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .dh-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .dh-table th {
+      background: #fafcff;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+      padding: 0.6rem 0.45rem;
+      white-space: nowrap;
+    }
+
+    .dh-table td {
+      padding: 0.65rem 0.45rem;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.82rem;
+      color: #0f172a;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .dh-table tr:hover td {
+      background: #f8fafc;
+    }
+
+    .dh-table tr.selected-row td {
+      background: #f0f7ff;
+    }
+
+    .dh-date-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .dh-date-d { font-weight: 700; color: #0f172a; font-size: 0.8rem; }
+    .dh-date-t { font-size: 0.72rem; color: #64748b; font-family: 'Geist Mono', monospace; }
+
+    .dh-case-code {
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .dh-analyst-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .dh-analyst-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #091522;
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dh-analyst-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .dh-domain-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dh-tag-domain {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .dh-tag-pur { background: #f3e8ff; color: #7c3aed; }
+    .dh-tag-tra { background: #eff6ff; color: #2563eb; }
+
+    .dh-amt-val {
+      font-weight: 700;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.82rem;
+    }
+
+    .dh-score-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .dh-score-val {
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .dh-score-tau {
+      font-size: 0.7rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Decision Status Pills */
+    .dh-pill-dec {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .dh-pill-app { background: #d1fae5; color: #047857; }
+    .dh-pill-rej { background: #fee2e2; color: #dc2626; }
+    .dh-pill-esc { background: #fef3c7; color: #b45309; }
+
+    .dh-pill-dec svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .dh-reason-code {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .dh-time-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .dh-time-cell svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+
+    .dh-btn-view {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .dh-btn-view:hover, .dh-btn-view.active {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .dh-btn-view svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+
+    /* Pagination */
+    .dh-pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+
+    .dh-pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .dh-page-num {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .dh-page-num.active {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #ea580c;
+    }
+
+    .dh-page-num:not(.active):hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .dh-page-nav {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+
+    .dh-page-nav:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+
+    .dh-page-nav svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    /* ── Right Column: Audit Details Panel ── */
+    .dh-right-panel {
+      display: flex;
+      flex-direction: column;
+      width: 315px;
+      max-width: 315px;
+      flex-shrink: 0;
+    }
+
+    .dh-audit-card {
+      background: #ffffff;
+      box-sizing: border-box;
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .dh-audit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dh-audit-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .dh-audit-close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .dh-audit-close-btn:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+
+    .dh-audit-close-btn svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+
+    /* Status Pill & Timestamp */
+    .dh-audit-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .dh-audit-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .dh-audit-status-pill svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    .dh-audit-time {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Case & Tx ID Bar */
+    .dh-audit-ids-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dh-audit-id-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dh-audit-id-lbl {
+      font-size: 0.7rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .dh-audit-id-val {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Decision Summary */
+    .dh-audit-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .dh-audit-sec-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dh-audit-sec-title svg {
+      width: 15px !important;
+      height: 15px !important;
+      color: #64748b;
+    }
+
+    .dh-audit-summary-p {
+      font-size: 0.78rem;
+      color: #475569;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    /* Model Insights Subcards Grid */
+    .dh-insights-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+
+    .dh-insight-subcard {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .dh-tau-badge {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      font-size: 0.68rem;
+      font-family: 'Geist Mono', monospace;
+      color: #2563eb;
+      font-weight: 700;
+    }
+
+    .dh-gauge-svg {
+      width: 90px;
+      height: 50px;
+    }
+
+    .dh-gauge-score {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      margin-top: -12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dh-gauge-sub {
+      font-size: 0.68rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .dh-conf-sub-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .dh-conf-sub-title svg {
+      width: 13px !important;
+      height: 13px !important;
+      color: #2563eb;
+    }
+
+    .dh-conf-set-txt {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0f172a;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 0.45rem;
+    }
+
+    .dh-conf-cov-tag {
+      font-size: 0.68rem;
+      color: #059669;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .dh-cov-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    /* SHAP Waterfall Mini */
+    .dh-shap-mini {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .dh-shap-m-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 35px;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.68rem;
+    }
+
+    .dh-shap-m-feat {
+      color: #475569;
+      font-family: 'Geist Mono', monospace;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dh-shap-m-track {
+      position: relative;
+      height: 6px;
+      background: #ffffff;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .dh-shap-m-axis {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #cbd5e1;
+    }
+
+    .dh-shap-m-bar {
+      position: absolute;
+      height: 5px;
+      border-radius: 1px;
+    }
+
+    .dh-bar-red { left: 50%; background: #f87171; }
+    .dh-bar-green { right: 50%; background: #34d399; }
+
+    .dh-shap-m-val {
+      font-family: 'Geist Mono', monospace;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    /* Justification & Notes Box */
+    .dh-just-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .dh-just-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .dh-just-lbl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .dh-just-count {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .dh-just-quote {
+      font-size: 0.74rem;
+      color: #475569;
+      font-style: italic;
+      margin: 0;
+      line-height: 1.35;
+    }
+
+    /* Close Button at Bottom */
+    .dh-btn-bottom-close {
+      width: 100%;
+      height: 38px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .dh-btn-bottom-close:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .dh-btn-bottom-close svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
