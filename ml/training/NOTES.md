@@ -32,6 +32,7 @@
 24. [Session 6: Formal Bayesian Optimization, 5-Fold Stratified Cross-Validation & Statistical Validation on Isolated Domains](#24-session-6-formal-bayesian-optimization-5-fold-stratified-cross-validation--statistical-validation-on-isolated-domains-2026-11-07)
 25. [Session 7: Split Conformal Prediction, Uncertainty Quantification & Champion Pipelines Delivery](#25-session-7-split-conformal-prediction-uncertainty-quantification--champion-pipelines-delivery-2026-11-18)
 26. [Session 8: Data Visualization Architecture (PCA, t-SNE, Clustering, Outliers & Error Taxonomy)](#26-session-8-data-visualization-architecture-pca-t-sne-clustering-outliers--error-taxonomy-2026-11-19)
+27. [Session 9: UMAP 2D Manifold Projection Artifacts Delivery for M2 Serving Integration](#27-session-9-umap-2d-manifold-projection-artifacts-delivery-for-m2-serving-integration-2026-11-22)
 
 ---
 
@@ -1031,4 +1032,34 @@ To ensure rich visual density on the frontend dashboard without overwhelming the
 - Test Suite: **95 passed, 6 skipped, 0 failed** (100% green).
 - Linter: `ruff check` passed with **0 errors / 0 warnings**.
 - Conformance: All 4 JSON artifacts strictly validate against the `VisualizationArtifact` schema specification.
+
+---
+
+## 27. Session 9: UMAP 2D Manifold Projection Artifacts Delivery for M2 Serving Integration (2026-11-22)
+
+### 27.1 Architecture Context & M2 Requirement
+Following Member 2 (ML Serving & Architecture) audit and request, Member 1 generated two new 2D visualization projection artifacts powered by UMAP (Uniform Manifold Approximation and Projection) for non-linear manifold exploration:
+- `ml/training/artifacts/purchase_umap_points.json` (1,000 points)
+- `ml/training/artifacts/transfer_umap_points.json` (500 points)
+
+### 27.2 Technical Constraints & M2 Contract Compliance
+1. **Identical Samples & Transaction IDs**: Computed on the exact same `sample_df` instances as PCA and t-SNE, ensuring strict 1-to-1 point alignment across `transaction_id` (`tx_purc_00000`–`tx_purc_00999` and `tx_tran_00000`–`tx_tran_00499`).
+2. **Input Space Purity**: UMAP projection computed directly on transformed canonical features $X_{\text{trans}}$ (29 dimensions for Purchase, 20 dimensions for Transfer) via `ColumnTransformer`, never on 2D projections.
+3. **Reproducibility & Hyperparameters**:
+   - Library: `umap-learn==0.6.0` (with `numba==0.68.1`, `pynndescent==0.7.0`).
+   - Hyperparameters: `n_neighbors=15`, `min_dist=0.1`, `metric="euclidean"`, `random_state=42`, `transform_seed=42`, `compatibility_layout=True`.
+4. **Metadata Schema**:
+   - `method: "umap"`, `n_neighbors: 15`, `min_dist: 0.1`, `metric: "euclidean"`, `random_state: 42`.
+   - Adheres strictly to `VisualizationArtifact` v1.0 schema specification.
+5. **Point Attributes**:
+   - Retains full M1/M2 supervised and unsupervised taxonomy: `transaction_id`, `x`, `y`, `fraud_probability`, `true_label`, `predicted_label`, `error_type`, `prediction_set`, `is_ambiguous`, `conformal_status`, `cluster_id`, `is_outlier`, `anomaly_score`.
+
+### 27.3 Delivered Artifacts (`ml/training/artifacts/`)
+- `purchase_umap_points.json` (1,000 points, 429 KB)
+- `transfer_umap_points.json` (500 points, 214 KB)
+
+### 27.4 Quality Assurance & Test Status
+- Test Suite: **95 passed, 6 skipped, 0 failed** (100% green).
+- Linter: `ruff check` on visualization source and tests: **0 errors / 0 warnings**.
+- Verified strict 1-to-1 alignment between PCA, t-SNE, and UMAP points.
 

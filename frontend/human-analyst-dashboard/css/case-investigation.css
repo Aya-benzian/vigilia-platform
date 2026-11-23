@@ -1,0 +1,873 @@
+/* ── Page-Specific Investigation Styles (Shared styles in analyst-shared.css) ── */
+
+    /* ── 1. Case Context Header Bar (Top Strip) ── */
+    .ci-case-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 0.85rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .ci-meta-group {
+      display: flex;
+      align-items: center;
+      gap: 1.75rem;
+      flex-wrap: wrap;
+    }
+
+    .ci-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ci-meta-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .ci-meta-val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .ci-meta-code {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .ci-meta-tx {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    .ci-icon-copy {
+      color: #94a3b8;
+      cursor: pointer;
+      display: inline-flex;
+      transition: color 0.15s;
+    }
+
+    .ci-icon-copy:hover {
+      color: #2563eb;
+    }
+
+    .ci-meta-date {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .ci-meta-amount {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ci-domain-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: #f3e8ff;
+      color: #7c3aed;
+    }
+
+    .ci-domain-badge svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .ci-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .ci-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2563eb;
+    }
+
+    /* Advisory Callout (Right side of Bar) */
+    .ci-advisory-box {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      max-width: 320px;
+    }
+
+    .ci-advisory-box svg {
+      width: 16px !important;
+      height: 16px !important;
+      color: #ea580c;
+      flex-shrink: 0;
+    }
+
+    .ci-advisory-text {
+      font-size: 0.72rem;
+      color: #9a3412;
+      line-height: 1.35;
+      font-weight: 500;
+    }
+
+    /* ── 2. Two-Column Workspace Layout ── */
+    .ci-workspace-layout {
+      display: grid;
+      grid-template-columns: 2.3fr 1fr;
+      gap: 1.15rem;
+    }
+
+    /* Left Stream: Tabs + ML Diagnostic Cards */
+    .ci-stream-left {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Tab Navigation */
+    .ci-tabs-strip {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0.25rem;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+    }
+
+    .ci-tab-nav {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 9px;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .ci-tab-nav:hover {
+      color: #0f172a;
+    }
+
+    .ci-tab-nav.active {
+      color: #c05621;
+      font-weight: 700;
+      background: #fdf4ed;
+    }
+
+    .ci-tab-nav.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 20%;
+      right: 20%;
+      height: 2.5px;
+      background: #ea580c;
+      border-radius: 2px;
+    }
+
+    .ci-tab-nav svg {
+      width: 15px !important;
+      height: 15px !important;
+      flex-shrink: 0;
+    }
+
+    /* ML Diagnostic Cards Grid */
+    .ci-ml-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .ci-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.03);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .ci-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+    }
+
+    .ci-card-title-row svg {
+      width: 16px !important;
+      height: 16px !important;
+      color: #0f172a;
+      flex-shrink: 0;
+    }
+
+    .ci-card-title {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    /* Score de Risque Card */
+    .ci-risk-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex: 1;
+    }
+
+    .ci-dial-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      width: 150px;
+    }
+
+    .ci-dial-svg {
+      width: 150px;
+      height: 85px;
+      display: block;
+    }
+
+    .ci-dial-num {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+      margin-top: -30px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .ci-dial-sub {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #ef4444;
+      margin-top: 4px;
+    }
+
+    .ci-divider-v {
+      width: 1px;
+      height: 75px;
+      border-left: 1px dashed #cbd5e1;
+    }
+
+    .ci-thresh-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      flex: 1;
+    }
+
+    .ci-thresh-label {
+      font-size: 0.74rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+      font-weight: 600;
+    }
+
+    .ci-thresh-alert-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .ci-thresh-alert-header {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #dc2626;
+    }
+
+    .ci-thresh-alert-header svg {
+      width: 13px !important;
+      height: 13px !important;
+    }
+
+    .ci-thresh-alert-desc {
+      font-size: 0.7rem;
+      color: #991b1b;
+      line-height: 1.35;
+    }
+
+    /* Prédiction Conforme Card */
+    .ci-conformal-alert {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 10px;
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.95rem;
+    }
+
+    .ci-conformal-alert svg {
+      width: 18px !important;
+      height: 18px !important;
+      color: #d97706;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .ci-conf-bold {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #b45309;
+      margin-bottom: 2px;
+    }
+
+    .ci-conf-desc {
+      font-size: 0.72rem;
+      color: #92400e;
+      line-height: 1.35;
+    }
+
+    .ci-conf-set-row {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.78rem;
+      color: #475569;
+      font-family: 'Geist Mono', monospace;
+      font-weight: 600;
+    }
+
+    .ci-conf-set-val {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    /* Attribution SHAP Bar Chart */
+    .ci-shap-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+    }
+
+    .ci-shap-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 45px;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.72rem;
+    }
+
+    .ci-shap-feat {
+      color: #475569;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.71rem;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ci-shap-track {
+      position: relative;
+      height: 10px;
+      background: #f8fafc;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+    }
+
+    .ci-shap-axis-center {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #cbd5e1;
+    }
+
+    .ci-shap-bar {
+      position: absolute;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .ci-shap-bar-pos {
+      left: 50%;
+      background: #f87171;
+    }
+
+    .ci-shap-bar-neg {
+      right: 50%;
+      background: #34d399;
+    }
+
+    .ci-shap-val {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .ci-val-pos { color: #dc2626; }
+    .ci-val-neg { color: #059669; }
+
+    .ci-shap-scale-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 45px;
+      gap: 0.6rem;
+      margin-top: 0.35rem;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 0.25rem;
+    }
+
+    .ci-shap-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: #94a3b8;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Détection d'Anomalie (Isolation Forest Scatter) */
+    .ci-anomaly-art {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 135px;
+      position: relative;
+    }
+
+    .ci-anomaly-svg {
+      width: 100%;
+      height: 130px;
+    }
+
+    .ci-anomaly-metrics {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .ci-anom-score-lbl {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    .ci-anom-score-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Geist Mono', monospace;
+      line-height: 1;
+    }
+
+    .ci-anom-badge-outlier {
+      display: inline-flex;
+      align-items: center;
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.15rem 0.55rem;
+      border-radius: 6px;
+      margin-top: 2px;
+      font-family: 'Geist Mono', monospace;
+    }
+
+    /* Bottom: Informations Complémentaires */
+    .ci-bottom-bar {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .ci-bottom-left {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .ci-bottom-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ci-bottom-title-row svg {
+      width: 15px !important;
+      height: 15px !important;
+      color: #64748b;
+    }
+
+    .ci-bottom-data-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ci-bottom-lbl {
+      font-size: 0.7rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .ci-bottom-val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ci-bottom-val-row svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+
+    .ci-tag-critique {
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .ci-tag-moi {
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .ci-history-link {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #2563eb;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .ci-history-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Right Column: The Decision Panel ── */
+    .ci-panel-right {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .ci-decision-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .ci-dec-header {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .ci-dec-header svg {
+      width: 18px !important;
+      height: 18px !important;
+      color: #0f172a;
+    }
+
+    .ci-dec-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    /* 3 Action Radio Option Cards */
+    .ci-action-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .ci-option-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 0.85rem;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .ci-option-card:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    /* Option 1: Approve (Selected by default or green) */
+    .ci-option-card.opt-approve.selected,
+    .ci-option-card.opt-approve:hover {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    /* Option 2: Reject */
+    .ci-option-card.opt-reject.selected {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+
+    /* Option 3: Escalate */
+    .ci-option-card.opt-escalate.selected {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    .ci-opt-radio {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: all 0.15s;
+    }
+
+    .opt-approve .ci-opt-radio {
+      border-color: #10b981;
+      background: #10b981;
+      color: #ffffff;
+    }
+
+    .opt-reject.selected .ci-opt-radio {
+      border-color: #ef4444;
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .opt-escalate.selected .ci-opt-radio {
+      border-color: #f59e0b;
+      background: #f59e0b;
+      color: #ffffff;
+    }
+
+    .ci-opt-radio svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .ci-opt-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .ci-opt-title {
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .opt-approve .ci-opt-title { color: #047857; }
+    .opt-reject.selected .ci-opt-title { color: #b91c1c; }
+    .opt-escalate.selected .ci-opt-title { color: #b45309; }
+
+    .ci-opt-sub {
+      font-size: 0.72rem;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    /* Decision Form Controls */
+    .ci-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .ci-form-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .ci-required {
+      color: #ef4444;
+    }
+
+    .ci-form-select {
+      width: 100%;
+      height: 38px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0 0.75rem;
+      font-size: 0.82rem;
+      color: #0f172a;
+      outline: none;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+
+    .ci-form-select:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .ci-form-textarea {
+      width: 100%;
+      height: 75px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.8rem;
+      color: #0f172a;
+      outline: none;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+      transition: all 0.15s;
+    }
+
+    .ci-form-textarea:focus {
+      border-color: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    .ci-char-counter {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      text-align: right;
+      font-weight: 500;
+    }
+
+    /* Notes Internes Accordion */
+    .ci-accordion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .ci-accordion-header svg {
+      width: 14px !important;
+      height: 14px !important;
+      color: #94a3b8;
+    }
+
+    /* Submit Button: Navy Pill */
+    .ci-btn-submit {
+      width: 100%;
+      height: 42px;
+      background: #091522;
+      color: #ffffff;
+      border: none;
+      border-radius: 9px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(9, 21, 34, 0.15);
+    }
+
+    .ci-btn-submit:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+
+    .ci-btn-submit svg {
+      width: 15px !important;
+      height: 15px !important;
+    }

@@ -10,7 +10,7 @@
   "preprocessing_version": "v2",
   "evaluation_threshold": 0.12,
   "threshold_source": "cost_sensitive_f2_optimization",
-  "generated_at": "2026-11-21T14:57:28.532661+00:00",
+  "generated_at": "2026-11-22T22:33:04.495668+00:00",
   "points_count": 1000,
   "method": "pca",
   "explained_variance_ratio": [
