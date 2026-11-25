@@ -2,6 +2,8 @@ package com.vigilia.transaction.service;
 
 import com.vigilia.transaction.client.RiskEvaluationClient;
 import com.vigilia.transaction.dto.IdempotencyCheckResult;
+import com.vigilia.transaction.dto.LinkFundingCardRequest;
+import com.vigilia.transaction.dto.LinkedFundingCardResponse;
 import com.vigilia.transaction.dto.PaginationMeta;
 import com.vigilia.transaction.dto.RiskEvaluationRequest;
 import com.vigilia.transaction.dto.RiskEvaluationResponse;
@@ -11,6 +13,7 @@ import com.vigilia.transaction.dto.TransactionPageResponse;
 import com.vigilia.transaction.dto.TransactionResponse;
 import com.vigilia.transaction.dto.TransactionType;
 import com.vigilia.transaction.dto.WalletResponse;
+import com.vigilia.transaction.entity.LinkedFundingCardEntity;
 import com.vigilia.transaction.entity.MerchantEntity;
 import com.vigilia.transaction.entity.PaymentEntity;
 import com.vigilia.transaction.entity.TransactionEntity;
@@ -20,6 +23,7 @@ import com.vigilia.transaction.entity.WalletEntity;
 import com.vigilia.transaction.exception.InvalidAmountException;
 import com.vigilia.transaction.exception.InvalidOperationException;
 import com.vigilia.transaction.exception.ResourceNotFoundException;
+import com.vigilia.transaction.repository.LinkedFundingCardRepository;
 import com.vigilia.transaction.repository.MerchantRepository;
 import com.vigilia.transaction.repository.PaymentRepository;
 import com.vigilia.transaction.repository.TransactionRepository;
@@ -61,6 +65,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionStatusHistoryRepository statusHistoryRepository;
     private final WalletRepository walletRepository;
     private final MerchantRepository merchantRepository;
+    private final LinkedFundingCardRepository linkedFundingCardRepository;
     private final WalletService walletService;
     private final IdempotencyService idempotencyService;
     private final RiskEvaluationClient riskEvaluationClient;
@@ -73,6 +78,7 @@ public class TransactionServiceImpl implements TransactionService {
             TransactionStatusHistoryRepository statusHistoryRepository,
             WalletRepository walletRepository,
             MerchantRepository merchantRepository,
+            LinkedFundingCardRepository linkedFundingCardRepository,
             WalletService walletService,
             IdempotencyService idempotencyService,
             RiskEvaluationClient riskEvaluationClient,
@@ -83,6 +89,7 @@ public class TransactionServiceImpl implements TransactionService {
         this.statusHistoryRepository = statusHistoryRepository;
         this.walletRepository = walletRepository;
         this.merchantRepository = merchantRepository;
+        this.linkedFundingCardRepository = linkedFundingCardRepository;
         this.walletService = walletService;
         this.idempotencyService = idempotencyService;
         this.riskEvaluationClient = riskEvaluationClient;
@@ -140,6 +147,9 @@ public class TransactionServiceImpl implements TransactionService {
         BigDecimal amount = request.getAmount();
 
         WalletEntity customerWallet = walletService.getWalletEntityByCustomerId(customerId);
+        if (customerWallet.isCardFrozen()) {
+            throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to make payments.");
+        }
         validateCurrency(customerWallet.getCurrency(), request.getCurrency());
 
         // Resolve or create merchant record
@@ -216,6 +226,9 @@ public class TransactionServiceImpl implements TransactionService {
         String recipientIban = request.getRecipientIban().replaceAll("\\s+", "").toUpperCase();
 
         WalletEntity senderWallet = walletService.getWalletEntityByCustomerId(senderCustomerId);
+        if (senderWallet.isCardFrozen()) {
+            throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to send transfers.");
+        }
         WalletEntity recipientWallet = walletRepository.findByAccountNumber(recipientIban)
                 .orElseThrow(() -> new ResourceNotFoundException("Portefeuille destinataire introuvable pour l'IBAN: " + recipientIban));
 
@@ -387,9 +400,27 @@ public class TransactionServiceImpl implements TransactionService {
 
         WalletEntity wallet = walletService.getWalletEntityByCustomerId(customerId);
 
-        // 1. Record transaction and merchant metadata first (to satisfy FK constraint on wallet_ledger)
-        String brand = (cardBrand != null && !cardBrand.isBlank()) ? cardBrand.toUpperCase() : "VISA";
-        String last4 = (cardLast4 != null && !cardLast4.isBlank()) ? cardLast4 : "4242";
+        // Enforce that the customer has at least one linked external funding card
+        List<LinkedFundingCardEntity> linkedCards = linkedFundingCardRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
+        if (linkedCards.isEmpty()) {
+            throw new InvalidOperationException("No linked bank card found. Please link an external funding card before topping up your wallet.");
+        }
+
+        LinkedFundingCardEntity selectedCard;
+        if (cardLast4 != null && !cardLast4.isBlank()) {
+            selectedCard = linkedCards.stream()
+                    .filter(c -> c.getCardLast4().equals(cardLast4.trim()))
+                    .findFirst()
+                    .orElseThrow(() -> new InvalidOperationException("Selected funding card (•••• " + cardLast4.trim() + ") is not linked to your account."));
+        } else {
+            selectedCard = linkedCards.stream()
+                    .filter(LinkedFundingCardEntity::isDefault)
+                    .findFirst()
+                    .orElse(linkedCards.get(0));
+        }
+
+        String brand = selectedCard.getCardBrand();
+        String last4 = selectedCard.getCardLast4();
         String merchantName = "Wallet Deposit (" + brand + " •••• " + last4 + ")";
         MerchantEntity merchant = resolveOrCreateMerchant(merchantName, "DEPOSIT");
 
@@ -533,7 +564,7 @@ public class TransactionServiceImpl implements TransactionService {
             typeEnum = TransactionType.PURCHASE;
         }
 
-        return new TransactionResponse(
+        TransactionResponse response = new TransactionResponse(
                 entity.getId(),
                 entity.getCustomerId(),
                 typeEnum,
@@ -544,5 +575,133 @@ public class TransactionServiceImpl implements TransactionService {
                 reason,
                 entity.getCreatedAt()
         );
+
+        // Enrich with real Payment/Merchant or Transfer details from ledger database
+        if (typeEnum == TransactionType.PURCHASE) {
+            paymentRepository.findById(entity.getId()).ifPresent(payment -> {
+                response.setCategory(payment.getMerchantCategory());
+                response.setProductName(payment.getProductName());
+                if (payment.getMerchantId() != null) {
+                    merchantRepository.findById(payment.getMerchantId()).ifPresent(merchant -> {
+                        response.setMerchantName(merchant.getName());
+                        if (response.getCategory() == null || response.getCategory().isBlank()) {
+                            response.setCategory(merchant.getCategory());
+                        }
+                    });
+                }
+            });
+        } else if (typeEnum == TransactionType.TRANSFER) {
+            transferRepository.findById(entity.getId()).ifPresent(transfer -> {
+                response.setCategory("TRANSFER");
+                response.setMemo(transfer.getMemo());
+                response.setProductName(transfer.getMemo() != null && !transfer.getMemo().isBlank() ? transfer.getMemo() : "Direct Transfer");
+                response.setRecipientCustomerId(transfer.getRecipientCustomerId());
+                if (transfer.getMemo() != null && !transfer.getMemo().isBlank()) {
+                    response.setMerchantName(transfer.getMemo());
+                } else {
+                    response.setMerchantName("Direct Transfer");
+                }
+            });
+        } else if (typeEnum == TransactionType.DEPOSIT) {
+            response.setCategory("DEPOSIT");
+            response.setMerchantName("Card Top-Up");
+            paymentRepository.findById(entity.getId()).ifPresentOrElse(
+                    p -> response.setProductName(p.getProductName() != null ? p.getProductName() : "Wallet Deposit"),
+                    () -> response.setProductName("Wallet Deposit")
+            );
+        }
+
+        return response;
+    }
+
+    @Override
+    public List<LinkedFundingCardResponse> listFundingCards(UUID customerId) {
+        if (customerId == null) {
+            throw new InvalidOperationException("customerId ne doit pas être null");
+        }
+        return linkedFundingCardRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
+                .map(this::toFundingCardResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public LinkedFundingCardResponse linkFundingCard(UUID customerId, LinkFundingCardRequest request) {
+        if (customerId == null) {
+            throw new InvalidOperationException("customerId ne doit pas être null");
+        }
+        String digits = request.getCardNumber() != null ? request.getCardNumber().replaceAll("\\D", "") : "";
+        if (digits.length() < 13 || digits.length() > 19 || !isValidLuhn(digits)) {
+            throw new InvalidOperationException("Invalid card number (Luhn check failed).");
+        }
+
+        String brand = detectCardBrand(digits);
+        String last4 = digits.substring(digits.length() - 4);
+
+        Optional<LinkedFundingCardEntity> existing = linkedFundingCardRepository
+                .findFirstByCustomerIdAndCardLast4OrderByCreatedAtDesc(customerId, last4);
+        if (existing.isPresent() && existing.get().getCardBrand().equalsIgnoreCase(brand)) {
+            return toFundingCardResponse(existing.get());
+        }
+
+        String[] expParts = request.getExpiry().split("/");
+        String expMonth = expParts[0];
+        String expYear = expParts[1].length() == 2 ? "20" + expParts[1] : expParts[1];
+
+        LinkedFundingCardEntity card = new LinkedFundingCardEntity();
+        card.setCustomerId(customerId);
+        card.setCardBrand(brand);
+        card.setCardLast4(last4);
+        card.setCardholderName(request.getCardholderName() != null ? request.getCardholderName().trim() : null);
+        card.setExpiryMonth(expMonth);
+        card.setExpiryYear(expYear);
+        card.setDefault(!linkedFundingCardRepository.existsByCustomerId(customerId));
+
+        LinkedFundingCardEntity saved = linkedFundingCardRepository.save(card);
+        return toFundingCardResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void unlinkFundingCard(UUID customerId, UUID cardId) {
+        LinkedFundingCardEntity card = linkedFundingCardRepository.findByIdAndCustomerId(cardId, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Linked funding card not found"));
+        linkedFundingCardRepository.delete(card);
+    }
+
+    private LinkedFundingCardResponse toFundingCardResponse(LinkedFundingCardEntity c) {
+        String shortYear = c.getExpiryYear().length() == 4 ? c.getExpiryYear().substring(2) : c.getExpiryYear();
+        return new LinkedFundingCardResponse(
+                c.getId(),
+                c.getCardBrand(),
+                c.getCardLast4(),
+                c.getCardholderName(),
+                c.getExpiryMonth() + "/" + shortYear,
+                c.isDefault(),
+                c.getCreatedAt()
+        );
+    }
+
+    private static String detectCardBrand(String digits) {
+        if (digits.startsWith("4")) return "VISA";
+        if (digits.matches("^5[1-5].*")) return "MASTERCARD";
+        if (digits.matches("^3[47].*")) return "AMEX";
+        if (digits.matches("^6(?:011|5).*")) return "DISCOVER";
+        return "CARD";
+    }
+
+    private static boolean isValidLuhn(String digits) {
+        int sum = 0;
+        boolean alternate = false;
+        for (int i = digits.length() - 1; i >= 0; i--) {
+            int n = digits.charAt(i) - '0';
+            if (alternate) {
+                n *= 2;
+                if (n > 9) n -= 9;
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+        return (sum % 10 == 0);
     }
 }

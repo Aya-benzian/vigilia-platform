@@ -116,6 +116,17 @@ export const apiClient = {
   },
 
   /**
+   * PATCH request
+   */
+  async patch(path, body, options = {}) {
+    return request(buildApiUrl(path), {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      ...options
+    });
+  },
+
+  /**
    * DELETE request
    */
   async delete(path, options = {}) {

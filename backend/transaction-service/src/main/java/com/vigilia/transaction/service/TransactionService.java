@@ -1,5 +1,7 @@
 package com.vigilia.transaction.service;
 
+import com.vigilia.transaction.dto.LinkFundingCardRequest;
+import com.vigilia.transaction.dto.LinkedFundingCardResponse;
 import com.vigilia.transaction.dto.RiskStatus;
 import com.vigilia.transaction.dto.TransactionCreateRequest;
 import com.vigilia.transaction.dto.TransactionPageResponse;
@@ -9,6 +11,7 @@ import com.vigilia.transaction.dto.WalletResponse;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -43,7 +46,22 @@ public interface TransactionService {
     TransactionResponse resolveAnalystDecision(UUID transactionId, RiskStatus decision, String reason, String analystId);
 
     /**
-     * Top-up / deposit funds into customer wallet using a linked test card.
+     * Top-up / deposit funds into customer wallet using a linked external funding card.
      */
     WalletResponse topUpWallet(UUID customerId, BigDecimal amount, String cardBrand, String cardLast4, String clientIp);
+
+    /**
+     * Lists all linked external funding cards for the customer.
+     */
+    List<LinkedFundingCardResponse> listFundingCards(UUID customerId);
+
+    /**
+     * Links a new external bank debit/credit card as a funding source.
+     */
+    LinkedFundingCardResponse linkFundingCard(UUID customerId, LinkFundingCardRequest request);
+
+    /**
+     * Unlinks an external funding card belonging to the customer.
+     */
+    void unlinkFundingCard(UUID customerId, UUID cardId);
 }
