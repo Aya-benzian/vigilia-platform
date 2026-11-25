@@ -298,7 +298,8 @@ function isDepositTx(tx) {
 
 function isHeldTx(tx) {
   const s = (tx.status || '').toUpperCase();
-  return s === 'PENDING' || s === 'REVIEW' || s === 'UNDER_REVIEW' || s === 'FLAGGED' || s === 'HOLD';
+  return s === 'PENDING' || s === 'REVIEW' || s === 'UNDER_REVIEW'
+      || s === 'FLAGGED' || s === 'HOLD' || s === 'PENDING_REVIEW';
 }
 
 const USD_RATES = {
