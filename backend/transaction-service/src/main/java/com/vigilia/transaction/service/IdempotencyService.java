@@ -35,6 +35,12 @@ public interface IdempotencyService {
     String calculateHash(String payload);
 
     /**
+     * F1 fix: Atomically claims an idempotency slot via INSERT before any financial effects.
+     * Returns true if this caller owns the slot; false if another concurrent caller beat us.
+     */
+    boolean claimKey(String scope, String key, String requestHash);
+
+    /**
      * Checks the state of an idempotency key.
      *
      * @param scope       Namespace/scope (e.g. "customer:<uuid>")

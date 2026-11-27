@@ -134,7 +134,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflit d'idempotence [correlationId={}]: {}", correlationId, ex.getMessage());
 
         ApiErrorResponse errorResponse = new ApiErrorResponse(
-                "IDEMPOTENCY_CONFLICT",
+                "IDEMPOTENCY_KEY_REUSED",
                 ex.getMessage(),
                 HttpStatus.CONFLICT.value(),
                 correlationId

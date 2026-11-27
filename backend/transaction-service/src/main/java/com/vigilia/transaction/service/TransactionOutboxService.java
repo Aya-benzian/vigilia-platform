@@ -36,6 +36,31 @@ public class TransactionOutboxService {
     }
 
     /**
+     * E2 fix: Publishes a TRANSACTION_PENDING_REVIEW outbox event when Risk routes a transaction
+     * to manual analyst review. Downstream systems (audit, notification) can react to this event.
+     * Funds remain held until the analyst resolves the case.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void publishTransactionPendingReview(TransactionEntity transaction, String reason, String traceId) {
+        String eventType = "TRANSACTION_PENDING_REVIEW";
+        String resolvedTraceId = resolveTraceId(traceId);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventId", UUID.randomUUID().toString());
+        payload.put("eventType", eventType);
+        payload.put("transactionId", transaction.getId().toString());
+        payload.put("customerId", transaction.getCustomerId().toString());
+        payload.put("amount", transaction.getAmount());
+        payload.put("currency", transaction.getCurrency());
+        payload.put("transactionType", transaction.getTransactionType());
+        payload.put("status", transaction.getStatus());
+        payload.put("reason", reason);
+        payload.put("traceId", resolvedTraceId);
+
+        saveOutboxEvent(transaction.getId().toString(), eventType, payload, resolvedTraceId);
+    }
+
+    /**
      * Publishes an outbox event when a transaction evaluation is applied directly (APPROVED or REJECTED).
      */
     @Transactional(propagation = Propagation.MANDATORY)
@@ -53,6 +78,31 @@ public class TransactionOutboxService {
         payload.put("transactionType", transaction.getTransactionType());
         payload.put("status", transaction.getStatus());
         payload.put("finalizedAt", transaction.getFinalizedAt() != null ? transaction.getFinalizedAt().toString() : Instant.now().toString());
+        payload.put("traceId", resolvedTraceId);
+
+        saveOutboxEvent(transaction.getId().toString(), eventType, payload, resolvedTraceId);
+    }
+
+    /**
+     * E2 fix: Publishes a TRANSACTION_PENDING_REVIEW outbox event when Risk routes a transaction
+     * to manual analyst review. Downstream systems (audit, notification) can react to this event.
+     * Funds remain held until the analyst resolves the case.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void publishTransactionPendingReview(TransactionEntity transaction, String reason, String traceId) {
+        String eventType = "TRANSACTION_PENDING_REVIEW";
+        String resolvedTraceId = resolveTraceId(traceId);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventId", UUID.randomUUID().toString());
+        payload.put("eventType", eventType);
+        payload.put("transactionId", transaction.getId().toString());
+        payload.put("customerId", transaction.getCustomerId().toString());
+        payload.put("amount", transaction.getAmount());
+        payload.put("currency", transaction.getCurrency());
+        payload.put("transactionType", transaction.getTransactionType());
+        payload.put("status", transaction.getStatus());
+        payload.put("reason", reason);
         payload.put("traceId", resolvedTraceId);
 
         saveOutboxEvent(transaction.getId().toString(), eventType, payload, resolvedTraceId);

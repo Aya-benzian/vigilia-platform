@@ -1,11 +1,14 @@
 package com.vigilia.transaction.repository;
 
 import com.vigilia.transaction.entity.TransactionEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -42,4 +45,9 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     // Average amount by type
     @Query("SELECT COALESCE(AVG(t.amount), 0) FROM TransactionEntity t WHERE t.transactionType = :type")
     BigDecimal avgAmountByType(@org.springframework.data.repository.query.Param("type") String type);
+
+    // Pessimistic write lock — used to guard status transitions (B1 fix)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM TransactionEntity t WHERE t.id = :id")
+    Optional<TransactionEntity> findByIdForUpdate(@Param("id") UUID id);
 }

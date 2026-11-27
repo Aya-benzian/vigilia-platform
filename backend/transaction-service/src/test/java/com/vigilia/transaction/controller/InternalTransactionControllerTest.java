@@ -67,7 +67,7 @@ class InternalTransactionControllerTest {
         );
         when(transactionService.getTransactionById(transactionId)).thenReturn(existingResponse);
 
-        ResponseEntity<ApiResponse<TransactionResponse>> response = controller.ingestReviewDecision(payload);
+        ResponseEntity<ApiResponse<TransactionResponse>> response = controller.ingestReviewDecision(payload, null, null);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody().getData().getStatus()).isEqualTo(RiskStatus.APPROVED);
@@ -86,7 +86,7 @@ class InternalTransactionControllerTest {
 
         TransactionEntity txn = new TransactionEntity("PURCHASE", UUID.randomUUID(), new BigDecimal("50.00"), "EUR", "PENDING_REVIEW");
         txn.setId(transactionId);
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(txn));
+        when(transactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(txn));
 
         TransactionResponse resolvedResponse = new TransactionResponse(
                 transactionId, UUID.randomUUID(), TransactionType.PURCHASE, new BigDecimal("50.00"), "EUR", RiskStatus.APPROVED, null, null, Instant.now()
@@ -94,7 +94,7 @@ class InternalTransactionControllerTest {
         when(transactionService.resolveAnalystDecision(transactionId, RiskStatus.APPROVED, "Manual OK", "analyst-1"))
                 .thenReturn(resolvedResponse);
 
-        ResponseEntity<ApiResponse<TransactionResponse>> response = controller.ingestReviewDecision(payload);
+        ResponseEntity<ApiResponse<TransactionResponse>> response = controller.ingestReviewDecision(payload, null, null);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody().getData().getStatus()).isEqualTo(RiskStatus.APPROVED);
@@ -113,14 +113,14 @@ class InternalTransactionControllerTest {
 
         TransactionEntity txn = new TransactionEntity("PURCHASE", UUID.randomUUID(), new BigDecimal("50.00"), "EUR", "APPROVED");
         txn.setId(transactionId);
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(txn));
+        when(transactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(txn));
 
         TransactionResponse existingResponse = new TransactionResponse(
                 transactionId, UUID.randomUUID(), TransactionType.PURCHASE, new BigDecimal("50.00"), "EUR", RiskStatus.APPROVED, null, null, Instant.now()
         );
         when(transactionService.getTransactionById(transactionId)).thenReturn(existingResponse);
 
-        ResponseEntity<ApiResponse<TransactionResponse>> response = controller.ingestReviewDecision(payload);
+        ResponseEntity<ApiResponse<TransactionResponse>> response = controller.ingestReviewDecision(payload, null, null);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         verify(transactionService, never()).resolveAnalystDecision(any(), any(), any(), any());

@@ -33,7 +33,8 @@ public class TransactionOutboxRelayService {
     private static final Set<String> SUPPORTED_EVENT_TYPES = Set.of(
             "TRANSACTION_COMPLETED",
             "TRANSACTION_REJECTED",
-            "TRANSACTION_RESOLVED"
+            "TRANSACTION_RESOLVED",
+            "TRANSACTION_PENDING_REVIEW"  // E2 fix: relay pending-review events to downstream
     );
 
     private final OutboxEventRepository outboxEventRepository;
@@ -67,8 +68,9 @@ public class TransactionOutboxRelayService {
             return;
         }
 
+        // H4 fix: use FOR UPDATE SKIP LOCKED so multiple relay instances never pick the same row
         List<OutboxEventEntity> pendingEvents = outboxEventRepository
-                .findByStatusAndNextAttemptAtBeforeOrderByCreatedAtAsc("PENDING", Instant.now());
+                .findPendingReadyForUpdate(Instant.now());
 
         if (pendingEvents.isEmpty()) {
             return;

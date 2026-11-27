@@ -50,7 +50,7 @@ class TransactionOutboxRelayServiceTest {
         );
         event.setId(UUID.randomUUID());
 
-        when(outboxEventRepository.findByStatusAndNextAttemptAtBeforeOrderByCreatedAtAsc(any(), any()))
+        when(outboxEventRepository.findPendingReadyForUpdate(any()))
                 .thenReturn(List.of(event));
 
         relayService.relayPendingEvents();

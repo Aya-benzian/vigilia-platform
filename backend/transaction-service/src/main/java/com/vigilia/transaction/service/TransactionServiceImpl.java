@@ -37,7 +37,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -51,6 +55,18 @@ import java.util.regex.Pattern;
 /**
  * Core implementation of TransactionService orchestrating purchase and transfer flows,
  * deterministic wallet lock ordering, risk scoring integration, and immutable audit logs.
+ *
+ * <p>Bug fixes applied:
+ * <ul>
+ *   <li>A1 (full): Risk HTTP is now called OUTSIDE any database transaction and outside wallet locks.
+ *       The flow is split into two explicit transactions via {@link TransactionTemplate}:
+ *       TX-1 persists the PENDING record and hold ledger entry; TX-2 applies the risk decision.</li>
+ *   <li>A1 (partial): holdFunds() is now called with the real transactionId (not null).</li>
+ *   <li>G1: senderBalanceBefore is captured from the wallet BEFORE the hold is applied.</li>
+ *   <li>E2: PENDING_REVIEW path now emits a TRANSACTION_PENDING_REVIEW outbox event.</li>
+ *   <li>B1: applyDecision() reloads the transaction row WITH FOR UPDATE and verifies it is still
+ *       PENDING before touching any wallet balance — prevents double-apply.</li>
+ * </ul>
  */
 @Service
 @Transactional(readOnly = true)
@@ -70,6 +86,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final IdempotencyService idempotencyService;
     private final RiskEvaluationClient riskEvaluationClient;
     private final TransactionOutboxService transactionOutboxService;
+    // A1 fix: programmatic transaction control so Risk HTTP never runs inside a DB transaction
+    private final TransactionTemplate writeTx;
 
     public TransactionServiceImpl(
             TransactionRepository transactionRepository,
@@ -82,7 +100,8 @@ public class TransactionServiceImpl implements TransactionService {
             WalletService walletService,
             IdempotencyService idempotencyService,
             RiskEvaluationClient riskEvaluationClient,
-            TransactionOutboxService transactionOutboxService) {
+            TransactionOutboxService transactionOutboxService,
+            PlatformTransactionManager txManager) {
         this.transactionRepository = transactionRepository;
         this.paymentRepository = paymentRepository;
         this.transferRepository = transferRepository;
@@ -94,17 +113,31 @@ public class TransactionServiceImpl implements TransactionService {
         this.idempotencyService = idempotencyService;
         this.riskEvaluationClient = riskEvaluationClient;
         this.transactionOutboxService = transactionOutboxService;
+        TransactionTemplate tt = new TransactionTemplate(txManager);
+        tt.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.writeTx = tt;
     }
 
+    // =========================================================================
+    // A1 fix: createTransaction is NOT @Transactional (NOT_SUPPORTED overrides
+    // the class-level @Transactional(readOnly = true)).
+    // The two phases (setup and decision) each use writeTx explicitly so that
+    // the Risk HTTP call runs between committed phases with no DB locks held.
+    // =========================================================================
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TransactionResponse createTransaction(TransactionCreateRequest request, String idempotencyKey, String clientIp) {
         validateRequest(request);
 
         String scope = null;
         String requestHash = null;
 
-        // 1. Idempotency verification before ANY financial effect
+        // 1. Idempotency — F1 fix: atomic slot claim BEFORE any financial work.
+        //    checkOrThrow handles existing cached/conflict cases first.
+        //    For genuinely new keys, claimKey() does INSERT ... ON CONFLICT DO NOTHING.
+        //    If a concurrent request beat us (returns false), we read back their
+        //    in-progress result instead of opening a duplicate financial flow.
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             scope = idempotencyService.buildScope(request.getCustomerId());
             requestHash = idempotencyService.calculateRequestHash(request);
@@ -117,14 +150,22 @@ public class TransactionServiceImpl implements TransactionService {
                 if (cachedResponse.isPresent()) {
                     return cachedResponse.get();
                 }
-                // Fallback if cache body unparseable: reload from DB
                 return transactionRepository.findByCustomerIdAndIdempotencyKey(request.getCustomerId(), idempotencyKey)
                         .map(this::toResponse)
                         .orElseThrow(() -> new IllegalStateException("Réponse en cache absente de la base"));
             }
+
+            // F1 fix: claim the idempotency slot atomically before TX-1 opens.
+            // A concurrent duplicate request will lose the INSERT race and back off here.
+            if (!idempotencyService.claimKey(scope, idempotencyKey, requestHash)) {
+                log.warn("[F1] Concurrent duplicate for key='{}'; returning in-flight result", idempotencyKey);
+                return transactionRepository.findByCustomerIdAndIdempotencyKey(request.getCustomerId(), idempotencyKey)
+                        .map(this::toResponse)
+                        .orElseThrow(() -> new IllegalStateException("Requête concurrente en cours — réessayez dans un instant"));
+            }
         }
 
-        // 2. Dispatch according to transaction domain type
+        // 2. Dispatch according to transaction type
         TransactionResponse response;
         if (request.getType() == TransactionType.PURCHASE) {
             response = executePurchase(request, idempotencyKey, clientIp);
@@ -135,86 +176,99 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         // 3. Cache idempotent response
-        if (idempotencyKey != null && !idempotencyKey.isBlank() && scope != null && requestHash != null) {
-            idempotencyService.recordResponse(scope, idempotencyKey, requestHash, 201, response, null);
+        final String finalScope = scope;
+        final String finalHash = requestHash;
+        if (idempotencyKey != null && !idempotencyKey.isBlank() && finalScope != null && finalHash != null) {
+            idempotencyService.recordResponse(finalScope, idempotencyKey, finalHash, 201, response, null);
         }
 
         return response;
     }
 
+    // =========================================================================
+    // PURCHASE — split into TX-1 (hold) → Risk HTTP → TX-2 (decision)
+    // =========================================================================
     private TransactionResponse executePurchase(TransactionCreateRequest request, String idempotencyKey, String clientIp) {
         UUID customerId = request.getCustomerId();
         BigDecimal amount = request.getAmount();
 
-        WalletEntity customerWallet = walletService.getWalletEntityByCustomerId(customerId);
-        if (customerWallet.isCardFrozen()) {
-            throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to make payments.");
-        }
-        validateCurrency(customerWallet.getCurrency(), request.getCurrency());
+        // --- TX-1: persist PENDING transaction and hold funds atomically ---
+        // All DB writes committed before the Risk HTTP call.
+        final RiskEvaluationRequest[] riskReqHolder = new RiskEvaluationRequest[1];
+        final UUID[] txnIdHolder = new UUID[1];
+        final UUID[] customerWalletIdHolder = new UUID[1];
 
-        // Resolve or create merchant record
-        String merchantName = (request.getMerchantName() != null && !request.getMerchantName().isBlank())
-                ? request.getMerchantName().trim()
-                : "Default Merchant";
-        String merchantCategory = (request.getCategory() != null && !request.getCategory().isBlank())
-                ? request.getCategory().trim().toUpperCase()
-                : "RETAIL";
+        writeTx.execute(status -> {
+            WalletEntity customerWallet = walletService.getWalletEntityByCustomerId(customerId);
+            customerWalletIdHolder[0] = customerWallet.getId();
+            if (customerWallet.isCardFrozen()) {
+                throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to make payments.");
+            }
+            validateCurrency(customerWallet.getCurrency(), request.getCurrency());
 
-        MerchantEntity merchant = resolveOrCreateMerchant(merchantName, merchantCategory);
+            String merchantName = (request.getMerchantName() != null && !request.getMerchantName().isBlank())
+                    ? request.getMerchantName().trim() : "Default Merchant";
+            String merchantCategory = (request.getCategory() != null && !request.getCategory().isBlank())
+                    ? request.getCategory().trim().toUpperCase() : "RETAIL";
 
-        // A. Reserve funds (HOLD) under pessimistic lock
-        walletService.holdFunds(customerWallet.getId(), null, amount);
+            MerchantEntity merchant = resolveOrCreateMerchant(merchantName, merchantCategory);
 
-        // B. Persist transaction in PENDING state
-        TransactionEntity txn = new TransactionEntity(
-                TransactionType.PURCHASE.name(),
-                customerId,
-                amount,
-                request.getCurrency().trim().toUpperCase(),
-                "PENDING"
-        );
-        txn.setIdempotencyKey(idempotencyKey);
-        txn.setIpAddress(clientIp);
-        TransactionEntity savedTxn = transactionRepository.save(txn);
+            // A1 partial fix: save transaction FIRST to get a real UUID, then hold with that ID
+            TransactionEntity txn = new TransactionEntity(
+                    TransactionType.PURCHASE.name(), customerId, amount,
+                    request.getCurrency().trim().toUpperCase(), "PENDING");
+            txn.setIdempotencyKey(idempotencyKey);
+            txn.setIpAddress(clientIp);
+            TransactionEntity savedTxn = transactionRepository.save(txn);
+            txnIdHolder[0] = savedTxn.getId();
 
-        // C. Persist purchase details
-        PaymentEntity payment = new PaymentEntity(savedTxn.getId(), merchant.getId());
-        payment.setMerchantCategory(merchantCategory);
-        payment.setProductName(merchantName);
-        if (request.getMerchantLatitude() != null) {
-            payment.setCustomerLat(BigDecimal.valueOf(request.getMerchantLatitude()));
-        }
-        if (request.getMerchantLongitude() != null) {
-            payment.setCustomerLon(BigDecimal.valueOf(request.getMerchantLongitude()));
-        }
-        paymentRepository.save(payment);
+            // G1 fix (purchase): capture balance BEFORE the hold
+            BigDecimal balanceBefore = customerWallet.getAvailableBalance();
 
-        // D. Record initial state in status history
-        recordStatusHistory(savedTxn.getId(), null, "PENDING", "Initialisation et réservation des fonds", "SYSTEM", "system");
+            // Hold now carries the real transactionId
+            walletService.holdFunds(customerWallet.getId(), savedTxn.getId(), amount);
 
-        // E. Call Risk Evaluation Service
-        RiskEvaluationRequest riskReq = new RiskEvaluationRequest(
-                savedTxn.getId(),
-                customerId,
-                TransactionType.PURCHASE,
-                amount,
-                request.getCurrency(),
-                Instant.now()
-        );
-        riskReq.setMerchantId(merchant != null ? merchant.getId().toString() : null);
-        riskReq.setMerchantCategory(merchantCategory);
-        riskReq.setMerchantLatitude(request.getMerchantLatitude());
-        riskReq.setMerchantLongitude(request.getMerchantLongitude());
+            PaymentEntity payment = new PaymentEntity(savedTxn.getId(), merchant.getId());
+            payment.setMerchantCategory(merchantCategory);
+            payment.setProductName(merchantName);
+            if (request.getMerchantLatitude() != null)
+                payment.setCustomerLat(BigDecimal.valueOf(request.getMerchantLatitude()));
+            if (request.getMerchantLongitude() != null)
+                payment.setCustomerLon(BigDecimal.valueOf(request.getMerchantLongitude()));
+            paymentRepository.save(payment);
 
-        RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReq);
+            recordStatusHistory(savedTxn.getId(), null, "PENDING",
+                    "Initialisation et réservation des fonds", "SYSTEM", "system");
 
-        // F. Apply Authoritative Risk Decision
-        applyDecision(savedTxn, customerWallet.getId(), null, amount, riskDecision);
+            RiskEvaluationRequest riskReq = new RiskEvaluationRequest(
+                    savedTxn.getId(), customerId, TransactionType.PURCHASE,
+                    amount, request.getCurrency(), Instant.now());
+            riskReq.setMerchantId(merchant.getId().toString());
+            riskReq.setMerchantCategory(merchantCategory);
+            riskReq.setMerchantLatitude(request.getMerchantLatitude());
+            riskReq.setMerchantLongitude(request.getMerchantLongitude());
+            // balance before hold — not used in purchase risk model but kept for parity
+            riskReq.setSenderBalance(balanceBefore != null ? balanceBefore.doubleValue() : null);
+            riskReqHolder[0] = riskReq;
+            return null;
+        }); // TX-1 COMMITTED — wallet locked released here
 
-        TransactionEntity finalized = transactionRepository.save(savedTxn);
-        return toResponse(finalized, riskDecision);
+        // --- Risk HTTP call — no DB transaction, no wallet locks ---
+        RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReqHolder[0]);
+
+        // --- TX-2: apply decision atomically ---
+        return writeTx.execute(status -> {
+            TransactionEntity savedTxn = transactionRepository.findByIdForUpdate(txnIdHolder[0])
+                    .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable après évaluation: " + txnIdHolder[0]));
+            applyDecision(savedTxn, customerWalletIdHolder[0], null, amount, riskDecision);
+            TransactionEntity finalized = transactionRepository.save(savedTxn);
+            return toResponse(finalized, riskDecision);
+        });
     }
 
+    // =========================================================================
+    // TRANSFER — split into TX-1 (hold) → Risk HTTP → TX-2 (decision)
+    // =========================================================================
     private TransactionResponse executeTransfer(TransactionCreateRequest request, String idempotencyKey, String clientIp) {
         UUID senderCustomerId = request.getCustomerId();
         BigDecimal amount = request.getAmount();
@@ -222,116 +276,135 @@ public class TransactionServiceImpl implements TransactionService {
         if (request.getRecipientIban() == null || request.getRecipientIban().isBlank()) {
             throw new InvalidOperationException("recipientIban est obligatoire pour un virement (TRANSFER)");
         }
-
         String recipientIban = request.getRecipientIban().replaceAll("\\s+", "").toUpperCase();
 
-        WalletEntity senderWallet = walletService.getWalletEntityByCustomerId(senderCustomerId);
-        if (senderWallet.isCardFrozen()) {
-            throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to send transfers.");
-        }
-        WalletEntity recipientWallet = walletRepository.findByAccountNumber(recipientIban)
-                .orElseThrow(() -> new ResourceNotFoundException("Portefeuille destinataire introuvable pour l'IBAN: " + recipientIban));
+        final RiskEvaluationRequest[] riskReqHolder = new RiskEvaluationRequest[1];
+        final UUID[] txnIdHolder = new UUID[1];
 
-        if (senderWallet.getId().equals(recipientWallet.getId())) {
-            throw new InvalidOperationException("Impossible d'effectuer un virement vers son propre compte");
-        }
+        // --- TX-1: deterministic lock order, hold, persist ---
+        writeTx.execute(status -> {
+            WalletEntity senderWallet = walletService.getWalletEntityByCustomerId(senderCustomerId);
+            if (senderWallet.isCardFrozen()) {
+                throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to send transfers.");
+            }
+            WalletEntity recipientWallet = walletRepository.findByAccountNumber(recipientIban)
+                    .orElseThrow(() -> new ResourceNotFoundException("Portefeuille destinataire introuvable pour l'IBAN: " + recipientIban));
 
-        validateCurrency(senderWallet.getCurrency(), request.getCurrency());
-        validateCurrency(senderWallet.getCurrency(), recipientWallet.getCurrency());
+            if (senderWallet.getId().equals(recipientWallet.getId())) {
+                throw new InvalidOperationException("Impossible d'effectuer un virement vers son propre compte");
+            }
+            validateCurrency(senderWallet.getCurrency(), request.getCurrency());
+            validateCurrency(senderWallet.getCurrency(), recipientWallet.getCurrency());
 
-        // A. Deterministic Lock Ordering to prevent deadlocks:
-        // Always acquire pessimistic lock on the smaller UUID first, then the larger UUID.
-        UUID firstLockId = senderWallet.getId().compareTo(recipientWallet.getId()) < 0 ? senderWallet.getId() : recipientWallet.getId();
-        UUID secondLockId = senderWallet.getId().compareTo(recipientWallet.getId()) < 0 ? recipientWallet.getId() : senderWallet.getId();
+            // C4 — deterministic UUID lock ordering (unchanged)
+            UUID firstLockId  = senderWallet.getId().compareTo(recipientWallet.getId()) < 0
+                    ? senderWallet.getId() : recipientWallet.getId();
+            UUID secondLockId = senderWallet.getId().compareTo(recipientWallet.getId()) < 0
+                    ? recipientWallet.getId() : senderWallet.getId();
+            walletRepository.findByIdForUpdate(firstLockId);
+            walletRepository.findByIdForUpdate(secondLockId);
 
-        walletRepository.findByIdForUpdate(firstLockId);
-        walletRepository.findByIdForUpdate(secondLockId);
+            // G1 fix: capture balance BEFORE the hold
+            BigDecimal senderBalanceBefore = senderWallet.getAvailableBalance();
 
-        // B. Reserve funds (HOLD) from sender wallet
-        walletService.holdFunds(senderWallet.getId(), null, amount);
+            // A1 partial fix: save transaction FIRST to get a real UUID, then hold with that ID
+            TransactionEntity txn = new TransactionEntity(
+                    TransactionType.TRANSFER.name(), senderCustomerId, amount,
+                    request.getCurrency().trim().toUpperCase(), "PENDING");
+            txn.setIdempotencyKey(idempotencyKey);
+            txn.setIpAddress(clientIp);
+            TransactionEntity savedTxn = transactionRepository.save(txn);
+            txnIdHolder[0] = savedTxn.getId();
 
-        // C. Persist transaction in PENDING state
-        TransactionEntity txn = new TransactionEntity(
-                TransactionType.TRANSFER.name(),
-                senderCustomerId,
-                amount,
-                request.getCurrency().trim().toUpperCase(),
-                "PENDING"
-        );
-        txn.setIdempotencyKey(idempotencyKey);
-        txn.setIpAddress(clientIp);
-        TransactionEntity savedTxn = transactionRepository.save(txn);
+            // Hold now carries the real transactionId
+            walletService.holdFunds(senderWallet.getId(), savedTxn.getId(), amount);
 
-        // D. Persist transfer details
-        TransferEntity transfer = new TransferEntity(
-                savedTxn.getId(),
-                senderWallet.getId(),
-                recipientWallet.getId(),
-                recipientWallet.getCustomerId(),
-                request.getTransferReference()
-        );
-        transferRepository.save(transfer);
+            TransferEntity transfer = new TransferEntity(
+                    savedTxn.getId(), senderWallet.getId(), recipientWallet.getId(),
+                    recipientWallet.getCustomerId(), request.getTransferReference());
+            transferRepository.save(transfer);
 
-        // E. Record initial state in status history
-        recordStatusHistory(savedTxn.getId(), null, "PENDING", "Initialisation du transfert et réservation des fonds expéditeur", "SYSTEM", "system");
+            recordStatusHistory(savedTxn.getId(), null, "PENDING",
+                    "Initialisation du transfert et réservation des fonds expéditeur", "SYSTEM", "system");
 
-        // F. Call Risk Evaluation Service
-        RiskEvaluationRequest riskReq = new RiskEvaluationRequest(
-                savedTxn.getId(),
-                senderCustomerId,
-                TransactionType.TRANSFER,
-                amount,
-                request.getCurrency(),
-                Instant.now()
-        );
-        riskReq.setRecipientId(recipientWallet.getCustomerId() != null ? recipientWallet.getCustomerId().toString() : null);
-        riskReq.setSenderBalance(senderWallet.getAvailableBalance() != null ? senderWallet.getAvailableBalance().doubleValue() : null);
+            RiskEvaluationRequest riskReq = new RiskEvaluationRequest(
+                    savedTxn.getId(), senderCustomerId, TransactionType.TRANSFER,
+                    amount, request.getCurrency(), Instant.now());
+            riskReq.setRecipientId(recipientWallet.getCustomerId() != null
+                    ? recipientWallet.getCustomerId().toString() : null);
+            // G1 fix: send the PRE-HOLD balance to Risk, converted to double for the ML feature
+            riskReq.setSenderBalance(senderBalanceBefore != null ? senderBalanceBefore.doubleValue() : null);
+            riskReqHolder[0] = riskReq;
+            return null;
+        }); // TX-1 COMMITTED — all wallet locks released here
 
-        RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReq);
+        // --- Risk HTTP call — no DB transaction, no wallet locks held ---
+        RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReqHolder[0]);
 
-        // G. Apply Authoritative Risk Decision
-        applyDecision(savedTxn, senderWallet.getId(), recipientWallet.getId(), amount, riskDecision);
+        // --- TX-2: apply decision atomically ---
+        return writeTx.execute(status -> {
+            TransactionEntity savedTxn = transactionRepository.findByIdForUpdate(txnIdHolder[0])
+                    .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable après évaluation: " + txnIdHolder[0]));
 
-        TransactionEntity finalized = transactionRepository.save(savedTxn);
-        return toResponse(finalized, riskDecision);
+            TransferEntity transfer = transferRepository.findByTransactionId(savedTxn.getId())
+                    .orElseThrow(() -> new IllegalStateException("Détail de transfert introuvable: " + savedTxn.getId()));
+
+            applyDecision(savedTxn, transfer.getSenderWalletId(), transfer.getRecipientWalletId(), amount, riskDecision);
+            TransactionEntity finalized = transactionRepository.save(savedTxn);
+            return toResponse(finalized, riskDecision);
+        });
     }
 
-    private void applyDecision(TransactionEntity txn, UUID senderWalletId, UUID recipientWalletId, BigDecimal amount, RiskEvaluationResponse riskDecision) {
+    /**
+     * Applies an authoritative risk decision to a transaction.
+     *
+     * <p>B1 fix: the caller MUST supply the transaction row already locked with FOR UPDATE
+     * (via {@code findByIdForUpdate}). This method additionally verifies the transition is legal
+     * — only a PENDING transaction may be acted on — preventing double-capture/release.
+     */
+    private void applyDecision(TransactionEntity txn, UUID senderWalletId, UUID recipientWalletId,
+                               BigDecimal amount, RiskEvaluationResponse riskDecision) {
+        // B1 fix: guard against double-apply (concurrent decision or relay replay)
+        if (!"PENDING".equalsIgnoreCase(txn.getStatus())) {
+            log.warn("[B1] Transaction {} is not in PENDING state (actual: {}); skipping risk decision to prevent double-apply",
+                    txn.getId(), txn.getStatus());
+            return;
+        }
+
         RiskStatus decision = riskDecision.getDecision();
-        String reason = riskDecision.getDecisionReason() != null ? riskDecision.getDecisionReason() : "Decision: " + decision;
+        String reason = riskDecision.getDecisionReason() != null
+                ? riskDecision.getDecisionReason() : "Decision: " + decision;
 
         switch (decision) {
             case APPROVED -> {
-                // Settle sender held funds
                 walletService.settleHold(senderWalletId, txn.getId(), amount);
-
-                // If transfer, credit recipient wallet
                 if (recipientWalletId != null) {
                     walletService.creditFunds(recipientWalletId, txn.getId(), amount);
                 }
-
                 txn.setStatus(RiskStatus.APPROVED.name());
                 txn.setFinalizedAt(Instant.now());
                 recordStatusHistory(txn.getId(), "PENDING", "APPROVED", reason, "SYSTEM", "system");
                 transactionOutboxService.publishTransactionCompleted(txn, RiskStatus.APPROVED, null);
-                log.info("Transaction validée et réglée [id={}, type={}, amount={}]", txn.getId(), txn.getTransactionType(), amount);
+                log.info("Transaction validée et réglée [id={}, type={}, amount={}]",
+                        txn.getId(), txn.getTransactionType(), amount);
             }
             case REJECTED -> {
-                // Release sender held funds back to available balance
                 walletService.releaseFunds(senderWalletId, txn.getId(), amount);
-                // Recipient wallet is never credited
-
                 txn.setStatus(RiskStatus.REJECTED.name());
                 txn.setFinalizedAt(Instant.now());
                 recordStatusHistory(txn.getId(), "PENDING", "REJECTED", reason, "SYSTEM", "system");
                 transactionOutboxService.publishTransactionCompleted(txn, RiskStatus.REJECTED, null);
-                log.warn("Transaction rejetée et fonds restitués [id={}, type={}, reason={}]", txn.getId(), txn.getTransactionType(), reason);
+                log.warn("Transaction rejetée et fonds restitués [id={}, type={}, reason={}]",
+                        txn.getId(), txn.getTransactionType(), reason);
             }
             case PENDING_REVIEW -> {
-                // Funds remain reserved in held balance pending manual analyst decision
+                // E2 fix: emit outbox event so downstream systems know this transaction
+                // is waiting for analyst review (funds remain held)
                 txn.setStatus(RiskStatus.PENDING_REVIEW.name());
                 recordStatusHistory(txn.getId(), "PENDING", "PENDING_REVIEW", reason, "SYSTEM", "system");
-                log.warn("Transaction suspendue en attente d'analyse humaine [id={}, type={}]", txn.getId(), txn.getTransactionType());
+                transactionOutboxService.publishTransactionPendingReview(txn, reason, null);
+                log.warn("Transaction suspendue en attente d'analyse humaine [id={}, type={}]",
+                        txn.getId(), txn.getTransactionType());
             }
         }
     }
@@ -339,14 +412,12 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public TransactionResponse resolveAnalystDecision(UUID transactionId, RiskStatus decision, String reason, String analystId) {
-        if (transactionId == null) {
-            throw new InvalidOperationException("transactionId ne doit pas être null");
-        }
-        if (decision == null || decision == RiskStatus.PENDING_REVIEW) {
+        if (transactionId == null) throw new InvalidOperationException("transactionId ne doit pas être null");
+        if (decision == null || decision == RiskStatus.PENDING_REVIEW)
             throw new InvalidOperationException("La décision de l'analyste doit être APPROVED ou REJECTED");
-        }
 
-        TransactionEntity txn = transactionRepository.findById(transactionId)
+        // B1 fix: lock the transaction row before reading status to prevent race with concurrent events
+        TransactionEntity txn = transactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable: " + transactionId));
 
         if (!RiskStatus.PENDING_REVIEW.name().equalsIgnoreCase(txn.getStatus())) {
@@ -367,7 +438,6 @@ public class TransactionServiceImpl implements TransactionService {
         } else if (TransactionType.TRANSFER.name().equalsIgnoreCase(txn.getTransactionType())) {
             TransferEntity transfer = transferRepository.findByTransactionId(txn.getId())
                     .orElseThrow(() -> new IllegalStateException("Détail de transfert introuvable pour la transaction: " + txn.getId()));
-
             if (decision == RiskStatus.APPROVED) {
                 walletService.settleHold(transfer.getSenderWalletId(), txn.getId(), amount);
                 walletService.creditFunds(transfer.getRecipientWalletId(), txn.getId(), amount);
@@ -391,16 +461,12 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     public WalletResponse topUpWallet(UUID customerId, BigDecimal amount, String cardBrand, String cardLast4, String clientIp) {
-        if (customerId == null) {
-            throw new InvalidOperationException("customerId ne doit pas être null");
-        }
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (customerId == null) throw new InvalidOperationException("customerId ne doit pas être null");
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
             throw new InvalidAmountException("Le montant du rechargement doit être supérieur à zéro");
-        }
 
         WalletEntity wallet = walletService.getWalletEntityByCustomerId(customerId);
 
-        // Enforce that the customer has at least one linked external funding card
         List<LinkedFundingCardEntity> linkedCards = linkedFundingCardRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
         if (linkedCards.isEmpty()) {
             throw new InvalidOperationException("No linked bank card found. Please link an external funding card before topping up your wallet.");
@@ -425,21 +491,14 @@ public class TransactionServiceImpl implements TransactionService {
         MerchantEntity merchant = resolveOrCreateMerchant(merchantName, "DEPOSIT");
 
         TransactionEntity txn = new TransactionEntity(
-                TransactionType.DEPOSIT.name(),
-                customerId,
-                amount,
-                wallet.getCurrency(),
-                RiskStatus.APPROVED.name()
-        );
+                TransactionType.DEPOSIT.name(), customerId, amount, wallet.getCurrency(), RiskStatus.APPROVED.name());
         txn.setFinalizedAt(Instant.now());
         txn.setIpAddress(clientIp);
         TransactionEntity savedTxn = transactionRepository.saveAndFlush(txn);
         UUID txnId = savedTxn.getId();
 
-        // 2. Credit the wallet ledger
         walletService.creditFunds(wallet.getId(), txnId, amount);
 
-        // 3. Record payment details
         PaymentEntity payment = new PaymentEntity(txnId, merchant.getId());
         payment.setProductId("DEPOSIT_FUNDS");
         payment.setProductName(merchantName);
@@ -456,9 +515,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public TransactionResponse getTransactionById(UUID id) {
-        if (id == null) {
-            throw new InvalidOperationException("id ne doit pas être null");
-        }
+        if (id == null) throw new InvalidOperationException("id ne doit pas être null");
         return transactionRepository.findById(id)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable pour l'identifiant: " + id));
@@ -468,15 +525,9 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionPageResponse listTransactions(UUID customerId, RiskStatus status, TransactionType type, Pageable pageable) {
         Specification<TransactionEntity> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (customerId != null) {
-                predicates.add(cb.equal(root.get("customerId"), customerId));
-            }
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status.name()));
-            }
-            if (type != null) {
-                predicates.add(cb.equal(root.get("transactionType"), type.name()));
-            }
+            if (customerId != null) predicates.add(cb.equal(root.get("customerId"), customerId));
+            if (status != null) predicates.add(cb.equal(root.get("status"), status.name()));
+            if (type != null) predicates.add(cb.equal(root.get("transactionType"), type.name()));
             query.orderBy(cb.desc(root.get("createdAt")));
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -484,7 +535,6 @@ public class TransactionServiceImpl implements TransactionService {
         Page<TransactionEntity> page = transactionRepository.findAll(spec, pageable);
         List<TransactionResponse> content = page.getContent().stream().map(this::toResponse).toList();
         PaginationMeta meta = new PaginationMeta(page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
-
         return new TransactionPageResponse(content, meta);
     }
 
@@ -492,91 +542,53 @@ public class TransactionServiceImpl implements TransactionService {
         return merchantRepository.findByNameIgnoreCase(name)
                 .orElseGet(() -> {
                     String cleanCode = "MCH_" + name.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
-                    if (cleanCode.length() > 50) {
-                        cleanCode = cleanCode.substring(0, 50);
-                    }
+                    if (cleanCode.length() > 50) cleanCode = cleanCode.substring(0, 50);
                     if (merchantRepository.findByMerchantCode(cleanCode).isPresent()) {
                         cleanCode = cleanCode.substring(0, Math.min(cleanCode.length(), 40)) + "_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
                     }
-                    MerchantEntity newMerchant = new MerchantEntity(cleanCode, name, category);
-                    return merchantRepository.save(newMerchant);
+                    return merchantRepository.save(new MerchantEntity(cleanCode, name, category));
                 });
     }
 
     private void recordStatusHistory(UUID txnId, String fromStatus, String toStatus, String reason, String actorType, String actorId) {
-        TransactionStatusHistoryEntity history = new TransactionStatusHistoryEntity(
-                txnId, fromStatus, toStatus, reason, actorType, actorId
-        );
-        statusHistoryRepository.save(history);
+        statusHistoryRepository.save(new TransactionStatusHistoryEntity(txnId, fromStatus, toStatus, reason, actorType, actorId));
     }
 
     private void validateRequest(TransactionCreateRequest request) {
-        if (request == null) {
-            throw new InvalidOperationException("La requête de transaction ne peut pas être null");
-        }
-        if (request.getCustomerId() == null) {
-            throw new InvalidOperationException("customerId est obligatoire");
-        }
-        if (request.getType() == null) {
-            throw new InvalidOperationException("type de transaction est obligatoire (PURCHASE ou TRANSFER)");
-        }
-        if (request.getAmount() == null) {
-            throw new InvalidAmountException("amount ne peut pas être null");
-        }
-        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new InvalidAmountException("amount doit être strictement positif");
-        }
-        if (request.getAmount().scale() > 2) {
-            throw new InvalidAmountException("amount ne peut pas comporter plus de 2 décimales");
-        }
-        if (request.getCurrency() == null || !CURRENCY_PATTERN.matcher(request.getCurrency().trim()).matches()) {
+        if (request == null) throw new InvalidOperationException("La requête de transaction ne peut pas être null");
+        if (request.getCustomerId() == null) throw new InvalidOperationException("customerId est obligatoire");
+        if (request.getType() == null) throw new InvalidOperationException("type de transaction est obligatoire (PURCHASE ou TRANSFER)");
+        if (request.getAmount() == null) throw new InvalidAmountException("amount ne peut pas être null");
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) throw new InvalidAmountException("amount doit être strictement positif");
+        if (request.getAmount().scale() > 2) throw new InvalidAmountException("amount ne peut pas comporter plus de 2 décimales");
+        if (request.getCurrency() == null || !CURRENCY_PATTERN.matcher(request.getCurrency().trim()).matches())
             throw new InvalidOperationException("currency doit être un code ISO 4217 de 3 lettres majuscules");
-        }
     }
 
     private void validateCurrency(String expected, String given) {
-        if (!expected.equalsIgnoreCase(given.trim())) {
+        if (!expected.equalsIgnoreCase(given.trim()))
             throw new InvalidOperationException(String.format(
-                    "Incompatibilité de devise : le portefeuille est en %s mais l'opération demande %s",
-                    expected, given));
-        }
+                    "Incompatibilité de devise : le portefeuille est en %s mais l'opération demande %s", expected, given));
     }
 
-    private TransactionResponse toResponse(TransactionEntity entity) {
-        return toResponse(entity, null);
-    }
+    private TransactionResponse toResponse(TransactionEntity entity) { return toResponse(entity, null); }
 
     private TransactionResponse toResponse(TransactionEntity entity, RiskEvaluationResponse risk) {
         RiskStatus statusEnum;
-        try {
-            statusEnum = RiskStatus.valueOf(entity.getStatus());
-        } catch (Exception e) {
-            statusEnum = RiskStatus.PENDING_REVIEW;
-        }
+        try { statusEnum = RiskStatus.valueOf(entity.getStatus()); }
+        catch (Exception e) { statusEnum = RiskStatus.PENDING_REVIEW; }
 
         Double riskScore = risk != null ? risk.getFraudProbability() : null;
         String reason = risk != null ? risk.getDecisionReason() : "Decision: " + entity.getStatus();
 
         TransactionType typeEnum;
-        try {
-            typeEnum = TransactionType.valueOf(entity.getTransactionType());
-        } catch (Exception e) {
-            typeEnum = TransactionType.PURCHASE;
-        }
+        try { typeEnum = TransactionType.valueOf(entity.getTransactionType()); }
+        catch (Exception e) { typeEnum = TransactionType.PURCHASE; }
 
         TransactionResponse response = new TransactionResponse(
-                entity.getId(),
-                entity.getCustomerId(),
-                typeEnum,
-                entity.getAmount(),
-                entity.getCurrency(),
-                statusEnum,
-                riskScore,
-                reason,
-                entity.getCreatedAt()
-        );
+                entity.getId(), entity.getCustomerId(), typeEnum, entity.getAmount(),
+                entity.getCurrency(), statusEnum, riskScore, reason, entity.getCreatedAt());
 
-        // Enrich with real Payment/Merchant or Transfer details from ledger database
         if (typeEnum == TransactionType.PURCHASE) {
             paymentRepository.findById(entity.getId()).ifPresent(payment -> {
                 response.setCategory(payment.getMerchantCategory());
@@ -584,9 +596,8 @@ public class TransactionServiceImpl implements TransactionService {
                 if (payment.getMerchantId() != null) {
                     merchantRepository.findById(payment.getMerchantId()).ifPresent(merchant -> {
                         response.setMerchantName(merchant.getName());
-                        if (response.getCategory() == null || response.getCategory().isBlank()) {
+                        if (response.getCategory() == null || response.getCategory().isBlank())
                             response.setCategory(merchant.getCategory());
-                        }
                     });
                 }
             });
@@ -596,53 +607,40 @@ public class TransactionServiceImpl implements TransactionService {
                 response.setMemo(transfer.getMemo());
                 response.setProductName(transfer.getMemo() != null && !transfer.getMemo().isBlank() ? transfer.getMemo() : "Direct Transfer");
                 response.setRecipientCustomerId(transfer.getRecipientCustomerId());
-                if (transfer.getMemo() != null && !transfer.getMemo().isBlank()) {
-                    response.setMerchantName(transfer.getMemo());
-                } else {
-                    response.setMerchantName("Direct Transfer");
-                }
+                response.setMerchantName(transfer.getMemo() != null && !transfer.getMemo().isBlank() ? transfer.getMemo() : "Direct Transfer");
             });
         } else if (typeEnum == TransactionType.DEPOSIT) {
             response.setCategory("DEPOSIT");
             response.setMerchantName("Card Top-Up");
             paymentRepository.findById(entity.getId()).ifPresentOrElse(
                     p -> response.setProductName(p.getProductName() != null ? p.getProductName() : "Wallet Deposit"),
-                    () -> response.setProductName("Wallet Deposit")
-            );
+                    () -> response.setProductName("Wallet Deposit"));
         }
-
         return response;
     }
 
     @Override
     public List<LinkedFundingCardResponse> listFundingCards(UUID customerId) {
-        if (customerId == null) {
-            throw new InvalidOperationException("customerId ne doit pas être null");
-        }
+        if (customerId == null) throw new InvalidOperationException("customerId ne doit pas être null");
         return linkedFundingCardRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
-                .map(this::toFundingCardResponse)
-                .toList();
+                .map(this::toFundingCardResponse).toList();
     }
 
     @Override
     @Transactional
     public LinkedFundingCardResponse linkFundingCard(UUID customerId, LinkFundingCardRequest request) {
-        if (customerId == null) {
-            throw new InvalidOperationException("customerId ne doit pas être null");
-        }
+        if (customerId == null) throw new InvalidOperationException("customerId ne doit pas être null");
         String digits = request.getCardNumber() != null ? request.getCardNumber().replaceAll("\\D", "") : "";
-        if (digits.length() < 13 || digits.length() > 19 || !isValidLuhn(digits)) {
+        if (digits.length() < 13 || digits.length() > 19 || !isValidLuhn(digits))
             throw new InvalidOperationException("Invalid card number (Luhn check failed).");
-        }
 
         String brand = detectCardBrand(digits);
         String last4 = digits.substring(digits.length() - 4);
 
         Optional<LinkedFundingCardEntity> existing = linkedFundingCardRepository
                 .findFirstByCustomerIdAndCardLast4OrderByCreatedAtDesc(customerId, last4);
-        if (existing.isPresent() && existing.get().getCardBrand().equalsIgnoreCase(brand)) {
+        if (existing.isPresent() && existing.get().getCardBrand().equalsIgnoreCase(brand))
             return toFundingCardResponse(existing.get());
-        }
 
         String[] expParts = request.getExpiry().split("/");
         String expMonth = expParts[0];
@@ -657,8 +655,7 @@ public class TransactionServiceImpl implements TransactionService {
         card.setExpiryYear(expYear);
         card.setDefault(!linkedFundingCardRepository.existsByCustomerId(customerId));
 
-        LinkedFundingCardEntity saved = linkedFundingCardRepository.save(card);
-        return toFundingCardResponse(saved);
+        return toFundingCardResponse(linkedFundingCardRepository.save(card));
     }
 
     @Override
@@ -671,15 +668,8 @@ public class TransactionServiceImpl implements TransactionService {
 
     private LinkedFundingCardResponse toFundingCardResponse(LinkedFundingCardEntity c) {
         String shortYear = c.getExpiryYear().length() == 4 ? c.getExpiryYear().substring(2) : c.getExpiryYear();
-        return new LinkedFundingCardResponse(
-                c.getId(),
-                c.getCardBrand(),
-                c.getCardLast4(),
-                c.getCardholderName(),
-                c.getExpiryMonth() + "/" + shortYear,
-                c.isDefault(),
-                c.getCreatedAt()
-        );
+        return new LinkedFundingCardResponse(c.getId(), c.getCardBrand(), c.getCardLast4(),
+                c.getCardholderName(), c.getExpiryMonth() + "/" + shortYear, c.isDefault(), c.getCreatedAt());
     }
 
     private static String detectCardBrand(String digits) {
@@ -695,10 +685,7 @@ public class TransactionServiceImpl implements TransactionService {
         boolean alternate = false;
         for (int i = digits.length() - 1; i >= 0; i--) {
             int n = digits.charAt(i) - '0';
-            if (alternate) {
-                n *= 2;
-                if (n > 9) n -= 9;
-            }
+            if (alternate) { n *= 2; if (n > 9) n -= 9; }
             sum += n;
             alternate = !alternate;
         }

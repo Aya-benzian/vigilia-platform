@@ -117,6 +117,40 @@ public class IdempotencyServiceImpl implements IdempotencyService {
         }
     }
 
+    /**
+     * F1 fix: Atomically claims an idempotency slot by INSERTing a placeholder row
+     * (response_status = 0) BEFORE any financial effects are applied.
+     *
+     * <p>Returns {@code true} if this caller owns the slot (the INSERT won the race).
+     * Returns {@code false} if another concurrent request already holds the key — the
+     * caller should read the existing entry and return its result instead of proceeding
+     * with the financial flow.
+     *
+     * <p>Using the database PRIMARY KEY (scope, key) as the arbiter means only ONE
+     * winner can proceed; all losers see a DataIntegrityViolationException and back off.
+     */
+    @Override
+    @Transactional
+    public boolean claimKey(String scope, String key, String requestHash) {
+        validateScopeAndKey(scope, key);
+        Objects.requireNonNull(requestHash, "requestHash ne doit pas être null");
+
+        Duration effectiveTtl = DEFAULT_TTL;
+        Instant expiresAt = Instant.now().plus(effectiveTtl);
+
+        // Placeholder entity: response_status=0 signals "in-flight" to any reader
+        IdempotencyKeyEntity placeholder = new IdempotencyKeyEntity(
+                scope, key, requestHash, 0, null, expiresAt);
+        try {
+            idempotencyKeyRepository.save(placeholder);
+            log.info("Slot d'idempotence revendiqué [scope={}, key={}]", scope, key);
+            return true; // we won the race
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Slot d'idempotence déjà revendiqué par une autre requête concurrente [scope={}, key={}]", scope, key);
+            return false; // another request beat us
+        }
+    }
+
     @Override
     public IdempotencyCheckResult check(String scope, String key, String requestHash) {
         validateScopeAndKey(scope, key);
