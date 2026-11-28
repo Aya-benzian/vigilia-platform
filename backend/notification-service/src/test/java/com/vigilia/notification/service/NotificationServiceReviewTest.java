@@ -3,7 +3,12 @@ package com.vigilia.notification.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vigilia.notification.dto.NotificationResponse;
+import com.vigilia.notification.dto.NotificationCreateRequest;
+import com.vigilia.notification.dto.NotificationListResponse;
+import com.vigilia.notification.dto.NotificationPreferenceUpdateRequest;
+import com.vigilia.notification.dto.UnreadCountResponse;
 import com.vigilia.notification.entity.NotificationEntity;
+import com.vigilia.notification.entity.NotificationPreferenceEntity;
 import com.vigilia.notification.entity.ProcessedEventEntity;
 import com.vigilia.notification.repository.NotificationPreferenceRepository;
 import com.vigilia.notification.repository.NotificationRepository;
@@ -15,6 +20,9 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -142,5 +150,109 @@ class NotificationServiceReviewTest {
         assertThat(response.title()).isEqualTo("Payment Under Review");
         verify(notificationRepository, never()).save(any());
         verify(processedEventRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("listNotifications filters, paginates, and returns category counts")
+    void listNotifications_filtersAndPaginates() {
+        UUID customerId = UUID.randomUUID();
+        NotificationEntity unread = notification(customerId, "TRANSFER_REVIEW_REQUIRED", "REVIEW", false);
+        unread.setTitle("Transfer review");
+        unread.setMessage("A transfer needs attention");
+        NotificationEntity read = notification(customerId, "TRANSACTION_APPROVED", "TRANSACTION", true);
+        read.setTitle("Payment complete");
+        when(notificationRepository.findByUserIdOrderByCreatedAtDesc(customerId))
+                .thenReturn(List.of(unread, read));
+
+        NotificationListResponse response = notificationService.listNotifications(
+                customerId, "REVIEW", "UNREAD", "attention", 0, 10);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().getFirst().title()).isEqualTo("Transfer review");
+        assertThat(response.unreadCount()).isEqualTo(1);
+        assertThat(response.categoryCounts()).containsEntry("REVIEW", 1L);
+        assertThat(response.totalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("notification read state and bulk operations delegate to repositories")
+    void readStateAndBulkOperations_arePersisted() {
+        UUID customerId = UUID.randomUUID();
+        UUID notificationId = UUID.randomUUID();
+        NotificationEntity entity = notification(customerId, "TRANSACTION_APPROVED", "TRANSACTION", false);
+        entity.setId(notificationId);
+        when(notificationRepository.findByIdAndUserId(notificationId, customerId)).thenReturn(Optional.of(entity));
+        when(notificationRepository.save(entity)).thenReturn(entity);
+
+        notificationService.markAsRead(customerId, notificationId);
+        assertThat(entity.isRead()).isTrue();
+        notificationService.markAsUnread(customerId, notificationId);
+        assertThat(entity.isRead()).isFalse();
+
+        notificationService.markAllAsRead(customerId);
+        notificationService.dismissNotification(customerId, notificationId);
+        notificationService.clearReadNotifications(customerId);
+        verify(notificationRepository).markAllAsReadByUserId(eq(customerId), any(Instant.class));
+        verify(notificationRepository).delete(entity);
+        verify(notificationRepository).deleteAllReadByUserId(customerId);
+    }
+
+    @Test
+    @DisplayName("preferences are created, updated, and unread counts are returned")
+    void preferencesAndUnreadCount_areMapped() {
+        UUID customerId = UUID.randomUUID();
+        when(notificationRepository.countByUserIdAndReadFalse(customerId)).thenReturn(4L);
+        when(notificationRepository.countByUserIdAndReadFalseAndSeverityIn(eq(customerId), any()))
+                .thenReturn(2L);
+        UnreadCountResponse counts = notificationService.getUnreadCount(customerId);
+        assertThat(counts.unreadCount()).isEqualTo(4L);
+        assertThat(counts.criticalCount()).isEqualTo(2L);
+
+        NotificationPreferenceEntity prefs = new NotificationPreferenceEntity();
+        prefs.setUserId(customerId);
+        when(preferenceRepository.findById(customerId)).thenReturn(Optional.of(prefs));
+        when(preferenceRepository.save(prefs)).thenReturn(prefs);
+        NotificationPreferenceUpdateRequest update = new NotificationPreferenceUpdateRequest(
+                false, true, false, true, false, true);
+        assertThat(notificationService.updatePreferences(customerId, update).transactionUpdates()).isFalse();
+        assertThat(notificationService.getPreferences(customerId).securityAlerts()).isTrue();
+    }
+
+    @Test
+    @DisplayName("createFromEvent stores normalized metadata and channel")
+    void createFromEvent_normalizesAndStoresRequest() {
+        UUID customerId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+        NotificationEntity saved = notification(customerId, "LOGIN_SUCCESS", "SECURITY", false);
+        when(notificationRepository.save(any(NotificationEntity.class))).thenAnswer(invocation -> {
+            NotificationEntity value = invocation.getArgument(0);
+            value.setId(saved.getId());
+            return value;
+        });
+
+        NotificationResponse response = notificationService.createFromEvent(new NotificationCreateRequest(
+                eventId, " login_success ", Instant.now(), customerId, null, " email ",
+                " Login ", " Signed in ", Map.of("ip", "127.0.0.1")));
+
+        assertThat(response.eventType()).isEqualTo("LOGIN_SUCCESS");
+        assertThat(response.category()).isEqualTo("SECURITY");
+        assertThat(response.channel()).isEqualTo("EMAIL");
+        verify(processedEventRepository).save(any());
+    }
+
+    private NotificationEntity notification(UUID userId, String eventType, String category, boolean read) {
+        NotificationEntity entity = new NotificationEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setUserId(userId);
+        entity.setEventId(UUID.randomUUID());
+        entity.setEventType(eventType);
+        entity.setCategory(category);
+        entity.setSeverity("INFO");
+        entity.setChannel("IN_APP");
+        entity.setTitle(eventType);
+        entity.setMessage(eventType);
+        entity.setRead(read);
+        entity.setCreatedAt(Instant.now());
+        return entity;
     }
 }

@@ -1066,7 +1066,7 @@ function setupEventListeners() {
         e.stopPropagation();
         catOptions.forEach(o => o.classList.remove('active'));
         opt.classList.add('active');
-        const catDays = parseInt(opt.dataset.days || '30', 10);
+        const catDays = Number.parseInt(opt.dataset.days || '30', 10);
         if (catLabel) catLabel.textContent = opt.textContent;
         catMenu.classList.remove('open');
         catDropdownBtn.classList.remove('open');

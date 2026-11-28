@@ -607,9 +607,9 @@ function render() {
 
     const rawTs = tx.timestamp || tx.createdAt;
     const dt = rawTs ? new Date(rawTs) : null;
-    const dateStr = dt && !isNaN(dt) ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-    const timeStr = dt && !isNaN(dt) ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
-    const fullDateTime = dt && !isNaN(dt)
+    const dateStr = dt && !Number.isNaN(dt.getTime()) ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const timeStr = dt && !Number.isNaN(dt.getTime()) ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+    const fullDateTime = dt && !Number.isNaN(dt.getTime())
       ? dt.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
       : '—';
 

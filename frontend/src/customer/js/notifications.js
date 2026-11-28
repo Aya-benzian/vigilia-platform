@@ -155,7 +155,7 @@ function renderFeed() {
       document.querySelectorAll('.notif-tab').forEach((t) => {
         t.classList.toggle('active', t.dataset.filter === 'ALL');
       });
-      loadNotifications();
+      void loadNotifications();
     });
     return;
   }
@@ -187,7 +187,7 @@ function renderFeed() {
     row.addEventListener('click', (e) => {
       if (e.target.closest('.notif-action-btn')) return;
       const item = pageState.items.find((x) => x.id === id);
-      if (item) openDetailModal(item);
+      if (item) void openDetailModal(item);
     });
   });
 
@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tab.classList.add('active');
       pageState.filter = tab.dataset.filter || 'ALL';
       pageState.page = 0;
-      loadNotifications();
+      void loadNotifications();
     });
   });
 
@@ -470,13 +470,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     searchTimer = setTimeout(() => {
       pageState.search = e.target.value || '';
       pageState.page = 0;
-      loadNotifications();
+      void loadNotifications();
     }, 220);
   });
 
   // Refresh button
   document.getElementById('notifRefreshBtn')?.addEventListener('click', () => {
-    loadNotifications();
+    void loadNotifications();
     showToast('Notifications refreshed');
   });
 
@@ -506,13 +506,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('prevPageBtn')?.addEventListener('click', () => {
     if (pageState.page > 0) {
       pageState.page -= 1;
-      loadNotifications();
+      void loadNotifications();
     }
   });
   document.getElementById('nextPageBtn')?.addEventListener('click', () => {
     if (pageState.page + 1 < pageState.totalPages) {
       pageState.page += 1;
-      loadNotifications();
+      void loadNotifications();
     }
   });
 
@@ -571,6 +571,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const urlId = new URLSearchParams(window.location.search).get('id');
   if (urlId) {
     const target = pageState.items.find((x) => x.id === urlId);
-    if (target) openDetailModal(target);
+    if (target) void openDetailModal(target);
   }
 });

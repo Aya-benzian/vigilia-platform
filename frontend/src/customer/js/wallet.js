@@ -202,7 +202,7 @@ function renderFundingSources() {
 
   listEl.querySelectorAll('.wlt-funding-topup').forEach(btn => {
     btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.idx, 10);
+      const idx = Number.parseInt(btn.dataset.idx, 10);
       selectedFundingCard = linkedFundingCards[idx] || linkedFundingCards[0];
       updateTopUpSourceUI();
       const modal = document.getElementById('topUpModal');
@@ -640,7 +640,7 @@ function initControls() {
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initControls();
-  loadFundingSources();
-  loadWallet();
-  loadLedger();
+  void loadFundingSources();
+  void loadWallet();
+  void loadLedger();
 });

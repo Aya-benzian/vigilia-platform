@@ -147,6 +147,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
                       <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     </svg>
+                    <label class="sr-only" for="notifSearchInput">Search notifications</label>
                     <input type="text" id="notifSearchInput" placeholder="Search alerts, amounts, or details..." />
                   </div>
                   <button type="button" class="notif-refresh-btn" id="notifRefreshBtn" title="Refresh notifications" aria-label="Refresh notifications">
@@ -192,21 +193,21 @@
                     <div class="pg-toggle-title">Transaction updates</div>
                     <div class="pg-toggle-desc">Approvals, declines, and receipts</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" data-pref="transactionUpdates" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><span class="sr-only">Transaction updates</span><input type="checkbox" data-pref="transactionUpdates" checked /><span class="pg-switch-track"></span></label>
                 </div>
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
                     <div class="pg-toggle-title">Security alerts</div>
                     <div class="pg-toggle-desc">Logins, password changes, risk flags</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" data-pref="securityAlerts" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><span class="sr-only">Security alerts</span><input type="checkbox" data-pref="securityAlerts" checked /><span class="pg-switch-track"></span></label>
                 </div>
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
                     <div class="pg-toggle-title">Transfer reviews</div>
                     <div class="pg-toggle-desc">When a transfer is under review</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" data-pref="transferReviews" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><span class="sr-only">Transfer reviews</span><input type="checkbox" data-pref="transferReviews" checked /><span class="pg-switch-track"></span></label>
                 </div>
 
                 <div class="notif-prefs-section-label" style="margin-top:16px;">Delivery Channels</div>
@@ -216,14 +217,14 @@
                     <div class="pg-toggle-title">In-App notifications</div>
                     <div class="pg-toggle-desc">Portal feed &amp; bell badge</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" data-pref="inAppNotifications" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><span class="sr-only">In-app notifications</span><input type="checkbox" data-pref="inAppNotifications" checked /><span class="pg-switch-track"></span></label>
                 </div>
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
                     <div class="pg-toggle-title">Email notifications</div>
                     <div class="pg-toggle-desc">Critical alerts &amp; receipts via email</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" data-pref="emailNotifications" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><span class="sr-only">Email notifications</span><input type="checkbox" data-pref="emailNotifications" checked /><span class="pg-switch-track"></span></label>
                 </div>
               </div>
 

@@ -162,7 +162,7 @@ class CustomerNavbar extends HTMLElement {
         const userDropdown = this.querySelector('#userDropdownPanel');
         if (userDropdown) userDropdown.classList.remove('open');
         if (isOpen && VigiliaAuth.isAuthenticated()) {
-          this.refreshNotifications();
+          void this.refreshNotifications();
         }
       });
 
@@ -192,10 +192,10 @@ class CustomerNavbar extends HTMLElement {
     window.addEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
 
     if (VigiliaAuth.isAuthenticated()) {
-      this.refreshNotifications();
+      void this.refreshNotifications();
       this._pollTimer = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          notificationStore.fetchUnreadCount();
+          void notificationStore.fetchUnreadCount();
         }
       }, 30000);
     }

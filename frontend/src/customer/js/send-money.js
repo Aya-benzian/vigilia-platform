@@ -130,7 +130,7 @@ function updateSummaryTimeline() {
       : 'Select a recipient from your list or search';
   }
   if (tlAmt) {
-    const amt = parseFloat(document.getElementById('sendAmount')?.value || '0');
+    const amt = Number.parseFloat(document.getElementById('sendAmount')?.value || '0');
     tlAmt.textContent = amt > 0
       ? `${fmtMoney(amt)} · Free instant transfer`
       : 'Enter the amount and optional note';
@@ -179,8 +179,8 @@ function renderWalletState() {
 function updateRemainingPreview() {
   const el = document.getElementById('smRemainingPreview');
   if (!el) return;
-  const amt = parseFloat(document.getElementById('sendAmount')?.value || '0');
-  if (!state.wallet.loaded || isNaN(amt) || amt <= 0) {
+  const amt = Number.parseFloat(document.getElementById('sendAmount')?.value || '0');
+  if (!state.wallet.loaded || Number.isNaN(amt) || amt <= 0) {
     el.textContent = '';
     el.classList.remove('over');
     return;
@@ -681,8 +681,8 @@ function wireEvents() {
   });
 
   document.getElementById('btnStep2Continue')?.addEventListener('click', () => {
-    const amount = parseFloat(amountInput?.value || '0');
-    if (isNaN(amount) || amount <= 0) {
+    const amount = Number.parseFloat(amountInput?.value || '0');
+    if (Number.isNaN(amount) || amount <= 0) {
       showError('amountError', 'Please enter a transfer amount greater than 0.');
       return;
     }
@@ -716,8 +716,8 @@ function wireEvents() {
 
   document.getElementById('btnSend')?.addEventListener('click', async () => {
     if (state.submitting) return;
-    const amount = parseFloat(amountInput?.value || '0');
-    if (!state.selectedRecipient?.iban || isNaN(amount) || amount <= 0) return;
+    const amount = Number.parseFloat(amountInput?.value || '0');
+    if (!state.selectedRecipient?.iban || Number.isNaN(amount) || amount <= 0) return;
 
     const btn = document.getElementById('btnSend');
     const sendLabel = document.getElementById('btnSendLabel');

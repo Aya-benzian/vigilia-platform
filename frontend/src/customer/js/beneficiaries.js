@@ -741,7 +741,7 @@ function wireEvents() {
     state.verifiedLookup = null;
   });
   document.getElementById('verifyAccountBtn')?.addEventListener('click', () => {
-    verifyAccountNumber(accInput?.value || '');
+    void verifyAccountNumber(accInput?.value || '');
   });
 
   document.getElementById('addBenForm')?.addEventListener('submit', async e => {
