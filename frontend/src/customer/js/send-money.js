@@ -789,4 +789,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   goTo('stepRecipient');
   wireEvents();
   await Promise.all([loadWallet(), loadBeneficiaries(), loadRecentTransfers()]);
+
+  const params = new URLSearchParams(window.location.search);
+  const prefillIban = normalizeIban(params.get('iban') || '');
+  if (prefillIban) {
+    const matched = state.beneficiaries.find(
+      b => normalizeIban(b.recipientAccountNumber || b.accountNumber) === prefillIban
+    );
+    const name = params.get('name') || matched?.nickname || matched?.recipientName || `Account ${prefillIban.slice(-4)}`;
+    selectRecipientAndContinue({
+      name,
+      iban: prefillIban,
+      recipientCustomerId: matched?.recipientCustomerId || null,
+      initials: computeInitials(name),
+      avClass: 'sm-av-copper',
+    });
+  }
 });

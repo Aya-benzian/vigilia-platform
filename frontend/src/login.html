@@ -466,14 +466,21 @@
       height: 21px;
     }
 
-    .input-wrapper input {
+    .input-wrapper input,
+    .input-wrapper select {
       flex: 1;
+      width: 100%;
+      min-width: 0;
       border: none;
       outline: none;
       background: transparent;
       font-family: inherit;
       font-size: 1.02rem;
       color: var(--navy);
+    }
+
+    .input-wrapper select {
+      cursor: pointer;
     }
 
     .input-wrapper input::placeholder {
@@ -856,6 +863,41 @@
         <!-- Form -->
         <form id="auth-form" onsubmit="handleAuthSubmit(event)" autocomplete="on">
 
+          <!-- Sign-up Profile Fields (hidden on Log in) -->
+          <div id="signup-profile-fields" style="display: none;">
+            <div class="field-group">
+              <label class="field-label" for="reg-fullname">Full Name</label>
+              <div class="input-wrapper">
+                <input id="reg-fullname" name="fullName" type="text" placeholder="e.g. Julie Moreau" autocomplete="name" />
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="reg-country">Country</label>
+              <div class="input-wrapper">
+                <select id="reg-country" name="homeCountry">
+                  <option value="">Select your country</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="field-group">
+                <label class="field-label" for="reg-city">City</label>
+                <div class="input-wrapper">
+                  <input id="reg-city" name="homeCity" type="text" placeholder="e.g. Lyon" autocomplete="address-level2" />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label" for="reg-dob">Date of Birth</label>
+                <div class="input-wrapper">
+                  <input id="reg-dob" name="dateOfBirth" type="date" />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Email Field -->
           <div class="field-group">
             <label class="field-label" for="email">Email address</label>
@@ -1019,9 +1061,11 @@
       const signupHint = document.getElementById('signup-hint-container');
       const forgotLink = document.getElementById('forgot-link');
       const rememberText = document.getElementById('remember-text');
+      const profileFields = document.getElementById('signup-profile-fields');
 
       if (tabLogin) tabLogin.classList.toggle('active', tab === 'login');
       if (tabSignup) tabSignup.classList.toggle('active', tab === 'signup');
+      if (profileFields) profileFields.style.display = tab === 'signup' ? 'block' : 'none';
 
       if (tab === 'signup') {
         if (heading) heading.innerText = 'Create account';
@@ -1098,13 +1142,30 @@
         return;
       }
 
+      const fullName = document.getElementById('reg-fullname')?.value.trim() || '';
+      const homeCountry = document.getElementById('reg-country')?.value.trim() || '';
+      const homeCity = document.getElementById('reg-city')?.value.trim() || '';
+      const dateOfBirth = document.getElementById('reg-dob')?.value || '';
+
+      if (currentTab === 'signup') {
+        if (!fullName || !homeCountry || !homeCity || !dateOfBirth) {
+          showAlert('error', 'Please fill in your full name, country, city, and date of birth.');
+          return;
+        }
+      }
+
       btnSubmit.disabled = true;
       const originalHtml = btnSubmit.innerHTML;
       btnSubmit.innerHTML = `<span>${currentTab === 'signup' ? 'Connecting...' : 'Authenticating...'}</span>`;
 
       try {
         if (currentTab === 'signup') {
-          await apiClient.auth.register(email, password, email.split('@')[0], remember);
+          await apiClient.auth.register(email, password, email.split('@')[0], remember, {
+            fullName,
+            homeCountry,
+            homeCity,
+            dateOfBirth
+          });
           showAlert('success', 'Account created! Establishing session...');
         } else {
           await apiClient.auth.login(email, password, remember);
@@ -1151,6 +1212,27 @@
 
     // Initialize page context & verify gateway health
     window.addEventListener('DOMContentLoaded', async () => {
+      const countrySelect = document.getElementById('reg-country');
+      if (countrySelect && typeof Intl !== 'undefined' && Intl.DisplayNames) {
+        const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+        const countries = [];
+        for (let i = 65; i <= 90; i++) {
+          for (let j = 65; j <= 90; j++) {
+            const code = String.fromCharCode(i, j);
+            const name = regionNames.of(code);
+            if (name && name !== code && !/unknown region/i.test(name)) {
+              countries.push({ code, name });
+            }
+          }
+        }
+        countries.sort((a, b) => a.name.localeCompare(b.name));
+        countries.forEach(({ code, name }) => {
+          const opt = document.createElement('option');
+          opt.value = code;
+          opt.textContent = `${name} (${code})`;
+          countrySelect.appendChild(opt);
+        });
+      }
       const params = new URLSearchParams(window.location.search);
       currentRole = params.get('role');
       targetRedirect = params.get('redirect');

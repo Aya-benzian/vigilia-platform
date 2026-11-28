@@ -108,7 +108,7 @@ public class CustomerController {
     }
 
     private static final java.util.regex.Pattern ACCOUNT_NUMBER_PATTERN =
-            java.util.regex.Pattern.compile("^[A-Z0-9]{6,34}$");
+            java.util.regex.Pattern.compile("^[A-Z0-9-]{6,34}$");
 
     // =========================================================================
     // 4. Recherche de compte destinataire (Lookup avec masquage de nom)

@@ -119,13 +119,28 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
 
         // 6. Émettre l'événement d'audit de sécurité
+        Map<String, Object> registrationDetails = new java.util.HashMap<>();
+        registrationDetails.put("role", "CUSTOMER");
+        if (request.getFullName() != null && !request.getFullName().isBlank()) {
+            registrationDetails.put("fullName", request.getFullName().trim());
+        }
+        if (request.getDateOfBirth() != null && !request.getDateOfBirth().isBlank()) {
+            registrationDetails.put("dateOfBirth", request.getDateOfBirth().trim());
+        }
+        if (request.getHomeCountry() != null && !request.getHomeCountry().isBlank()) {
+            registrationDetails.put("homeCountry", request.getHomeCountry().trim().toUpperCase());
+        }
+        if (request.getHomeCity() != null && !request.getHomeCity().isBlank()) {
+            registrationDetails.put("homeCity", request.getHomeCity().trim());
+        }
+
         securityOutboxService.publishSecurityEvent(
                 "USER_REGISTERED",
                 user.getId(),
                 user.getEmail(),
                 ipAddress,
                 traceId,
-                Map.of("role", "CUSTOMER")
+                registrationDetails
         );
 
         return new AuthResponse(

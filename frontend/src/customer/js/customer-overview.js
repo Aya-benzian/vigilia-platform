@@ -372,7 +372,7 @@ function renderTransactionsTable(transactions) {
   // Beneficiary lookup dictionary for instant recognition
   const knownBeneficiaries = {
     '06e745f9-88bc-439c-9f4c-3b79fb10987f': 'Karim Coloc',
-    'b27c4026-6703-4636-9380-b904688c7015': 'Marie 🎁'
+    'b27c4026-6703-4636-9380-b904688c7015': 'Marie'
   };
 
   const topTx = transactions.slice(0, 5);

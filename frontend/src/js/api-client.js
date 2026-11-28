@@ -174,13 +174,17 @@ export const apiClient = {
     /**
      * Register customer: POST /api/v1/auth/register
      */
-    async register(email, password, username, remember = true) {
+    async register(email, password, username, remember = true, profile = {}) {
       const cleanEmail = email.trim();
       const payload = {
         email: cleanEmail,
         username: username ? username.trim() : cleanEmail.split('@')[0],
         password: password,
-        role: 'CUSTOMER'
+        role: 'CUSTOMER',
+        ...(profile.fullName ? { fullName: profile.fullName.trim() } : {}),
+        ...(profile.dateOfBirth ? { dateOfBirth: profile.dateOfBirth } : {}),
+        ...(profile.homeCountry ? { homeCountry: profile.homeCountry.toUpperCase() } : {}),
+        ...(profile.homeCity ? { homeCity: profile.homeCity.trim() } : {})
       };
 
       const res = await request(buildApiUrl('/v1/auth/register'), {
