@@ -51,6 +51,12 @@ public class FallbackController {
                 "Le service d'évaluation du risque est temporairement indisponible. Veuillez réessayer ultérieurement.");
     }
 
+    @RequestMapping(value = "/notification", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiErrorResponse>> notificationFallback(ServerWebExchange exchange) {
+        return buildFallbackResponse(exchange, "notification-service",
+                "Le service de notifications est temporairement indisponible. Veuillez réessayer ultérieurement.");
+    }
+
     @RequestMapping(value = "/ml-visualization", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<ApiErrorResponse>> mlVisualizationFallback(ServerWebExchange exchange) {
         return buildFallbackResponse(exchange, "ml-serving-visualization",

@@ -35,6 +35,17 @@ public interface IdempotencyService {
     String calculateHash(String payload);
 
     /**
+     * Step 5: Atomically claims an idempotency slot INSIDE TX-1 using
+     * INSERT ... ON CONFLICT DO NOTHING (after deleting any expired entry).
+     * Returns true if this caller owns the slot; false if another concurrent caller
+     * holds the key (having blocked on the unique index until the winner committed).
+     *
+     * Because this runs inside TX-1 (MANDATORY/REQUIRED), a rollback of TX-1
+     * automatically removes the placeholder so a subsequent retry succeeds.
+     */
+    boolean claimKey(String scope, String key, String requestHash);
+
+    /**
      * Checks the state of an idempotency key.
      *
      * @param scope       Namespace/scope (e.g. "customer:<uuid>")

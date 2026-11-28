@@ -41,6 +41,9 @@ secrets:
   postgresPassword: "CHANGE_ME_DATABASE_PASSWORD"
   jwtSecret: "CHANGE_ME_TO_A_SECURE_RANDOM_256_BIT_KEY"
   mlflowDbPassword: "CHANGE_ME_MLFLOW_DB_PASSWORD"
+  # Token used by risk-management-service to authenticate callbacks to transaction-service internal API.
+  # Must be set to a non-empty random value in production. transaction-service will REFUSE TO START if blank.
+  internalServiceToken: "CHANGE_ME_INTERNAL_SERVICE_TOKEN"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Services

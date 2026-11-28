@@ -18,6 +18,7 @@ import com.vigilia.transaction.repository.WalletLedgerRepository;
 import com.vigilia.transaction.repository.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -60,8 +61,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-class TransactionIntegrationTest {
+@ActiveProfiles("integration")
+@Tag("integration")
+class TransactionIntegrationTest extends PostgresIntegrationBase {
 
     @Autowired
     private MockMvc mockMvc;
@@ -99,17 +101,25 @@ class TransactionIntegrationTest {
     @MockBean
     private RiskEvaluationClient riskEvaluationClient;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @BeforeEach
     void cleanUp() {
-        ledgerRepository.deleteAll();
-        transferRepository.deleteAll();
-        paymentRepository.deleteAll();
-        statusHistoryRepository.deleteAll();
-        idempotencyRepository.deleteAll();
-        outboxEventRepository.deleteAll();
-        transactionRepository.deleteAll();
-        merchantRepository.deleteAll();
-        walletRepository.deleteAll();
+        jdbcTemplate.execute("SET session_replication_role = replica");
+        try {
+            jdbcTemplate.execute("DELETE FROM transaction.wallet_ledger");
+            transferRepository.deleteAll();
+            paymentRepository.deleteAll();
+            statusHistoryRepository.deleteAll();
+            idempotencyRepository.deleteAll();
+            outboxEventRepository.deleteAll();
+            transactionRepository.deleteAll();
+            merchantRepository.deleteAll();
+            walletRepository.deleteAll();
+        } finally {
+            jdbcTemplate.execute("SET session_replication_role = DEFAULT");
+        }
     }
 
     private WalletEntity createWallet(UUID customerId, String iban, BigDecimal balance) {
@@ -224,8 +234,8 @@ class TransactionIntegrationTest {
     }
 
     @Test
-    @DisplayName("4. Insufficient funds returns 400 Bad Request")
-    void purchase_InsufficientFunds_Returns400() throws Exception {
+    @DisplayName("4. Insufficient funds returns 422 Unprocessable Entity")
+    void purchase_InsufficientFunds_Returns422() throws Exception {
         UUID customerId = UUID.randomUUID();
         createWallet(customerId, "FR7630006000011234567890186", new BigDecimal("50.00"));
 
@@ -236,7 +246,8 @@ class TransactionIntegrationTest {
                         .header("X-User-Role", "CUSTOMER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code", is("INSUFFICIENT_FUNDS")));
 
         // Balance unchanged
         WalletEntity wallet = walletRepository.findByCustomerId(customerId).orElseThrow();

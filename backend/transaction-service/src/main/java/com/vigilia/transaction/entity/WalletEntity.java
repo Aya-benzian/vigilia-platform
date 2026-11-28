@@ -44,6 +44,9 @@ public class WalletEntity {
     @Column(name = "version", nullable = false)
     private Long version = 0L;
 
+    @Column(name = "card_frozen", nullable = false)
+    private boolean cardFrozen = false;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
@@ -118,6 +121,14 @@ public class WalletEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public boolean isCardFrozen() {
+        return cardFrozen;
+    }
+
+    public void setCardFrozen(boolean cardFrozen) {
+        this.cardFrozen = cardFrozen;
     }
 
     public void setUpdatedAt(Instant updatedAt) {

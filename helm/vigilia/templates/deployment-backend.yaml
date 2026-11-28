@@ -183,6 +183,11 @@ spec:
                 secretKeyRef:
                   name: vigilia-secrets
                   key: POSTGRES_PASSWORD
+            - name: VIGILIA_INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vigilia-secrets
+                  key: VIGILIA_INTERNAL_SERVICE_TOKEN
           resources:
             {{- toYaml .Values.transactionService.resources | nindent 12 }}
           startupProbe:
@@ -248,6 +253,11 @@ spec:
                 secretKeyRef:
                   name: vigilia-secrets
                   key: POSTGRES_PASSWORD
+            - name: VIGILIA_INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vigilia-secrets
+                  key: VIGILIA_INTERNAL_SERVICE_TOKEN
           resources:
             {{- toYaml .Values.riskManagementService.resources | nindent 12 }}
           startupProbe:

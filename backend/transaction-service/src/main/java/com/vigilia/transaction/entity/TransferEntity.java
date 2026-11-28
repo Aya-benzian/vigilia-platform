@@ -31,6 +31,13 @@ public class TransferEntity {
     @Column(name = "memo", length = 140)
     private String memo;
 
+    /**
+     * Step 3: sender's available_balance captured from the locked wallet row in TX-1,
+     * BEFORE the HOLD ledger entry is applied. Nullable for rows written before V5.
+     */
+    @Column(name = "sender_balance_before", precision = 18, scale = 2)
+    private java.math.BigDecimal senderBalanceBefore;
+
     public TransferEntity() {
     }
 
@@ -80,5 +87,13 @@ public class TransferEntity {
 
     public void setMemo(String memo) {
         this.memo = memo;
+    }
+
+    public java.math.BigDecimal getSenderBalanceBefore() {
+        return senderBalanceBefore;
+    }
+
+    public void setSenderBalanceBefore(java.math.BigDecimal senderBalanceBefore) {
+        this.senderBalanceBefore = senderBalanceBefore;
     }
 }

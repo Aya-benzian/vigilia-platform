@@ -13,9 +13,9 @@ public class TopUpRequest {
     @DecimalMin(value = "0.01", message = "amount must be at least 0.01")
     private BigDecimal amount;
 
-    private String currency = "USD";
-    private String cardBrand = "VISA";
-    private String cardLast4 = "4242";
+    private String currency;
+    private String cardBrand;
+    private String cardLast4;
 
     public TopUpRequest() {
     }

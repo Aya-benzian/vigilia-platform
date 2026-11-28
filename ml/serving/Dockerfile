@@ -9,6 +9,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM python:3.12-slim-bookworm
 WORKDIR /app
 
+# Pull security updates for packages inherited from the base image.
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create non-root user
 RUN addgroup --system appgroup && adduser --system --group appuser
 

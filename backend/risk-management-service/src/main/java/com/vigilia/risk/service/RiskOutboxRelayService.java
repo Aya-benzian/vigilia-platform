@@ -36,6 +36,16 @@ public class RiskOutboxRelayService {
     private final RestClient transactionRestClient;
     private final boolean relayEnabled;
     private final int maxAttempts;
+    private final String internalServiceToken;
+
+    public RiskOutboxRelayService(
+            OutboxEventRepository outboxEventRepository,
+            ObjectMapper objectMapper,
+            RestClient transactionRestClient,
+            boolean relayEnabled,
+            int maxAttempts) {
+        this(outboxEventRepository, objectMapper, transactionRestClient, relayEnabled, maxAttempts, "");
+    }
 
     @Autowired
     public RiskOutboxRelayService(
@@ -43,12 +53,14 @@ public class RiskOutboxRelayService {
             ObjectMapper objectMapper,
             @Qualifier("transactionRestClient") RestClient transactionRestClient,
             @Value("${risk.outbox.relay.enabled:true}") boolean relayEnabled,
-            @Value("${risk.outbox.relay.max-attempts:5}") int maxAttempts) {
+            @Value("${risk.outbox.relay.max-attempts:5}") int maxAttempts,
+            @Value("${vigilia.internal.service-token:}") String internalServiceToken) {
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
         this.transactionRestClient = transactionRestClient;
         this.relayEnabled = relayEnabled;
         this.maxAttempts = maxAttempts;
+        this.internalServiceToken = internalServiceToken != null ? internalServiceToken : "";
     }
 
     @Scheduled(fixedDelayString = "${risk.outbox.relay.delay-ms:2000}")
@@ -123,11 +135,14 @@ public class RiskOutboxRelayService {
         }
 
         try {
-            transactionRestClient.post()
+            RestClient.RequestBodySpec reqSpec = transactionRestClient.post()
                     .uri("/internal/transactions/events")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("X-Correlation-Id", traceId)
-                    .body(payloadNode)
+                    .header("X-Correlation-Id", traceId);
+            if (!internalServiceToken.isBlank()) {
+                reqSpec = reqSpec.header("X-Internal-Service-Token", internalServiceToken);
+            }
+            reqSpec.body(payloadNode)
                     .retrieve()
                     .toBodilessEntity();
 

@@ -1,4 +1,5 @@
 import logoUrl from '../../../assets/vigilia-logo-mark.png';
+import { notificationStore } from '../../notification-store.js';
 
 /**
  * Vigilia Platform — Customer Workspace Sidebar (<customer-sidebar>)
@@ -68,7 +69,7 @@ class CustomerSidebar extends HTMLElement {
         id: 'notifications',
         title: 'Notifications',
         href: 'notifications.html',
-        badge: '2',
+        dynamicBadge: true,
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -90,7 +91,9 @@ class CustomerSidebar extends HTMLElement {
     const renderNav = (items) => items.map(item => {
       const isActive = item.id === activeRoute;
       const activeClass = isActive ? 'nav-item active' : 'nav-item';
-      const badgeHtml = item.badge ? `<span class="nav-item-badge">${item.badge}</span>` : '';
+      const badgeHtml = item.dynamicBadge
+        ? `<span class="nav-item-badge" id="sidebarNotifBadge" style="display:none;">0</span>`
+        : (item.badge ? `<span class="nav-item-badge">${item.badge}</span>` : '');
       return `
         <a href="${item.href}" class="${activeClass}" title="${item.title}" data-page="${item.title}">
           <span class="nav-item-icon-wrap">${item.icon}</span>
@@ -127,19 +130,19 @@ class CustomerSidebar extends HTMLElement {
           </nav>
         </div>
 
-        <!-- Bottom Platform Security Pulse Widget -->
-        <div class="sidebar-health-widget">
-          <div class="health-status-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <polyline points="9 12 11 14 15 10"/>
+        <!-- Bottom Security Card -->
+        <div class="sidebar-security-card">
+          <div class="sidebar-security-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2.25L3.75 5.75V11.5C3.75 16.11 7.3 20.44 12 21.75C16.7 20.44 20.25 16.11 20.25 11.5V5.75L12 2.25Z" fill="#b45328" opacity="0.15"/>
+              <path d="M12 2.25L3.75 5.75V11.5C3.75 16.11 7.3 20.44 12 21.75C16.7 20.44 20.25 16.11 20.25 11.5V5.75L12 2.25Z" stroke="#b45328" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+              <path d="M8.5 12L10.5 14L15.5 9.5" stroke="#b45328" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="health-status-title">Account Protected</span>
           </div>
-          <p class="health-status-subtext">AI Fraud Shield Active</p>
-          <svg class="mini-sparkline-svg" viewBox="0 0 120 24" fill="none">
-            <path d="M0 14 Q 15 6, 30 16 T 60 12 T 90 18 T 120 10" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round"></path>
-          </svg>
+          <div class="sidebar-security-body">
+            <strong>Your security<br>is our priority</strong>
+            <p>AI-powered fraud detection keeps your transactions safe.</p>
+          </div>
         </div>
       </aside>
       <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -195,6 +198,29 @@ class CustomerSidebar extends HTMLElement {
         shell?.classList.remove('sidebar-mobile-open');
       }
     });
+
+    // Live notification badge sync
+    const syncBadge = (unreadCount) => {
+      const badge = this.querySelector('#sidebarNotifBadge');
+      if (!badge) return;
+      const count = Number(unreadCount || 0);
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    };
+
+    syncBadge(notificationStore.getState().unreadCount);
+    this._onNotifUpdate = (e) => syncBadge(e.detail?.unreadCount);
+    window.addEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
+  }
+
+  disconnectedCallback() {
+    if (this._onNotifUpdate) {
+      window.removeEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
+    }
   }
 }
 

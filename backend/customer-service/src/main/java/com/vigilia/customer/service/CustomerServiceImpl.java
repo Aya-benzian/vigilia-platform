@@ -269,7 +269,7 @@ public class CustomerServiceImpl implements CustomerService {
         BigDecimal homeLat = event.getHomeLat() != null ? event.getHomeLat() : new BigDecimal("48.856614");
         BigDecimal homeLon = event.getHomeLon() != null ? event.getHomeLon() : new BigDecimal("2.352222");
         Integer cityPopulation = event.getCityPopulation() != null ? event.getCityPopulation() : 2161000;
-        String accountNumber = generateUniqueAccountNumber();
+        String accountNumber = generateUniqueAccountNumber(homeCountry);
 
         CustomerEntity customer = new CustomerEntity(
                 event.getUserId(),
@@ -327,7 +327,7 @@ public class CustomerServiceImpl implements CustomerService {
         Integer cityPopulation = request.getCityPopulation() != null ? request.getCityPopulation() : 2161000;
         String accountNumber = request.getAccountNumber() != null && !request.getAccountNumber().isBlank()
                 ? request.getAccountNumber()
-                : generateUniqueAccountNumber();
+                : generateUniqueAccountNumber(homeCountry);
 
         CustomerEntity customer = new CustomerEntity(
                 request.getUserId(),
@@ -369,15 +369,20 @@ public class CustomerServiceImpl implements CustomerService {
         );
     }
 
-    private String generateUniqueAccountNumber() {
+    private String generateUniqueAccountNumber(String homeCountry) {
+        String country = (homeCountry != null && homeCountry.trim().length() == 2)
+                ? homeCountry.trim().toUpperCase()
+                : "FR";
         for (int i = 0; i < 20; i++) {
-            long number = Math.abs(RANDOM.nextLong()) % 1_000_000_000_0L;
-            String generated = String.format("%s%010d", ACCOUNT_NUMBER_PREFIX, number);
+            int p1 = 1000 + RANDOM.nextInt(9000);
+            int p2 = 1000 + RANDOM.nextInt(9000);
+            int p3 = 1000 + RANDOM.nextInt(9000);
+            String generated = String.format("VGL-%s-%04d-%04d-%04d", country, p1, p2, p3);
             if (!customerRepository.existsByAccountNumber(generated)) {
                 return generated;
             }
         }
-        return ACCOUNT_NUMBER_PREFIX + System.currentTimeMillis();
+        return String.format("VGL-%s-%d", country, System.currentTimeMillis());
     }
 
     private String maskFullName(String fullName) {

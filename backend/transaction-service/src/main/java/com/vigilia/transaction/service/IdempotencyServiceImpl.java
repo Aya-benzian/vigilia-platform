@@ -117,6 +117,38 @@ public class IdempotencyServiceImpl implements IdempotencyService {
         }
     }
 
+    /**
+     * Step 5: Atomically claims an idempotency slot INSIDE TX-1 by deleting any expired key
+     * and executing INSERT ... ON CONFLICT DO NOTHING with response_status = 0.
+     *
+     * <p>Runs under the caller's active TX-1 transaction (REQUIRED) so that:
+     * <ul>
+     *   <li>If TX-1 rolls back (e.g. InsufficientFundsException), the claim is rolled back too.</li>
+     *   <li>A concurrent loser blocks on the unique index until TX-1 commits/rolls back.</li>
+     * </ul>
+     */
+    @Override
+    @Transactional
+    public boolean claimKey(String scope, String key, String requestHash) {
+        validateScopeAndKey(scope, key);
+        Objects.requireNonNull(requestHash, "requestHash ne doit pas être null");
+
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(DEFAULT_TTL);
+
+        // Delete expired key before claiming so an expired key can be cleanly reused
+        idempotencyKeyRepository.deleteExpiredByScopeAndKey(scope, key, now);
+
+        int inserted = idempotencyKeyRepository.insertPlaceholderOnConflictDoNothing(
+                scope, key, requestHash, now, expiresAt);
+        if (inserted > 0) {
+            log.info("Slot d'idempotence revendiqué dans TX-1 [scope={}, key={}]", scope, key);
+            return true;
+        }
+        log.warn("Slot d'idempotence déjà revendiqué par une autre requête [scope={}, key={}]", scope, key);
+        return false;
+    }
+
     @Override
     public IdempotencyCheckResult check(String scope, String key, String requestHash) {
         validateScopeAndKey(scope, key);
@@ -165,7 +197,6 @@ public class IdempotencyServiceImpl implements IdempotencyService {
     @Transactional
     public IdempotencyKeyEntity recordResponse(String scope, String key, String requestHash, int responseStatus, String responseBody, Duration ttl) {
         validateScopeAndKey(scope, key);
-        Objects.requireNonNull(requestHash, "requestHash ne doit pas être null");
 
         Duration effectiveTtl = (ttl != null && !ttl.isNegative() && !ttl.isZero()) ? ttl : DEFAULT_TTL;
         Instant expiresAt = Instant.now().plus(effectiveTtl);
@@ -174,7 +205,9 @@ public class IdempotencyServiceImpl implements IdempotencyService {
 
         if (existingOpt.isPresent()) {
             IdempotencyKeyEntity existing = existingOpt.get();
-            existing.setRequestHash(requestHash);
+            if (requestHash != null && !requestHash.isBlank()) {
+                existing.setRequestHash(requestHash);
+            }
             existing.setResponseStatus(responseStatus);
             existing.setResponseBody(responseBody);
             existing.setExpiresAt(expiresAt);
@@ -182,6 +215,8 @@ public class IdempotencyServiceImpl implements IdempotencyService {
                     scope, key, responseStatus, expiresAt);
             return idempotencyKeyRepository.save(existing);
         }
+
+        Objects.requireNonNull(requestHash, "requestHash ne doit pas être null");
 
         IdempotencyKeyEntity newEntity = new IdempotencyKeyEntity(
                 scope, key, requestHash, responseStatus, responseBody, expiresAt);

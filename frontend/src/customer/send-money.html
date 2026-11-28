@@ -1,12 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vigilia — Send Money</title>
   <link rel="icon" type="image/png" href="../favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/variables.css" />
   <link rel="stylesheet" href="/css/layout.css" />
   <link rel="stylesheet" href="css/customer-pages.css" />
@@ -18,185 +19,571 @@
     <div class="app-main-wrapper">
       <customer-navbar></customer-navbar>
       <main class="main-stage">
-        <div class="pg-content-wrap">
+        <div class="pg-content-wrap sm-page-wrap">
 
-          <!-- Header -->
-          <div class="pg-header">
-            <div class="pg-header-left">
-              <div class="pg-breadcrumb"><a href="overview.html">Overview</a><span>›</span><span>Send Money</span></div>
-              <h1 class="pg-title">Send Money</h1>
-              <p class="pg-subtitle">Transfer funds securely to any Vigilia customer</p>
+          <!-- 2-Column Layout: Main Transfer Flow (Left) + Transfer Summary Sidebar (Right) -->
+          <div class="sm-workspace">
+
+            <!-- ══ LEFT COLUMN ══ -->
+            <div class="sm-primary-col">
+
+              <!-- Compact Page Header -->
+              <div class="sm-compact-header">
+                <div class="sm-ch-left">
+                  <div class="sm-ch-title-row">
+                    <div class="sm-ch-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" width="20" height="20">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h1 class="sm-ch-title">Send Money</h1>
+                      <p class="sm-ch-subtitle">Transfer funds to any Vigilia customer with instant settlement and zero fees.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="sm-ch-meta">
+                  <span class="sm-ch-pill sm-ch-pill--shield">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                    AI Fraud Shield
+                  </span>
+                  <span class="sm-ch-pill sm-ch-pill--instant">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Instant · €0.00 fee
+                  </span>
+                </div>
+              </div>
+
+              <!-- Frozen Card Warning (shown only when cardFrozen is true) -->
+              <div class="sm-alert-banner warning" id="smFrozenBanner" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div>
+                  <strong>Wallet card is currently frozen.</strong> Outgoing transfers may be restricted until you unfreeze your card in <a href="wallet.html">My Wallet</a>.
+                </div>
+              </div>
+
+              <!-- 4-Step Progress Sequence -->
+              <div class="sm-steps-card">
+                <div class="sm-steps" role="tablist" aria-label="Transfer steps">
+                  <div class="sm-step active" data-step="1">
+                    <div class="sm-step-num">1</div>
+                    <div class="sm-step-text">
+                      <span class="sm-step-label">Choose recipient</span>
+                      <span class="sm-step-sub">Saved or IBAN</span>
+                    </div>
+                  </div>
+
+                  <div class="sm-step-line" data-line="1"></div>
+
+                  <div class="sm-step" data-step="2">
+                    <div class="sm-step-num">2</div>
+                    <div class="sm-step-text">
+                      <span class="sm-step-label">Enter details</span>
+                      <span class="sm-step-sub">Amount &amp; note</span>
+                    </div>
+                  </div>
+
+                  <div class="sm-step-line" data-line="2"></div>
+
+                  <div class="sm-step" data-step="3">
+                    <div class="sm-step-num">3</div>
+                    <div class="sm-step-text">
+                      <span class="sm-step-label">Review</span>
+                      <span class="sm-step-sub">Verify &amp; send</span>
+                    </div>
+                  </div>
+
+                  <div class="sm-step-line" data-line="3"></div>
+
+                  <div class="sm-step" data-step="4">
+                    <div class="sm-step-num">4</div>
+                    <div class="sm-step-text">
+                      <span class="sm-step-label">Confirmation</span>
+                      <span class="sm-step-sub">Receipt</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Main White Card -->
+              <div class="pg-card sm-card">
+
+                <!-- ── STEP 1: CHOOSE RECIPIENT ── -->
+                <section id="stepRecipient" class="sm-step-pane">
+                  <div class="sm-rec-header">
+                    <div class="sm-rec-header-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 class="sm-step-title">Choose recipient</h2>
+                      <p class="sm-step-desc">Select a saved beneficiary or enter an IBAN directly</p>
+                    </div>
+                  </div>
+
+                  <div class="sm-mode-tabs-wrap">
+                    <div class="sm-mode-tabs" role="tablist">
+                      <button type="button" class="sm-mode-tab active" data-mode="saved" id="tabSavedMode">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        Saved
+                      </button>
+                      <button type="button" class="sm-mode-tab" data-mode="manual" id="tabManualMode">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                          <path d="M3 21h18"/>
+                          <path d="M3 10h18"/>
+                          <path d="M5 6l7-3 7 3"/>
+                          <path d="M4 10v11"/>
+                          <path d="M20 10v11"/>
+                          <path d="M8 14v3"/>
+                          <path d="M12 14v3"/>
+                          <path d="M16 14v3"/>
+                        </svg>
+                        IBAN
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Mode A: Saved & Recent Recipients -->
+                  <div id="paneSavedRecipients">
+                    <div class="sm-search-wrap">
+                      <svg class="sm-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <label class="sr-only" for="recipientSearch">Search recipients</label>
+                      <input type="text" id="recipientSearch" class="sm-search-input" placeholder="Search by name, wallet ID, or IBAN..." autocomplete="off" />
+                      <button type="button" id="btnClearSearch" class="sm-search-clear" aria-label="Clear search" hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    </div>
+
+                    <!-- Recent Recipients -->
+                    <div class="sm-section-row">
+                      <h3 class="sm-section-title">Recent recipients</h3>
+                      <a href="beneficiaries.html" class="sm-view-all-link">Manage beneficiaries →</a>
+                    </div>
+                    <div class="sm-recent-grid" id="recentRecipientsGrid">
+                      <div class="sm-loading-box">Loading recent recipients...</div>
+                    </div>
+
+                    <!-- All Recipients Table -->
+                    <div class="sm-section-row sm-all-row">
+                      <h3 class="sm-section-title">All recipients</h3>
+                      <span class="sm-count-pill" id="beneficiaryCountBadge">0 saved</span>
+                    </div>
+                    <div class="sm-table-wrap">
+                      <table class="sm-rec-table">
+                        <thead>
+                          <tr>
+                            <th>Recipient</th>
+                            <th>Wallet ID</th>
+                            <th>Last transfer</th>
+                            <th>Status</th>
+                            <th class="sm-th-action">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody id="allRecipientsBody">
+                          <tr>
+                            <td colspan="5" class="sm-table-empty">Loading saved beneficiaries...</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="sm-step1-footer">
+                      <button type="button" class="btn btn-outline sm-btn-cancel" id="btnStep1Cancel">Cancel</button>
+                      <button type="button" class="btn btn-primary sm-btn-next" id="btnStep1Continue" disabled>Continue →</button>
+                    </div>
+                  </div>
+
+                  <!-- Mode B: Direct IBAN Entry -->
+                  <div id="paneManualRecipient" hidden>
+                    <div class="sm-manual-card">
+                      <div class="pg-form-group">
+                        <label class="pg-label" for="manualIban">Recipient IBAN / Wallet ID</label>
+                        <div class="sm-input-icon-wrap">
+                          <svg class="sm-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <rect x="2" y="5" width="20" height="14" rx="2"/>
+                            <line x1="2" y1="10" x2="22" y2="10"/>
+                          </svg>
+                          <input type="text" id="manualIban" class="pg-input font-mono sm-iban-input" placeholder="FR76 3000 6000 0112 3456 7890 185" maxlength="42" autocomplete="off" />
+                        </div>
+                        <p class="pg-hint">Enter any valid Vigilia wallet IBAN (spaces are normalized automatically).</p>
+                      </div>
+
+                      <div class="pg-form-group">
+                        <label class="pg-label" for="manualNickname">Recipient Name or Label (optional)</label>
+                        <input type="text" id="manualNickname" class="pg-input" placeholder="e.g. Alex Martin or Acme Consulting" maxlength="80" />
+                      </div>
+
+                      <label class="sm-save-ben-check">
+                        <input type="checkbox" id="manualSaveBeneficiary" />
+                        <span>Save this recipient to my beneficiaries for faster future transfers</span>
+                      </label>
+                    </div>
+
+                    <div class="sm-inline-error" id="manualRecipientError" hidden></div>
+
+                    <div class="sm-step-footer">
+                      <button type="button" class="btn btn-primary sm-btn-continue" id="btnManualContinue" disabled>
+                        Continue to Details →
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ── STEP 2: ENTER DETAILS ── -->
+                <section id="stepAmount" class="sm-step-pane" hidden>
+                  <div class="sm-pane-head">
+                    <div>
+                      <h2 class="sm-step-title">Enter transfer details</h2>
+                      <p class="sm-step-desc">Specify the amount and an optional reference note.</p>
+                    </div>
+                  </div>
+
+                  <!-- From -> To Route Pair -->
+                  <div class="sm-route-pair">
+                    <div class="sm-source-box">
+                      <div class="sm-route-icon sm-route-icon--from">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                          <rect x="2" y="5" width="20" height="14" rx="2"/>
+                          <line x1="2" y1="10" x2="22" y2="10"/>
+                        </svg>
+                      </div>
+                      <div class="sm-source-left">
+                        <span class="sm-source-label">From Wallet</span>
+                        <strong id="smSourceAccount">Vigilia Wallet · ••••</strong>
+                        <span class="sm-source-avail">Avail: <strong class="font-mono" id="smAvailableBalance">—</strong></span>
+                      </div>
+                    </div>
+
+                    <div class="sm-route-arrow" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                      </svg>
+                    </div>
+
+                    <div class="sm-selected-banner">
+                      <div class="sm-sel-avatar" id="selectedAvatar">VG</div>
+                      <div class="sm-sel-info">
+                        <span class="sm-source-label">To Recipient</span>
+                        <strong id="selectedRecipientName">Recipient</strong>
+                        <span class="font-mono sm-sel-iban" id="selectedRecipientIban">IBAN</span>
+                      </div>
+                      <button type="button" class="sm-change-btn" id="btnChangeRecipient">Change</button>
+                    </div>
+                  </div>
+
+                  <!-- Amount Input + Quick Presets -->
+                  <div class="pg-form-group sm-amount-group">
+                    <div class="sm-amount-label-row">
+                      <label class="pg-label" for="sendAmount">Amount (<span id="smAmountCurrLabel">EUR</span>)</label>
+                      <button type="button" class="sm-max-btn" id="btnSendMax">Use Max</button>
+                    </div>
+                    <div class="sm-amount-input-wrap">
+                      <span class="sm-amount-prefix" id="smAmountSymbol">€</span>
+                      <input type="number" id="sendAmount" class="sm-amount-input font-mono" placeholder="0.00" min="0.01" step="0.01" />
+                      <span class="sm-amount-code" id="smAmountCode">EUR</span>
+                    </div>
+
+                    <div class="sm-amount-meta-row">
+                      <div class="sm-preset-row">
+                        <button type="button" class="sm-preset-pill" data-amt="25">€25</button>
+                        <button type="button" class="sm-preset-pill" data-amt="50">€50</button>
+                        <button type="button" class="sm-preset-pill" data-amt="100">€100</button>
+                        <button type="button" class="sm-preset-pill" data-amt="250">€250</button>
+                        <button type="button" class="sm-preset-pill" data-amt="500">€500</button>
+                      </div>
+                      <span class="sm-remaining-preview" id="smRemainingPreview"></span>
+                    </div>
+
+                    <div class="sm-inline-error" id="amountError" hidden></div>
+                  </div>
+
+                  <!-- Note / Reference -->
+                  <div class="pg-form-group">
+                    <div class="sm-amount-label-row">
+                      <label class="pg-label" for="sendNote">Note / Reference (optional)</label>
+                      <span class="sm-char-count" id="noteCharCount">0 / 120</span>
+                    </div>
+                    <input type="text" id="sendNote" class="pg-input" placeholder="e.g. Invoice #402, Rent share, Family support..." maxlength="120" />
+                    <div class="sm-ref-chips">
+                      <button type="button" class="sm-ref-chip" data-ref="Rent & Utilities">Rent &amp; Utilities</button>
+                      <button type="button" class="sm-ref-chip" data-ref="Invoice Settlement">Invoice Settlement</button>
+                      <button type="button" class="sm-ref-chip" data-ref="Shared Expense">Shared Expense</button>
+                      <button type="button" class="sm-ref-chip" data-ref="Family Support">Family Support</button>
+                    </div>
+                  </div>
+
+                  <div class="sm-btn-row">
+                    <button type="button" class="btn btn-outline" id="btnStep2Back">← Back</button>
+                    <button type="button" class="btn btn-primary" id="btnStep2Continue">Review Transfer →</button>
+                  </div>
+                </section>
+
+                <!-- ── STEP 3: REVIEW ── -->
+                <section id="stepConfirm" class="sm-step-pane" hidden>
+                  <div class="sm-pane-head">
+                    <div>
+                      <h2 class="sm-step-title">Review transfer</h2>
+                      <p class="sm-step-desc">Confirm the recipient, amount, and available balance before sending.</p>
+                    </div>
+                  </div>
+
+                  <div class="sm-summary-card">
+                    <div class="sm-summary-hero">
+                      <span class="sm-summary-hero-label">Total to Send</span>
+                      <strong class="sm-confirm-amount font-mono" id="confirmAmount">€0.00</strong>
+                      <span class="sm-summary-hero-sub">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+                        Instant Vigilia Network · Zero Fees
+                      </span>
+                    </div>
+
+                    <div class="sm-summary-rows">
+                      <div class="sm-summary-row">
+                        <span>Recipient</span>
+                        <strong id="confirmName">—</strong>
+                      </div>
+                      <div class="sm-summary-row">
+                        <span>Destination IBAN</span>
+                        <span class="font-mono sm-iban-val" id="confirmIban">—</span>
+                      </div>
+                      <div class="sm-summary-row">
+                        <span>Source Wallet</span>
+                        <span id="confirmSource">Vigilia Wallet</span>
+                      </div>
+                      <div class="sm-summary-row">
+                        <span>Reference</span>
+                        <span class="sm-muted" id="confirmNote">—</span>
+                      </div>
+                      <div class="sm-summary-divider"></div>
+                      <div class="sm-summary-row">
+                        <span>Transaction Fee</span>
+                        <span class="sm-fee-free">Free (€0.00)</span>
+                      </div>
+                      <div class="sm-summary-row">
+                        <span>Balance After Transfer</span>
+                        <span class="font-mono" id="confirmAfterBalance">—</span>
+                      </div>
+                      <div class="sm-summary-row sm-total-row">
+                        <strong>Total Debited</strong>
+                        <strong class="font-mono" id="confirmTotal">€0.00</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="sm-inline-error" id="confirmError" hidden></div>
+
+                  <div class="sm-btn-row">
+                    <button type="button" class="btn btn-outline" id="btnStep3Back">← Edit Details</button>
+                    <button type="button" class="btn sm-btn-send" id="btnSend">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                      </svg>
+                      <span id="btnSendLabel">Send Money</span>
+                    </button>
+                  </div>
+                </section>
+
+                <!-- ── STEP 4: CONFIRMATION ── -->
+                <section id="stepSuccess" class="sm-step-pane" hidden>
+                  <div class="sm-outcome">
+                    <div class="sm-outcome-icon approved" id="smOutcomeIcon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="30" height="30">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                    <span class="sm-outcome-badge approved" id="smOutcomeBadge">APPROVED</span>
+                    <h2 class="sm-outcome-title" id="smOutcomeTitle">Transfer Completed</h2>
+                    <p class="sm-outcome-desc" id="smOutcomeDesc">
+                      Your transfer has been processed.
+                    </p>
+
+                    <div class="sm-receipt-box">
+                      <div class="sm-receipt-row">
+                        <span>Transaction ID</span>
+                        <span class="sm-receipt-id-wrap">
+                          <span class="font-mono" id="receiptTxId">—</span>
+                          <button type="button" class="sm-copy-btn" id="btnCopyTxId" title="Copy Transaction ID" aria-label="Copy Transaction ID">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                          </button>
+                        </span>
+                      </div>
+                      <div class="sm-receipt-row">
+                        <span>Destination IBAN</span>
+                        <span class="font-mono" id="receiptIban">—</span>
+                      </div>
+                      <div class="sm-receipt-row">
+                        <span>Updated Balance</span>
+                        <strong class="font-mono" id="receiptNewBalance">—</strong>
+                      </div>
+                    </div>
+
+                    <div class="sm-success-actions">
+                      <a href="transactions.html" class="btn btn-primary">View in Transactions</a>
+                      <button type="button" class="btn btn-outline" id="btnSendAnother">Send Another</button>
+                    </div>
+                  </div>
+                </section>
+
+              </div>
+
+              <!-- Bottom Highlights Strip (balances left column height with sidebar) -->
+              <div class="sm-bottom-strip">
+                <div class="sm-highlight-card">
+                  <div class="sm-hl-icon sm-hl-icon--copper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </div>
+                  <div class="sm-hl-body">
+                    <strong>Vigilia Instant Rail</strong>
+                    <span>Zero-fee P2P transfers settled in under 2 seconds</span>
+                  </div>
+                </div>
+                <div class="sm-highlight-card">
+                  <div class="sm-hl-icon sm-hl-icon--blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                  <div class="sm-hl-body">
+                    <strong>End-to-End Encrypted</strong>
+                    <span>Every transfer is verified &amp; protected by AI Fraud Shield</span>
+                  </div>
+                </div>
+                <div class="sm-highlight-card">
+                  <div class="sm-hl-icon sm-hl-icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </div>
+                  <div class="sm-hl-body">
+                    <strong>€10,000 Daily Limit</strong>
+                    <span>Flexible instant limits with real-time balance updates</span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- ══ RIGHT COLUMN: TRANSFER SUMMARY SIDEBAR ══ -->
+            <aside class="sm-side-col">
+              <div class="pg-card sm-summary-sidebar">
+                <div class="sm-side-title-row">
+                  <div class="sm-side-plane-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" width="20" height="20">
+                      <line x1="22" y1="2" x2="11" y2="13"/>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                  </div>
+                  <div class="sm-side-title-text">
+                    <h3>Transfer summary</h3>
+                    <span>Live progress &amp; wallet details</span>
+                  </div>
+                </div>
+
+                <!-- Live Wallet & Rail Snapshot -->
+                <div class="sm-side-snapshot">
+                  <div class="sm-snap-row">
+                    <span>Available balance</span>
+                    <strong class="font-mono" id="sideWalletBalance">—</strong>
+                  </div>
+                  <div class="sm-snap-row">
+                    <span>Transfer fee</span>
+                    <span class="sm-snap-free">Free (Vigilia Rail)</span>
+                  </div>
+                  <div class="sm-snap-row">
+                    <span>Settlement</span>
+                    <strong>Instant (&lt; 2s)</strong>
+                  </div>
+                  <div class="sm-snap-row">
+                    <span>Security</span>
+                    <span class="sm-snap-shield">AI Fraud Shield</span>
+                  </div>
+                </div>
+
+                <!-- Vertical Step Timeline -->
+                <div class="sm-timeline">
+                  <div class="sm-tl-item active" data-tl="1">
+                    <div class="sm-tl-rail">
+                      <span class="sm-tl-dot"></span>
+                      <span class="sm-tl-line"></span>
+                    </div>
+                    <div class="sm-tl-content">
+                      <strong>Recipient</strong>
+                      <span id="tlRecipientDesc">Select a recipient from your list or search</span>
+                    </div>
+                  </div>
+
+                  <div class="sm-tl-item" data-tl="2">
+                    <div class="sm-tl-rail">
+                      <span class="sm-tl-dot"></span>
+                      <span class="sm-tl-line"></span>
+                    </div>
+                    <div class="sm-tl-content">
+                      <strong>Amount</strong>
+                      <span id="tlAmountDesc">Enter the amount and optional note</span>
+                    </div>
+                  </div>
+
+                  <div class="sm-tl-item" data-tl="3">
+                    <div class="sm-tl-rail">
+                      <span class="sm-tl-dot"></span>
+                      <span class="sm-tl-line"></span>
+                    </div>
+                    <div class="sm-tl-content">
+                      <strong>Review</strong>
+                      <span id="tlReviewDesc">Confirm the details and available balance</span>
+                    </div>
+                  </div>
+
+                  <div class="sm-tl-item" data-tl="4">
+                    <div class="sm-tl-rail">
+                      <span class="sm-tl-dot"></span>
+                    </div>
+                    <div class="sm-tl-content">
+                      <strong>Confirmation</strong>
+                      <span id="tlConfirmDesc">Complete the transfer</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="sm-side-info-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                  <p>Transfers are usually completed within a few seconds. If the transaction is under review, you'll be notified once a decision is made.</p>
+                </div>
+
+                <!-- Security Shield 3D Illustration -->
+                <div class="sm-side-security">
+                  <div class="sm-shield-art">
+                    <img src="../assets/transfer-shield-3d.png" alt="Safe and secure transfers" />
+                  </div>
+                  <h4>Safe and secure transfers</h4>
+                  <p>Your money, protected by advanced fraud detection and monitoring.</p>
+                </div>
+              </div>
+            </aside>
+
           </div>
-
-          <!-- Centered Form -->
-          <div class="sm-form-wrap">
-
-            <!-- Step Indicators -->
-            <div class="sm-steps">
-              <div class="sm-step active" data-step="1"><div class="sm-step-num">1</div><span>Recipient</span></div>
-              <div class="sm-step-line"></div>
-              <div class="sm-step" data-step="2"><div class="sm-step-num">2</div><span>Amount</span></div>
-              <div class="sm-step-line"></div>
-              <div class="sm-step" data-step="3"><div class="sm-step-num">3</div><span>Confirm</span></div>
-            </div>
-
-            <div class="pg-card sm-card">
-
-              <!-- ── Step 1: Recipient ── -->
-              <div id="stepRecipient">
-                <h3 class="sm-step-title">Who are you sending to?</h3>
-
-                <div class="pg-form-group">
-                  <label class="pg-label" for="recipientSearch">Recipient</label>
-                  <div class="pg-search-input">
-                    <span class="pg-search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-                    <input type="text" id="recipientSearch" placeholder="Name, email, or account number..." />
-                  </div>
-                </div>
-
-                <p class="sm-recent-label">Recent beneficiaries</p>
-                <div class="sm-recipient-list" id="recipientList">
-
-                  <button class="sm-recipient-card" data-name="Sara Smith" data-email="sara.smith@vigilia.io" data-initials="SS" data-color="green">
-                    <div class="sm-rec-avatar green">SS</div>
-                    <div class="sm-rec-info">
-                      <strong>Sara Smith</strong>
-                      <span>sara.smith@vigilia.io</span>
-                    </div>
-                    <span class="sm-rec-select">Select →</span>
-                  </button>
-
-                  <button class="sm-recipient-card" data-name="John Doe" data-email="john.doe@vigilia.io" data-initials="JD" data-color="blue">
-                    <div class="sm-rec-avatar blue">JD</div>
-                    <div class="sm-rec-info">
-                      <strong>John Doe</strong>
-                      <span>john.doe@vigilia.io</span>
-                    </div>
-                    <span class="sm-rec-select">Select →</span>
-                  </button>
-
-                  <button class="sm-recipient-card" data-name="Emma Wilson" data-email="emma.wilson@vigilia.io" data-initials="EW" data-color="amber">
-                    <div class="sm-rec-avatar amber">EW</div>
-                    <div class="sm-rec-info">
-                      <strong>Emma Wilson</strong>
-                      <span>emma.wilson@vigilia.io</span>
-                    </div>
-                    <span class="sm-rec-select">Select →</span>
-                  </button>
-
-                  <button class="sm-recipient-card" data-name="Carlos Ruiz" data-email="carlos.ruiz@vigilia.io" data-initials="CR" data-color="copper">
-                    <div class="sm-rec-avatar copper">CR</div>
-                    <div class="sm-rec-info">
-                      <strong>Carlos Ruiz</strong>
-                      <span>carlos.ruiz@vigilia.io</span>
-                    </div>
-                    <span class="sm-rec-select">Select →</span>
-                  </button>
-
-                </div>
-
-                <button class="btn btn-primary sm-btn-full" id="btnStep1Continue" disabled>Continue →</button>
-              </div>
-
-              <!-- ── Step 2: Amount ── -->
-              <div id="stepAmount" hidden>
-                <h3 class="sm-step-title">How much to send?</h3>
-
-                <!-- Selected Recipient Banner -->
-                <div class="sm-selected-banner">
-                  <div class="sm-sel-avatar" id="selectedAvatar">SS</div>
-                  <div class="sm-sel-info">
-                    <strong id="selectedRecipientName">Sara Smith</strong>
-                    <span id="selectedRecipientEmail">sara.smith@vigilia.io</span>
-                  </div>
-                  <button class="sm-change-btn" id="btnChangeRecipient">Change</button>
-                </div>
-
-                <div class="pg-form-group">
-                  <label class="pg-label">Amount (USD)</label>
-                  <div class="pg-input-group">
-                    <span class="pg-input-prefix">$</span>
-                    <input type="number" id="sendAmount" placeholder="0.00" min="0.01" step="0.01" />
-                  </div>
-                  <p class="pg-hint sm-balance-hint">Available balance: <strong>$2,250.00</strong></p>
-                </div>
-
-                <div class="pg-form-group">
-                  <label class="pg-label" for="sendNote">Note (optional)</label>
-                  <textarea id="sendNote" class="pg-input sm-textarea" placeholder="What's this for?" rows="3"></textarea>
-                </div>
-
-                <div class="sm-btn-row">
-                  <button class="btn btn-outline" id="btnStep2Back">← Back</button>
-                  <button class="btn btn-primary" id="btnStep2Continue">Continue →</button>
-                </div>
-              </div>
-
-              <!-- ── Step 3: Confirm ── -->
-              <div id="stepConfirm" hidden>
-                <h3 class="sm-step-title">Confirm your transfer</h3>
-
-                <div class="sm-summary-card">
-                  <div class="sm-summary-row">
-                    <span>To</span>
-                    <span id="confirmName">Sara Smith</span>
-                  </div>
-                  <div class="sm-summary-row">
-                    <span>Email</span>
-                    <span class="sm-muted" id="confirmEmail">sara.smith@vigilia.io</span>
-                  </div>
-                  <div class="sm-summary-row">
-                    <span>Amount</span>
-                    <strong class="sm-confirm-amount" id="confirmAmount">$0.00</strong>
-                  </div>
-                  <div class="sm-summary-row">
-                    <span>Note</span>
-                    <span class="sm-muted" id="confirmNote">—</span>
-                  </div>
-                  <div class="sm-summary-divider"></div>
-                  <div class="sm-summary-row">
-                    <span>Transaction Fee</span>
-                    <span class="sm-fee-free">Free</span>
-                  </div>
-                  <div class="sm-summary-row sm-total-row">
-                    <strong>Total Deducted</strong>
-                    <strong id="confirmTotal">$0.00</strong>
-                  </div>
-                </div>
-
-                <div class="sm-info-banner">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  Funds arrive instantly to Vigilia accounts. No fees for Vigilia-to-Vigilia transfers.
-                </div>
-
-                <div class="sm-btn-row">
-                  <button class="btn btn-outline" id="btnStep3Back">← Back</button>
-                  <button class="btn btn-copper sm-btn-send" id="btnSend">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    Send $0.00
-                  </button>
-                </div>
-              </div>
-
-              <!-- ── Success State ── -->
-              <div id="stepSuccess" hidden>
-                <div class="sm-success">
-                  <div class="sm-success-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="32" height="32"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <h3 class="sm-success-title">Transfer Sent!</h3>
-                  <p class="sm-success-desc">Your transfer of <strong id="successAmount">$0.00</strong> to <strong id="successName">Sara Smith</strong> was sent successfully.</p>
-                  <div class="sm-success-actions">
-                    <a href="overview.html" class="btn btn-primary">Back to Overview</a>
-                    <button class="btn btn-outline" id="btnSendAnother">Send Another</button>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
         </div>
       </main>
     </div>

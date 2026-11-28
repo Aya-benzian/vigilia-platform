@@ -16,6 +16,7 @@ public class WalletResponse {
     private BigDecimal availableBalance;
     private BigDecimal heldBalance;
     private BigDecimal totalBalance;
+    private boolean cardFrozen;
     private Instant updatedAt;
 
     public WalletResponse() {
@@ -96,6 +97,14 @@ public class WalletResponse {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public boolean isCardFrozen() {
+        return cardFrozen;
+    }
+
+    public void setCardFrozen(boolean cardFrozen) {
+        this.cardFrozen = cardFrozen;
     }
 
     public void setUpdatedAt(Instant updatedAt) {

@@ -50,7 +50,7 @@ class TransactionOutboxRelayServiceTest {
         );
         event.setId(UUID.randomUUID());
 
-        when(outboxEventRepository.findByStatusAndNextAttemptAtBeforeOrderByCreatedAtAsc(any(), any()))
+        when(outboxEventRepository.findPendingReadyForUpdate(any()))
                 .thenReturn(List.of(event));
 
         relayService.relayPendingEvents();
@@ -71,7 +71,7 @@ class TransactionOutboxRelayServiceTest {
                 "trace-2"
         );
 
-        relayService.processEvent(event);
+        relayService.deliverAndUpdate(event);
 
         verify(outboxEventRepository, never()).save(event);
     }
@@ -87,7 +87,7 @@ class TransactionOutboxRelayServiceTest {
                 "trace-3"
         );
 
-        relayService.processEvent(event);
+        relayService.deliverAndUpdate(event);
 
         assertThat(event.getStatus()).isEqualTo("FAILED");
         verify(outboxEventRepository).save(event);

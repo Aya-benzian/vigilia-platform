@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -30,6 +31,12 @@ public class WalletServiceImpl implements WalletService {
 
     private static final Logger log = LoggerFactory.getLogger(WalletServiceImpl.class);
     private static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Z]{3}$");
+    private static final Map<String, BigDecimal> USD_RATES = Map.of(
+            "USD", BigDecimal.ONE,
+            "EUR", new BigDecimal("0.9259"),
+            "MAD", new BigDecimal("10.0000"),
+            "GBP", new BigDecimal("0.7937")
+    );
 
     private final WalletRepository walletRepository;
     private final WalletLedgerService walletLedgerService;
@@ -338,8 +345,57 @@ public class WalletServiceImpl implements WalletService {
         }
     }
 
+    @Override
+    @Transactional
+    public WalletResponse changeCurrency(UUID customerId, String targetCurrency) {
+        if (targetCurrency == null || !CURRENCY_PATTERN.matcher(targetCurrency.trim().toUpperCase()).matches()) {
+            throw new InvalidOperationException("Unsupported currency code");
+        }
+        String target = targetCurrency.trim().toUpperCase();
+        if (!USD_RATES.containsKey(target)) {
+            throw new InvalidOperationException("Unsupported currency: " + target + ". Supported: EUR, MAD, USD, GBP");
+        }
+
+        WalletEntity wallet = loadByCustomerIdForUpdate(customerId);
+        String current = wallet.getCurrency() != null ? wallet.getCurrency().toUpperCase() : "USD";
+        if (current.equals(target)) {
+            return toResponse(wallet);
+        }
+
+        BigDecimal fromRate = USD_RATES.getOrDefault(current, BigDecimal.ONE);
+        BigDecimal toRate = USD_RATES.get(target);
+        BigDecimal newAvailable = wallet.getAvailableBalance()
+                .divide(fromRate, 6, RoundingMode.HALF_UP)
+                .multiply(toRate)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal newHeld = wallet.getHeldBalance()
+                .divide(fromRate, 6, RoundingMode.HALF_UP)
+                .multiply(toRate)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        wallet.setAvailableBalance(newAvailable);
+        wallet.setHeldBalance(newHeld);
+        wallet.setCurrency(target);
+        wallet.setUpdatedAt(Instant.now());
+        WalletEntity saved = walletRepository.save(wallet);
+        log.info("Wallet currency converted [customerId={}, from={}, to={}, avail={}, held={}]",
+                customerId, current, target, newAvailable, newHeld);
+        return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public WalletResponse setCardFrozen(UUID customerId, boolean frozen) {
+        WalletEntity wallet = loadByCustomerIdForUpdate(customerId);
+        wallet.setCardFrozen(frozen);
+        wallet.setUpdatedAt(Instant.now());
+        WalletEntity saved = walletRepository.save(wallet);
+        log.info("Virtual card freeze state updated [customerId={}, frozen={}]", customerId, frozen);
+        return toResponse(saved);
+    }
+
     private WalletResponse toResponse(WalletEntity entity) {
-        return new WalletResponse(
+        WalletResponse response = new WalletResponse(
                 entity.getId(),
                 entity.getCustomerId(),
                 entity.getAccountNumber(),
@@ -348,5 +404,7 @@ public class WalletServiceImpl implements WalletService {
                 entity.getHeldBalance(),
                 entity.getUpdatedAt()
         );
+        response.setCardFrozen(entity.isCardFrozen());
+        return response;
     }
 }

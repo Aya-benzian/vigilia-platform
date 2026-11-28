@@ -6,19 +6,26 @@ import com.vigilia.transaction.dto.RiskStatus;
 import com.vigilia.transaction.dto.TransactionResponse;
 import com.vigilia.transaction.entity.ProcessedEventEntity;
 import com.vigilia.transaction.entity.TransactionEntity;
+import com.vigilia.transaction.exception.ForbiddenException;
 import com.vigilia.transaction.exception.ResourceNotFoundException;
 import com.vigilia.transaction.repository.ProcessedEventRepository;
 import com.vigilia.transaction.repository.TransactionRepository;
 import com.vigilia.transaction.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,6 +34,15 @@ import java.util.UUID;
 /**
  * Internal service-to-service controller for consuming events published by other microservices.
  * Guarantees strict idempotency via ProcessedEventRepository to avoid double financial effects.
+ *
+ * <p>Bug fixes:
+ * <ul>
+ *   <li>K1: Requires the caller to present a valid X-Internal-Service-Token header.
+ *       Without a token, the request is rejected with 403 before any DB work is done.</li>
+ *   <li>I1: Transaction row is now loaded WITH FOR UPDATE before the status check and analyst
+ *       decision application, preventing two concurrent events from both passing the
+ *       PENDING_REVIEW guard and double-applying wallet effects.</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/internal/transactions")
@@ -35,27 +51,73 @@ public class InternalTransactionController {
 
     private static final Logger log = LoggerFactory.getLogger(InternalTransactionController.class);
 
+    // K1 fix: shared secret injected from application properties (set via K8s secret / env var)
+    private static final String SERVICE_TOKEN_HEADER = "X-Internal-Service-Token";
+    private final String expectedServiceToken;
+
     private final TransactionService transactionService;
     private final ProcessedEventRepository processedEventRepository;
     private final TransactionRepository transactionRepository;
+    private final Environment environment;
 
     public InternalTransactionController(
             TransactionService transactionService,
             ProcessedEventRepository processedEventRepository,
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            String expectedServiceToken) {
+        this(transactionService, processedEventRepository, transactionRepository, expectedServiceToken, null);
+    }
+
+    @Autowired
+    public InternalTransactionController(
+            TransactionService transactionService,
+            ProcessedEventRepository processedEventRepository,
+            TransactionRepository transactionRepository,
+            @org.springframework.beans.factory.annotation.Value("${vigilia.internal.service-token:}") String expectedServiceToken,
+            @Autowired(required = false) Environment environment) {
         this.transactionService = transactionService;
         this.processedEventRepository = processedEventRepository;
         this.transactionRepository = transactionRepository;
+        this.expectedServiceToken = expectedServiceToken;
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    void validateTokenConfiguration() {
+        if ((expectedServiceToken == null || expectedServiceToken.isBlank()) && !isDevOrTestProfile()) {
+            throw new IllegalStateException(
+                    "vigilia.internal.service-token (VIGILIA_INTERNAL_SERVICE_TOKEN) must be configured when active profile is not dev/test");
+        }
+    }
+
+    private boolean isDevOrTestProfile() {
+        // When environment is null (e.g. plain Mockito unit test without Spring), allow test execution
+        return environment == null || environment.acceptsProfiles(Profiles.of("dev", "test"));
     }
 
     /**
      * Ingestion endpoint for REVIEW_DECISION_COMPLETED events emitted by Risk Management Service.
      */
     @PostMapping(path = {"/events", "/review-decisions"})
-    @Operation(summary = "Ingestion d'une décision d'analyste", description = "Consomme de façon idempotente la décision humaine pour débloquer/finaliser la transaction")
+    @Operation(summary = "Ingestion d'une décision d'analyste",
+               description = "Consomme de façon idempotente la décision humaine pour débloquer/finaliser la transaction")
     @Transactional
     public ResponseEntity<ApiResponse<TransactionResponse>> ingestReviewDecision(
-            @Valid @RequestBody ReviewDecisionEventPayload payload) {
+            @Valid @RequestBody ReviewDecisionEventPayload payload,
+            @RequestHeader(value = SERVICE_TOKEN_HEADER, required = false) String serviceToken,
+            HttpServletRequest httpRequest) {
+
+        // Step 7: fail closed when token is blank outside dev/test, or when token mismatches
+        boolean tokenConfigured = expectedServiceToken != null && !expectedServiceToken.isBlank();
+        if (!tokenConfigured && !isDevOrTestProfile()) {
+            log.warn("[SECURITY] Rejected call to /internal/transactions/events: internal service token not configured");
+            throw new ForbiddenException("Internal service token is not configured");
+        }
+        if (tokenConfigured && !expectedServiceToken.equals(serviceToken)) {
+            log.warn("[SECURITY] Rejected unauthenticated call to /internal/transactions/events from {}",
+                    httpRequest != null ? httpRequest.getRemoteAddr() : "unknown");
+            throw new ForbiddenException("Accès non autorisé à l'API interne");
+        }
 
         UUID eventId = payload.getEventId();
         UUID transactionId = payload.getTransactionId();
@@ -68,7 +130,9 @@ public class InternalTransactionController {
             return ResponseEntity.ok(ApiResponse.of(existing));
         }
 
-        TransactionEntity txn = transactionRepository.findById(transactionId)
+        // I1 fix: load transaction WITH FOR UPDATE so concurrent events cannot both pass the
+        // PENDING_REVIEW guard and double-apply wallet effects
+        TransactionEntity txn = transactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable pour l'identifiant: " + transactionId));
 
         // 2. If the transaction has already left PENDING_REVIEW, record event and return current state
@@ -87,11 +151,7 @@ public class InternalTransactionController {
         String analystId = payload.getAnalystId() != null ? payload.getAnalystId() : "system-analyst";
 
         TransactionResponse resolved = transactionService.resolveAnalystDecision(
-                transactionId,
-                payload.getDecision(),
-                reason,
-                analystId
-        );
+                transactionId, payload.getDecision(), reason, analystId);
 
         // 4. Record event as processed in the same SQL transaction
         if (eventId != null) {

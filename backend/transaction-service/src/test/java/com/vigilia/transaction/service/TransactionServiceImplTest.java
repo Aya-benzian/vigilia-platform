@@ -21,6 +21,7 @@ import com.vigilia.transaction.exception.InsufficientFundsException;
 import com.vigilia.transaction.exception.InvalidAmountException;
 import com.vigilia.transaction.exception.InvalidOperationException;
 import com.vigilia.transaction.exception.ResourceNotFoundException;
+import com.vigilia.transaction.repository.LinkedFundingCardRepository;
 import com.vigilia.transaction.repository.MerchantRepository;
 import com.vigilia.transaction.repository.PaymentRepository;
 import com.vigilia.transaction.repository.TransactionRepository;
@@ -38,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -82,6 +84,9 @@ class TransactionServiceImplTest {
     private MerchantRepository merchantRepository;
 
     @Mock
+    private LinkedFundingCardRepository linkedFundingCardRepository;
+
+    @Mock
     private WalletService walletService;
 
     @Mock
@@ -92,6 +97,9 @@ class TransactionServiceImplTest {
 
     @Mock
     private TransactionOutboxService transactionOutboxService;
+
+    @Mock
+    private PlatformTransactionManager txManager;
 
     @InjectMocks
     private TransactionServiceImpl transactionService;
@@ -133,6 +141,8 @@ class TransactionServiceImplTest {
         when(idempotencyService.calculateRequestHash(request)).thenReturn("hash123");
         when(idempotencyService.checkOrThrow("customer:" + customerId, idempotencyKey, "hash123"))
                 .thenReturn(IdempotencyCheckResult.newKey("hash123"));
+        when(idempotencyService.claimKey("customer:" + customerId, idempotencyKey, "hash123"))
+                .thenReturn(true);
 
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
 
@@ -148,6 +158,9 @@ class TransactionServiceImplTest {
             }
             return entity;
         });
+        TransactionEntity pendingTxn = new TransactionEntity("PURCHASE", customerId, new BigDecimal("49.99"), "EUR", "PENDING");
+        pendingTxn.setId(txnId);
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(pendingTxn));
 
         RiskEvaluationResponse approvedRisk = new RiskEvaluationResponse(
                 UUID.randomUUID(), txnId, RiskStatus.APPROVED, 0.05, "Low risk score", Instant.now()
@@ -164,8 +177,8 @@ class TransactionServiceImplTest {
         assertThat(response.getAmount()).isEqualByComparingTo("49.99");
         assertThat(response.getCurrency()).isEqualTo("EUR");
 
-        // 1. Funds held first
-        verify(walletService).holdFunds(walletId, null, new BigDecimal("49.99"));
+        // 1. Funds held with real txnId
+        verify(walletService).holdFunds(walletId, txnId, new BigDecimal("49.99"));
 
         // 2. Transaction saved (initial PENDING, then finalized APPROVED)
         verify(transactionRepository, times(2)).save(any(TransactionEntity.class));
@@ -216,6 +229,9 @@ class TransactionServiceImplTest {
             }
             return entity;
         });
+        TransactionEntity pendingTxn = new TransactionEntity("PURCHASE", customerId, new BigDecimal("100.00"), "EUR", "PENDING");
+        pendingTxn.setId(txnId);
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(pendingTxn));
 
         RiskEvaluationResponse rejectedRisk = new RiskEvaluationResponse(
                 UUID.randomUUID(), txnId, RiskStatus.REJECTED, 0.95, "Suspected fraud", Instant.now()
@@ -225,7 +241,7 @@ class TransactionServiceImplTest {
         TransactionResponse response = transactionService.createTransaction(request, null, "127.0.0.1");
 
         assertThat(response.getStatus()).isEqualTo(RiskStatus.REJECTED);
-        verify(walletService).holdFunds(walletId, null, new BigDecimal("100.00"));
+        verify(walletService).holdFunds(walletId, txnId, new BigDecimal("100.00"));
         verify(walletService).releaseFunds(walletId, txnId, new BigDecimal("100.00"));
         verify(walletService, never()).settleHold(any(), any(), any());
     }
@@ -253,6 +269,9 @@ class TransactionServiceImplTest {
             }
             return entity;
         });
+        TransactionEntity pendingTxn = new TransactionEntity("PURCHASE", customerId, new BigDecimal("250.00"), "EUR", "PENDING");
+        pendingTxn.setId(txnId);
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(pendingTxn));
 
         RiskEvaluationResponse reviewRisk = new RiskEvaluationResponse(
                 UUID.randomUUID(), txnId, RiskStatus.PENDING_REVIEW, 0.65, "Unusual location", Instant.now()
@@ -262,7 +281,7 @@ class TransactionServiceImplTest {
         TransactionResponse response = transactionService.createTransaction(request, null, "127.0.0.1");
 
         assertThat(response.getStatus()).isEqualTo(RiskStatus.PENDING_REVIEW);
-        verify(walletService).holdFunds(walletId, null, new BigDecimal("250.00"));
+        verify(walletService).holdFunds(walletId, txnId, new BigDecimal("250.00"));
         // Funds remain held: neither settle nor release
         verify(walletService, never()).settleHold(any(), any(), any());
         verify(walletService, never()).releaseFunds(any(), any(), any());
@@ -284,14 +303,21 @@ class TransactionServiceImplTest {
         merchant.setId(UUID.randomUUID());
         when(merchantRepository.findByNameIgnoreCase("Store")).thenReturn(Optional.of(merchant));
 
-        when(walletService.holdFunds(walletId, null, new BigDecimal("99999.00")))
+        UUID txnId = UUID.randomUUID();
+        when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(invocation -> {
+            TransactionEntity entity = invocation.getArgument(0);
+            if (entity.getId() == null) {
+                entity.setId(txnId);
+            }
+            return entity;
+        });
+        when(walletService.holdFunds(eq(walletId), any(), eq(new BigDecimal("99999.00"))))
                 .thenThrow(new InsufficientFundsException("Solde disponible insuffisant"));
 
         assertThatThrownBy(() -> transactionService.createTransaction(request, null, "127.0.0.1"))
                 .isInstanceOf(InsufficientFundsException.class)
                 .hasMessageContaining("Solde disponible insuffisant");
 
-        verify(transactionRepository, never()).save(any());
         verify(paymentRepository, never()).save(any());
         verifyNoInteractions(riskEvaluationClient);
     }
@@ -407,6 +433,10 @@ class TransactionServiceImplTest {
 
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
         when(walletRepository.findByAccountNumber(recipientIban)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
 
         UUID txnId = UUID.randomUUID();
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(invocation -> {
@@ -416,6 +446,11 @@ class TransactionServiceImplTest {
             }
             return entity;
         });
+        TransactionEntity pendingTxn = new TransactionEntity("TRANSFER", customerId, new BigDecimal("75.00"), "EUR", "PENDING");
+        pendingTxn.setId(txnId);
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(pendingTxn));
+        TransferEntity transfer = new TransferEntity(txnId, walletId, recipientWalletId, recipientCustomerId, "Remboursement resto");
+        when(transferRepository.findByTransactionId(txnId)).thenReturn(Optional.of(transfer));
 
         RiskEvaluationResponse approvedRisk = new RiskEvaluationResponse(
                 UUID.randomUUID(), txnId, RiskStatus.APPROVED, 0.02, "Trusted transfer", Instant.now()
@@ -435,8 +470,8 @@ class TransactionServiceImplTest {
         lockOrder.verify(walletRepository).findByIdForUpdate(smallerUuid);
         lockOrder.verify(walletRepository).findByIdForUpdate(largerUuid);
 
-        // Sender funds held
-        verify(walletService).holdFunds(walletId, null, new BigDecimal("75.00"));
+        // Sender funds held with real txnId
+        verify(walletService).holdFunds(walletId, txnId, new BigDecimal("75.00"));
 
         // Transfer details persisted
         verify(transferRepository).save(any(TransferEntity.class));
@@ -469,6 +504,10 @@ class TransactionServiceImplTest {
 
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
         when(walletRepository.findByAccountNumber(recipientIban)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
 
         UUID txnId = UUID.randomUUID();
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(invocation -> {
@@ -478,6 +517,11 @@ class TransactionServiceImplTest {
             }
             return entity;
         });
+        TransactionEntity pendingTxn = new TransactionEntity("TRANSFER", customerId, new BigDecimal("150.00"), "EUR", "PENDING");
+        pendingTxn.setId(txnId);
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(pendingTxn));
+        TransferEntity transfer = new TransferEntity(txnId, walletId, recipientWalletId, recipientCustomerId, null);
+        when(transferRepository.findByTransactionId(txnId)).thenReturn(Optional.of(transfer));
 
         RiskEvaluationResponse rejectedRisk = new RiskEvaluationResponse(
                 UUID.randomUUID(), txnId, RiskStatus.REJECTED, 0.98, "High risk IBAN", Instant.now()
@@ -572,7 +616,7 @@ class TransactionServiceImplTest {
         TransactionEntity txn = new TransactionEntity("PURCHASE", customerId, new BigDecimal("80.00"), "EUR", "PENDING_REVIEW");
         txn.setId(txnId);
 
-        when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(txn));
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -591,7 +635,7 @@ class TransactionServiceImplTest {
         TransactionEntity txn = new TransactionEntity("PURCHASE", customerId, new BigDecimal("80.00"), "EUR", "PENDING_REVIEW");
         txn.setId(txnId);
 
-        when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(txn));
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -612,7 +656,7 @@ class TransactionServiceImplTest {
 
         TransferEntity transfer = new TransferEntity(txnId, walletId, recipientWalletId, UUID.randomUUID(), "Ref123");
 
-        when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(txn));
         when(transferRepository.findByTransactionId(txnId)).thenReturn(Optional.of(transfer));
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -630,7 +674,7 @@ class TransactionServiceImplTest {
         TransactionEntity txn = new TransactionEntity("PURCHASE", customerId, new BigDecimal("50.00"), "EUR", "APPROVED");
         txn.setId(txnId);
 
-        when(transactionRepository.findById(txnId)).thenReturn(Optional.of(txn));
+        when(transactionRepository.findByIdForUpdate(txnId)).thenReturn(Optional.of(txn));
 
         assertThatThrownBy(() -> transactionService.resolveAnalystDecision(txnId, RiskStatus.REJECTED, "Trop tard", "analyst-1"))
                 .isInstanceOf(InvalidOperationException.class)

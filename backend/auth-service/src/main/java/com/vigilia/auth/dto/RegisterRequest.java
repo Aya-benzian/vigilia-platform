@@ -24,6 +24,21 @@ public class RegisterRequest {
     @Schema(description = "Rôle demandé (toute tentative d'auto-attribution ADMIN/ANALYST est refusée)", example = "CUSTOMER")
     private String role;
 
+    @Schema(description = "Nom complet du client", example = "Sara Benali")
+    @Size(max = 200)
+    private String fullName;
+
+    @Schema(description = "Date de naissance (YYYY-MM-DD)", example = "1996-04-18")
+    private String dateOfBirth;
+
+    @Schema(description = "Code pays ISO-2", example = "FR")
+    @Size(min = 2, max = 2)
+    private String homeCountry;
+
+    @Schema(description = "Ville de résidence", example = "Lyon")
+    @Size(max = 100)
+    private String homeCity;
+
     public RegisterRequest() {
     }
 
@@ -69,5 +84,37 @@ public class RegisterRequest {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(String dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getHomeCountry() {
+        return homeCountry;
+    }
+
+    public void setHomeCountry(String homeCountry) {
+        this.homeCountry = homeCountry;
+    }
+
+    public String getHomeCity() {
+        return homeCity;
+    }
+
+    public void setHomeCity(String homeCity) {
+        this.homeCity = homeCity;
     }
 }

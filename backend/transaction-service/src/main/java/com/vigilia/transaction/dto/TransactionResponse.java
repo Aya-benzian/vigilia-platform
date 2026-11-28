@@ -15,6 +15,11 @@ public class TransactionResponse {
     private Double riskScore;
     private String decisionReason;
     private Instant timestamp;
+    private String merchantName;
+    private String category;
+    private String productName;
+    private String memo;
+    private UUID recipientCustomerId;
 
     public TransactionResponse() {}
 
@@ -56,4 +61,19 @@ public class TransactionResponse {
 
     public Instant getTimestamp() { return timestamp; }
     public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+
+    public String getMerchantName() { return merchantName; }
+    public void setMerchantName(String merchantName) { this.merchantName = merchantName; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+
+    public String getMemo() { return memo; }
+    public void setMemo(String memo) { this.memo = memo; }
+
+    public UUID getRecipientCustomerId() { return recipientCustomerId; }
+    public void setRecipientCustomerId(UUID recipientCustomerId) { this.recipientCustomerId = recipientCustomerId; }
 }

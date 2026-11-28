@@ -26,6 +26,13 @@ public class InternalCustomerController {
         this.customerService = customerService;
     }
 
+    @GetMapping("/customers/{userId}")
+    @Operation(summary = "Profil client par userId", description = "Fournit les informations client (dont email) aux services internes")
+    public ResponseEntity<ApiResponse<CustomerResponse>> getCustomerByUserId(@PathVariable UUID userId) {
+        CustomerResponse response = customerService.getProfileByUserId(userId);
+        return ResponseEntity.ok(ApiResponse.of(response));
+    }
+
     /**
      * Endpoint for Risk Management to retrieve customer risk and demographic baseline features.
      */

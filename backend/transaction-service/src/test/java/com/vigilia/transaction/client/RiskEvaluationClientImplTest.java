@@ -4,7 +4,7 @@ import com.vigilia.transaction.dto.RiskEvaluationRequest;
 import com.vigilia.transaction.dto.RiskEvaluationResponse;
 import com.vigilia.transaction.dto.RiskStatus;
 import com.vigilia.transaction.dto.TransactionType;
-import com.vigilia.transaction.exception.ServiceUnavailableException;
+import com.vigilia.transaction.exception.RiskUnavailableException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -33,7 +33,7 @@ class RiskEvaluationClientImplTest {
     void evaluate_Success_Approved() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084", true);
+        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084");
 
         String jsonResponse = """
                 {
@@ -60,31 +60,11 @@ class RiskEvaluationClientImplTest {
     }
 
     @Test
-    @DisplayName("Risk Evaluation - Échec HTTP avec repli sécurisé PENDING_REVIEW (ne jamais approuver automatiquement)")
-    void evaluate_HttpError_FallbackToPendingReview() {
+    @DisplayName("Step 1: HTTP error from Risk throws RiskUnavailableException (never synthetic PENDING_REVIEW)")
+    void evaluate_HttpError_ThrowsRiskUnavailableException() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084", true);
-
-        server.expect(requestTo("http://localhost:8084/api/v1/risk/evaluate"))
-                .andExpect(method(HttpMethod.POST))
-                .andRespond(withServerError());
-
-        RiskEvaluationRequest req = new RiskEvaluationRequest(txnId, customerId, TransactionType.PURCHASE, new BigDecimal("100.00"), "EUR", Instant.now());
-        RiskEvaluationResponse resp = client.evaluate(req);
-
-        assertThat(resp).isNotNull();
-        assertThat(resp.getDecision()).isEqualTo(RiskStatus.PENDING_REVIEW);
-        assertThat(resp.getDecisionReason()).contains("RISK_SERVICE_UNAVAILABLE_FALLBACK");
-        server.verify();
-    }
-
-    @Test
-    @DisplayName("Risk Evaluation - Échec HTTP avec repli désactivé : lève ServiceUnavailableException (503)")
-    void evaluate_HttpError_FallbackDisabled_ThrowsServiceUnavailable() {
-        RestClient.Builder builder = RestClient.builder();
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084", false);
+        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084");
 
         server.expect(requestTo("http://localhost:8084/api/v1/risk/evaluate"))
                 .andExpect(method(HttpMethod.POST))
@@ -93,8 +73,27 @@ class RiskEvaluationClientImplTest {
         RiskEvaluationRequest req = new RiskEvaluationRequest(txnId, customerId, TransactionType.PURCHASE, new BigDecimal("100.00"), "EUR", Instant.now());
 
         assertThatThrownBy(() -> client.evaluate(req))
-                .isInstanceOf(ServiceUnavailableException.class)
-                .hasMessageContaining("Risk Management Service est indisponible");
+                .isInstanceOf(RiskUnavailableException.class)
+                .hasMessageContaining("Risk Management Service unavailable");
+
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("Step 1: Null decision in Risk response throws RiskUnavailableException")
+    void evaluate_NullDecision_ThrowsRiskUnavailableException() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084");
+
+        server.expect(requestTo("http://localhost:8084/api/v1/risk/evaluate"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        RiskEvaluationRequest req = new RiskEvaluationRequest(txnId, customerId, TransactionType.PURCHASE, new BigDecimal("100.00"), "EUR", Instant.now());
+
+        assertThatThrownBy(() -> client.evaluate(req))
+                .isInstanceOf(RiskUnavailableException.class);
 
         server.verify();
     }
@@ -104,7 +103,7 @@ class RiskEvaluationClientImplTest {
     void evaluate_ContractCompliantFlatJson_DeserializesAllFields() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084", true);
+        RiskEvaluationClientImpl client = new RiskEvaluationClientImpl(builder, "http://localhost:8084");
 
         UUID evalId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
         Instant evalTime = Instant.parse("2026-10-26T14:00:00Z");

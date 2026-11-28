@@ -36,6 +36,33 @@ public class TransactionOutboxService {
     }
 
     /**
+     * Step 9: Publishes TRANSFER_REVIEW_REQUIRED or PAYMENT_REVIEW_REQUIRED (by transaction type)
+     * when Risk routes a transaction to manual analyst review.
+     * Funds remain held until the analyst resolves the case.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void publishTransactionPendingReview(TransactionEntity transaction, String reason, String traceId) {
+        String eventType = "TRANSFER".equalsIgnoreCase(transaction.getTransactionType())
+                ? "TRANSFER_REVIEW_REQUIRED"
+                : "PAYMENT_REVIEW_REQUIRED";
+        String resolvedTraceId = resolveTraceId(traceId);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventId", UUID.randomUUID().toString());
+        payload.put("eventType", eventType);
+        payload.put("transactionId", transaction.getId().toString());
+        payload.put("customerId", transaction.getCustomerId().toString());
+        payload.put("amount", transaction.getAmount());
+        payload.put("currency", transaction.getCurrency());
+        payload.put("transactionType", transaction.getTransactionType());
+        payload.put("status", transaction.getStatus());
+        payload.put("reason", reason);
+        payload.put("traceId", resolvedTraceId);
+
+        saveOutboxEvent(transaction.getId().toString(), eventType, payload, resolvedTraceId);
+    }
+
+    /**
      * Publishes an outbox event when a transaction evaluation is applied directly (APPROVED or REJECTED).
      */
     @Transactional(propagation = Propagation.MANDATORY)

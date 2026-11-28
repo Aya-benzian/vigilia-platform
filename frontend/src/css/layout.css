@@ -3,6 +3,18 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ─── Global App Container Shell ─── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .app-shell {
   display: flex;
   height: 100vh;
@@ -225,55 +237,51 @@ customer-navbar {
   border: none;
 }
 
-/* Sidebar Bottom Health Pulse Card */
-.sidebar .sidebar-health-widget,
-.sidebar.light-theme .sidebar-health-widget,
-.sidebar.dark-theme .sidebar-health-widget {
-  background: #f8fafc;
+/* Sidebar Bottom Security Card */
+.sidebar .sidebar-security-card,
+.sidebar.light-theme .sidebar-security-card,
+.sidebar.dark-theme .sidebar-security-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.9rem 1rem 0.75rem;
+  border-radius: 14px;
+  padding: 14px 13px;
   margin-top: 1.5rem;
 }
 
-.health-status-header {
+.sidebar-security-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #fff4ee;
+  border: 1px solid #f5d5c3;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  justify-content: center;
 }
 
-.health-pulse-dot {
-  width: 8px;
-  height: 8px;
-  background: #10b981;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-  animation: pulseDot 2s infinite ease-in-out;
-  flex-shrink: 0;
+.sidebar-security-body {
+  flex: 1;
+  min-width: 0;
 }
 
-@keyframes pulseDot {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
-  50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.05); }
-}
-
-.health-status-title {
-  font-size: 0.82rem;
+.sidebar-security-body strong {
+  display: block;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #0f172a;
+  line-height: 1.35;
+  margin-bottom: 5px;
 }
 
-.health-status-subtext {
+.sidebar-security-body p {
   font-size: 0.72rem;
   color: #64748b;
-  margin-bottom: 0.45rem;
-}
-
-.mini-sparkline-svg {
-  width: 100%;
-  height: 22px;
-  display: block;
+  line-height: 1.45;
+  margin: 0;
 }
 
 /* ─── Top Navbar (Clean Crisp Light Header Bar) ─── */
@@ -621,6 +629,11 @@ customer-navbar {
   color: #d97236;
 }
 
+.notif-unread-tag.caught-up {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
 .notif-clear-btn {
   background: none;
   border: none;
@@ -684,6 +697,41 @@ customer-navbar {
 .notif-icon-box.warn {
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
+}
+
+.notif-icon-box.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.notif-dropdown-item {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.notif-unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c25e2e;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notif-dropdown-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .notif-content {
@@ -797,27 +845,27 @@ customer-navbar {
     height: 19px;
   }
 
-  /* Bottom Health Pulse Widget: Compact Beacon Dot */
-  .app-shell.sidebar-collapsed .sidebar .sidebar-health-widget,
-  .app-shell.sidebar-collapsed .sidebar.light-theme .sidebar-health-widget {
+  /* Bottom Security Card: Compact icon-only when collapsed */
+  .app-shell.sidebar-collapsed .sidebar .sidebar-security-card,
+  .app-shell.sidebar-collapsed .sidebar.light-theme .sidebar-security-card {
     padding: 0.75rem 0;
     width: 44px;
-    display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     margin: 1.5rem auto 0;
     border-radius: 10px;
+    gap: 0;
   }
 
-  .app-shell.sidebar-collapsed .health-status-title,
-  .app-shell.sidebar-collapsed .health-status-subtext,
-  .app-shell.sidebar-collapsed .mini-sparkline-svg {
+  .app-shell.sidebar-collapsed .sidebar-security-body {
     display: none;
   }
 
-  .app-shell.sidebar-collapsed .health-status-header {
-    margin-bottom: 0;
-    justify-content: center;
+  .app-shell.sidebar-collapsed .sidebar-security-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
   }
 }
 

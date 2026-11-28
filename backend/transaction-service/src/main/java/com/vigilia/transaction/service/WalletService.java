@@ -95,4 +95,13 @@ public interface WalletService {
      * Uses pessimistic write lock.
      */
     WalletResponse creditFundsByCustomerId(UUID customerId, UUID transactionId, BigDecimal amount);
+    /**
+     * Converts and updates the customer's wallet settlement currency (EUR, MAD, USD, GBP).
+     */
+    WalletResponse changeCurrency(UUID customerId, String targetCurrency);
+
+    /**
+     * Freezes or unfreezes the customer's Vigilia virtual card.
+     */
+    WalletResponse setCardFrozen(UUID customerId, boolean frozen);
 }

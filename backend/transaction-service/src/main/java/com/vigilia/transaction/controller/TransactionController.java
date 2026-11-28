@@ -1,5 +1,7 @@
 package com.vigilia.transaction.controller;
 
+import com.vigilia.transaction.dto.LinkFundingCardRequest;
+import com.vigilia.transaction.dto.LinkedFundingCardResponse;
 import com.vigilia.transaction.dto.RiskStatus;
 import com.vigilia.transaction.dto.TopUpRequest;
 import com.vigilia.transaction.dto.TransactionCreateRequest;
@@ -19,7 +21,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -71,7 +77,10 @@ public class TransactionController {
         String clientIp = resolveClientIp(request);
         TransactionResponse response = transactionService.createTransaction(requestDto, idempotencyKey, clientIp);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        HttpStatus status = (response.getStatus() == RiskStatus.PENDING)
+                ? HttpStatus.ACCEPTED
+                : HttpStatus.CREATED;
+        return ResponseEntity.status(status).body(response);
     }
 
     @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
@@ -141,6 +150,24 @@ public class TransactionController {
         return ResponseEntity.ok(wallet);
     }
 
+    @PatchMapping("/wallet/currency")
+    public ResponseEntity<WalletResponse> changeWalletCurrency(
+            @RequestBody Map<String, String> body,
+            HttpServletRequest httpRequest) {
+        UUID customerId = securityContextHelper.requireCurrentUserId(httpRequest);
+        String targetCurrency = body != null ? body.get("currency") : null;
+        return ResponseEntity.ok(walletService.changeCurrency(customerId, targetCurrency));
+    }
+
+    @PatchMapping("/wallet/freeze")
+    public ResponseEntity<WalletResponse> setWalletCardFrozen(
+            @RequestBody Map<String, Boolean> body,
+            HttpServletRequest httpRequest) {
+        UUID customerId = securityContextHelper.requireCurrentUserId(httpRequest);
+        boolean frozen = body != null && Boolean.TRUE.equals(body.get("frozen"));
+        return ResponseEntity.ok(walletService.setCardFrozen(customerId, frozen));
+    }
+
     @PostMapping("/topup")
     public ResponseEntity<WalletResponse> topUp(
             @Valid @RequestBody TopUpRequest request,
@@ -157,6 +184,30 @@ public class TransactionController {
                 clientIp
         );
         return ResponseEntity.ok(wallet);
+    }
+
+    @GetMapping("/funding-cards")
+    public ResponseEntity<List<LinkedFundingCardResponse>> listFundingCards(HttpServletRequest httpRequest) {
+        UUID customerId = securityContextHelper.requireCurrentUserId(httpRequest);
+        return ResponseEntity.ok(transactionService.listFundingCards(customerId));
+    }
+
+    @PostMapping("/funding-cards")
+    public ResponseEntity<LinkedFundingCardResponse> linkFundingCard(
+            @Valid @RequestBody LinkFundingCardRequest request,
+            HttpServletRequest httpRequest) {
+        UUID customerId = securityContextHelper.requireCurrentUserId(httpRequest);
+        LinkedFundingCardResponse created = transactionService.linkFundingCard(customerId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @DeleteMapping("/funding-cards/{id}")
+    public ResponseEntity<Void> unlinkFundingCard(
+            @PathVariable UUID id,
+            HttpServletRequest httpRequest) {
+        UUID customerId = securityContextHelper.requireCurrentUserId(httpRequest);
+        transactionService.unlinkFundingCard(customerId, id);
+        return ResponseEntity.noContent().build();
     }
 
     private String resolveClientIp(HttpServletRequest request) {
