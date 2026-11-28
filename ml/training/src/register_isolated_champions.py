@@ -131,6 +131,15 @@ def _register_pipeline(
                 shutil.copyfile(conf_file, tmp_conf)
                 mlflow.log_artifact(str(tmp_conf), artifact_path="metadata")
 
+            for vis_name in [
+                f"{domain}_pca_points.json",
+                f"{domain}_tsne_points.json",
+                f"{domain}_umap_points.json",
+            ]:
+                vis_path = ARTIFACTS_DIR / vis_name
+                if vis_path.exists():
+                    mlflow.log_artifact(str(vis_path), artifact_path="metadata")
+
             mlflow.sklearn.save_model(
                 sk_model=pipeline,
                 path=str(model_local_path),

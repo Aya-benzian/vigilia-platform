@@ -30,6 +30,7 @@ scikit-posthocs==0.17.1  # [NICE] Nemenyi / critical difference diagram
 scikit-learn==1.9.1
 xgboost==3.4.1
 imbalanced-learn==0.14.2  # optional: compare undersampling inside folds
+umap-learn==0.6.0         # UMAP 2D manifold dimensionality reduction for M2 visualization
 
 # --- Hyperparameter Tuning ---
 optuna==5.0.0
