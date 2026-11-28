@@ -160,6 +160,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=transaction
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
+      RISK_SERVICE_URL: "http://risk-management-service:8084"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8083/actuator/health || curl -sf http://localhost:8083/actuator/health || exit 1"]
       interval: 30s

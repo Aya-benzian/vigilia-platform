@@ -204,16 +204,24 @@ public class MlPredictionClient {
         public void setInferenceMs(Integer inferenceMs) { this.inferenceMs = inferenceMs; }
 
         // Backward-compatibility aliases for M1 callers and tests
+        // @JsonIgnore prevents Jackson from seeing duplicate property names
+        // (the real mapping is already handled by @JsonProperty on the fields above)
+        @com.fasterxml.jackson.annotation.JsonIgnore
         public String getPrediction() { return getLabel(); }
         public void setPrediction(String prediction) { setLabel(prediction); }
+        @com.fasterxml.jackson.annotation.JsonIgnore
         public String getTransaction_id() { return getRequestId(); }
         public void setTransaction_id(String transactionId) { setRequestId(transactionId); }
+        @com.fasterxml.jackson.annotation.JsonIgnore
         public String getModel_name() { return getModelName(); }
         public void setModel_name(String modelName) { setModelName(modelName); }
+        @com.fasterxml.jackson.annotation.JsonIgnore
         public String getModel_version() { return getModelVersion(); }
         public void setModel_version(String modelVersion) { setModelVersion(modelVersion); }
+        @com.fasterxml.jackson.annotation.JsonIgnore
         public Double getFraud_probability() { return getFraudProbability(); }
         public void setFraud_probability(Double fraudProbability) { setFraudProbability(fraudProbability); }
+        @com.fasterxml.jackson.annotation.JsonIgnore
         public Integer getInference_ms() { return getInferenceMs(); }
         public void setInference_ms(Integer inferenceMs) { setInferenceMs(inferenceMs); }
     }

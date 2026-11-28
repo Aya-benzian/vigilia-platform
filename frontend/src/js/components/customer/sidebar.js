@@ -127,19 +127,19 @@ class CustomerSidebar extends HTMLElement {
           </nav>
         </div>
 
-        <!-- Bottom Platform Security Pulse Widget -->
-        <div class="sidebar-health-widget">
-          <div class="health-status-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <polyline points="9 12 11 14 15 10"/>
+        <!-- Bottom Security Card -->
+        <div class="sidebar-security-card">
+          <div class="sidebar-security-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2.25L3.75 5.75V11.5C3.75 16.11 7.3 20.44 12 21.75C16.7 20.44 20.25 16.11 20.25 11.5V5.75L12 2.25Z" fill="#b45328" opacity="0.15"/>
+              <path d="M12 2.25L3.75 5.75V11.5C3.75 16.11 7.3 20.44 12 21.75C16.7 20.44 20.25 16.11 20.25 11.5V5.75L12 2.25Z" stroke="#b45328" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
+              <path d="M8.5 12L10.5 14L15.5 9.5" stroke="#b45328" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="health-status-title">Account Protected</span>
           </div>
-          <p class="health-status-subtext">AI Fraud Shield Active</p>
-          <svg class="mini-sparkline-svg" viewBox="0 0 120 24" fill="none">
-            <path d="M0 14 Q 15 6, 30 16 T 60 12 T 90 18 T 120 10" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round"></path>
-          </svg>
+          <div class="sidebar-security-body">
+            <strong>Your security<br>is our priority</strong>
+            <p>AI-powered fraud detection keeps your transactions safe.</p>
+          </div>
         </div>
       </aside>
       <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
