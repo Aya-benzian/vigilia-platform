@@ -157,4 +157,6 @@ if (!customElements.get('analyst-navbar')) {
   customElements.define('analyst-navbar', AnalystNavbar);
 }
 
-export { AnalystSidebar, AnalystNavbar };
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { AnalystSidebar, AnalystNavbar };
+}
