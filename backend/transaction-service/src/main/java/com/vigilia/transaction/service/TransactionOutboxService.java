@@ -36,13 +36,15 @@ public class TransactionOutboxService {
     }
 
     /**
-     * E2 fix: Publishes a TRANSACTION_PENDING_REVIEW outbox event when Risk routes a transaction
-     * to manual analyst review. Downstream systems (audit, notification) can react to this event.
+     * Step 9: Publishes TRANSFER_REVIEW_REQUIRED or PAYMENT_REVIEW_REQUIRED (by transaction type)
+     * when Risk routes a transaction to manual analyst review.
      * Funds remain held until the analyst resolves the case.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void publishTransactionPendingReview(TransactionEntity transaction, String reason, String traceId) {
-        String eventType = "TRANSACTION_PENDING_REVIEW";
+        String eventType = "TRANSFER".equalsIgnoreCase(transaction.getTransactionType())
+                ? "TRANSFER_REVIEW_REQUIRED"
+                : "PAYMENT_REVIEW_REQUIRED";
         String resolvedTraceId = resolveTraceId(traceId);
 
         Map<String, Object> payload = new HashMap<>();

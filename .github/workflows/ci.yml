@@ -103,7 +103,14 @@ jobs:
 
       - name: Run tests
         working-directory: backend/${{ matrix.service }}
-        run: mvn --batch-mode --no-transfer-progress test
+        run: mvn --batch-mode --no-transfer-progress test -DexcludedGroups=integration
+
+      - name: Run integration tests (PostgreSQL via Testcontainers)
+        if: matrix.service == 'transaction-service'
+        working-directory: backend/${{ matrix.service }}
+        run: mvn --batch-mode --no-transfer-progress test -Dgroups=integration
+        env:
+          VIGILIA_INTERNAL_SERVICE_TOKEN: ci-test-internal-token
 
       - name: Package (skip tests — already ran above)
         working-directory: backend/${{ matrix.service }}

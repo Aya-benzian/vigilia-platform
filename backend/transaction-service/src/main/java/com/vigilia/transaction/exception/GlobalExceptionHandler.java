@@ -82,11 +82,11 @@ public class GlobalExceptionHandler {
         ApiErrorResponse errorResponse = new ApiErrorResponse(
                 "INSUFFICIENT_FUNDS",
                 ex.getMessage(),
-                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 correlationId
         );
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
     }
 
     @ExceptionHandler(InvalidAmountException.class)

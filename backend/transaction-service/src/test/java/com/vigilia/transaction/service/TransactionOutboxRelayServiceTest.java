@@ -71,7 +71,7 @@ class TransactionOutboxRelayServiceTest {
                 "trace-2"
         );
 
-        relayService.processEvent(event);
+        relayService.deliverAndUpdate(event);
 
         verify(outboxEventRepository, never()).save(event);
     }
@@ -87,7 +87,7 @@ class TransactionOutboxRelayServiceTest {
                 "trace-3"
         );
 
-        relayService.processEvent(event);
+        relayService.deliverAndUpdate(event);
 
         assertThat(event.getStatus()).isEqualTo("FAILED");
         verify(outboxEventRepository).save(event);

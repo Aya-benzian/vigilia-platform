@@ -50,4 +50,15 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TransactionEntity t WHERE t.id = :id")
     Optional<TransactionEntity> findByIdForUpdate(@Param("id") UUID id);
+
+    // Step 2: distributed-safe selection of stale PENDING transactions for reconciliation
+    @Query(value = "SELECT * FROM transaction.transactions " +
+                   "WHERE status = 'PENDING' AND created_at <= :cutoff " +
+                   "ORDER BY created_at ASC " +
+                   "LIMIT :batchSize " +
+                   "FOR UPDATE SKIP LOCKED",
+           nativeQuery = true)
+    List<TransactionEntity> findPendingOlderThanForUpdate(
+            @Param("cutoff") java.time.Instant cutoff,
+            @Param("batchSize") int batchSize);
 }

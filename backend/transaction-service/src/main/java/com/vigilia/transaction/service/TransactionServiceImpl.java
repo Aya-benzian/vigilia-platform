@@ -20,9 +20,12 @@ import com.vigilia.transaction.entity.TransactionEntity;
 import com.vigilia.transaction.entity.TransactionStatusHistoryEntity;
 import com.vigilia.transaction.entity.TransferEntity;
 import com.vigilia.transaction.entity.WalletEntity;
+import com.vigilia.transaction.exception.IdempotencyConflictException;
+import com.vigilia.transaction.exception.InsufficientFundsException;
 import com.vigilia.transaction.exception.InvalidAmountException;
 import com.vigilia.transaction.exception.InvalidOperationException;
 import com.vigilia.transaction.exception.ResourceNotFoundException;
+import com.vigilia.transaction.exception.RiskUnavailableException;
 import com.vigilia.transaction.repository.LinkedFundingCardRepository;
 import com.vigilia.transaction.repository.MerchantRepository;
 import com.vigilia.transaction.repository.PaymentRepository;
@@ -30,6 +33,8 @@ import com.vigilia.transaction.repository.TransactionRepository;
 import com.vigilia.transaction.repository.TransactionStatusHistoryRepository;
 import com.vigilia.transaction.repository.TransferRepository;
 import com.vigilia.transaction.repository.WalletRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +94,9 @@ public class TransactionServiceImpl implements TransactionService {
     // A1 fix: programmatic transaction control so Risk HTTP never runs inside a DB transaction
     private final TransactionTemplate writeTx;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     public TransactionServiceImpl(
             TransactionRepository transactionRepository,
             PaymentRepository paymentRepository,
@@ -124,6 +132,10 @@ public class TransactionServiceImpl implements TransactionService {
     // the class-level @Transactional(readOnly = true)).
     // The two phases (setup and decision) each use writeTx explicitly so that
     // the Risk HTTP call runs between committed phases with no DB locks held.
+    //
+    // Step 1: RiskUnavailableException from the client is caught here.
+    //         The transaction stays PENDING, funds stay held, HTTP 202 is returned.
+    //         No synthetic PENDING_REVIEW is ever created on Risk failure.
     // =========================================================================
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -133,73 +145,98 @@ public class TransactionServiceImpl implements TransactionService {
         String scope = null;
         String requestHash = null;
 
-        // 1. Idempotency — F1 fix: atomic slot claim BEFORE any financial work.
-        //    checkOrThrow handles existing cached/conflict cases first.
-        //    For genuinely new keys, claimKey() does INSERT ... ON CONFLICT DO NOTHING.
-        //    If a concurrent request beat us (returns false), we read back their
-        //    in-progress result instead of opening a duplicate financial flow.
+        // 1. Idempotency — check for existing/conflicting key BEFORE any financial work.
+        //    claimKey() is deferred into TX-1 (Step 5) so a TX-1 rollback removes the claim.
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             scope = idempotencyService.buildScope(request.getCustomerId());
             requestHash = idempotencyService.calculateRequestHash(request);
 
             IdempotencyCheckResult checkResult = idempotencyService.checkOrThrow(scope, idempotencyKey, requestHash);
             if (checkResult.isCached()) {
-                log.info("Rejeu idempotent pour la clé '{}' : restitution de la réponse cachée", idempotencyKey);
-                Optional<TransactionResponse> cachedResponse = idempotencyService.parseResponseBody(
-                        checkResult.getResponseBody(), TransactionResponse.class);
-                if (cachedResponse.isPresent()) {
-                    return cachedResponse.get();
-                }
-                return transactionRepository.findByCustomerIdAndIdempotencyKey(request.getCustomerId(), idempotencyKey)
-                        .map(this::toResponse)
-                        .orElseThrow(() -> new IllegalStateException("Réponse en cache absente de la base"));
-            }
-
-            // F1 fix: claim the idempotency slot atomically before TX-1 opens.
-            // A concurrent duplicate request will lose the INSERT race and back off here.
-            if (!idempotencyService.claimKey(scope, idempotencyKey, requestHash)) {
-                log.warn("[F1] Concurrent duplicate for key='{}'; returning in-flight result", idempotencyKey);
-                return transactionRepository.findByCustomerIdAndIdempotencyKey(request.getCustomerId(), idempotencyKey)
-                        .map(this::toResponse)
-                        .orElseThrow(() -> new IllegalStateException("Requête concurrente en cours — réessayez dans un instant"));
+                return resolveCachedOrInFlight(request.getCustomerId(), scope, idempotencyKey, requestHash, checkResult);
             }
         }
 
         // 2. Dispatch according to transaction type
         TransactionResponse response;
         if (request.getType() == TransactionType.PURCHASE) {
-            response = executePurchase(request, idempotencyKey, clientIp);
+            response = executePurchase(request, idempotencyKey, clientIp, scope, requestHash);
         } else if (request.getType() == TransactionType.TRANSFER) {
-            response = executeTransfer(request, idempotencyKey, clientIp);
+            response = executeTransfer(request, idempotencyKey, clientIp, scope, requestHash);
         } else {
-            throw new InvalidOperationException("Type de transaction non pris en charge: " + request.getType());
+            throw new InvalidOperationException("Unsupported transaction type: " + request.getType());
         }
 
-        // 3. Cache idempotent response
-        final String finalScope = scope;
-        final String finalHash = requestHash;
-        if (idempotencyKey != null && !idempotencyKey.isBlank() && finalScope != null && finalHash != null) {
-            idempotencyService.recordResponse(finalScope, idempotencyKey, finalHash, 201, response, null);
+        // 3. Cache final idempotent response after TX-2 (or 202 PENDING)
+        if (idempotencyKey != null && !idempotencyKey.isBlank() && scope != null && requestHash != null) {
+            int httpStatus = (response.getStatus() == RiskStatus.PENDING) ? 202 : 201;
+            idempotencyService.recordResponse(scope, idempotencyKey, requestHash, httpStatus, response, null);
         }
 
         return response;
     }
 
+    private TransactionResponse resolveCachedOrInFlight(
+            UUID customerId, String scope, String idempotencyKey, String requestHash, IdempotencyCheckResult initialCheck) {
+        IdempotencyCheckResult check = initialCheck;
+
+        // If placeholder (responseStatus == 0), winner committed TX-1 and is in Risk HTTP / TX-2.
+        // Poll briefly so a fast winner finishes TX-2 and we return its stored final response.
+        for (int attempt = 0; attempt < 6 && check.isCached()
+                && (check.getResponseStatus() == null || check.getResponseStatus() == 0); attempt++) {
+            try {
+                Thread.sleep(50L);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            check = idempotencyService.checkOrThrow(scope, idempotencyKey, requestHash);
+        }
+
+        if (check.isCached() && check.getResponseStatus() != null && check.getResponseStatus() != 0) {
+            Optional<TransactionResponse> cachedResponse = idempotencyService.parseResponseBody(
+                    check.getResponseBody(), TransactionResponse.class);
+            if (cachedResponse.isPresent()) {
+                log.info("Idempotent replay for key '{}': returning cached response", idempotencyKey);
+                return cachedResponse.get();
+            }
+        }
+
+        // Placeholder (status 0) still in-flight: return PENDING (202) if transaction row exists,
+        // or 409 conflict — never a 500!
+        return transactionRepository.findByCustomerIdAndIdempotencyKey(customerId, idempotencyKey)
+                .map(txn -> "PENDING".equalsIgnoreCase(txn.getStatus()) ? toPendingResponse(txn) : toResponse(txn))
+                .orElseThrow(() -> new IdempotencyConflictException(idempotencyKey, requestHash, requestHash));
+    }
+
     // =========================================================================
     // PURCHASE — split into TX-1 (hold) → Risk HTTP → TX-2 (decision)
     // =========================================================================
-    private TransactionResponse executePurchase(TransactionCreateRequest request, String idempotencyKey, String clientIp) {
+    private TransactionResponse executePurchase(TransactionCreateRequest request, String idempotencyKey,
+                                                String clientIp, String scope, String requestHash) {
         UUID customerId = request.getCustomerId();
         BigDecimal amount = request.getAmount();
 
-        // --- TX-1: persist PENDING transaction and hold funds atomically ---
+        // --- TX-1: claim idempotency key, persist PENDING transaction and hold funds atomically ---
         // All DB writes committed before the Risk HTTP call.
         final RiskEvaluationRequest[] riskReqHolder = new RiskEvaluationRequest[1];
         final UUID[] txnIdHolder = new UUID[1];
         final UUID[] customerWalletIdHolder = new UUID[1];
+        final boolean[] wonClaim = {true};
 
         writeTx.execute(status -> {
-            WalletEntity customerWallet = walletService.getWalletEntityByCustomerId(customerId);
+            if (idempotencyKey != null && !idempotencyKey.isBlank() && scope != null && requestHash != null) {
+                if (!idempotencyService.claimKey(scope, idempotencyKey, requestHash)) {
+                    wonClaim[0] = false;
+                    return null;
+                }
+            }
+
+            WalletEntity customerWallet = walletRepository.findByCustomerIdForUpdate(customerId)
+                    .orElseGet(() -> walletService.getWalletEntityByCustomerId(customerId));
+            if (entityManager != null && entityManager.contains(customerWallet)) {
+                entityManager.refresh(customerWallet);
+            }
             customerWalletIdHolder[0] = customerWallet.getId();
             if (customerWallet.isCardFrozen()) {
                 throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to make payments.");
@@ -222,7 +259,6 @@ public class TransactionServiceImpl implements TransactionService {
             TransactionEntity savedTxn = transactionRepository.save(txn);
             txnIdHolder[0] = savedTxn.getId();
 
-            // G1 fix (purchase): capture balance BEFORE the hold
             BigDecimal balanceBefore = customerWallet.getAvailableBalance();
 
             // Hold now carries the real transactionId
@@ -247,14 +283,28 @@ public class TransactionServiceImpl implements TransactionService {
             riskReq.setMerchantCategory(merchantCategory);
             riskReq.setMerchantLatitude(request.getMerchantLatitude());
             riskReq.setMerchantLongitude(request.getMerchantLongitude());
-            // balance before hold — not used in purchase risk model but kept for parity
             riskReq.setSenderBalance(balanceBefore != null ? balanceBefore.doubleValue() : null);
             riskReqHolder[0] = riskReq;
             return null;
-        }); // TX-1 COMMITTED — wallet locked released here
+        }); // TX-1 COMMITTED — wallet locks released here
+
+        if (!wonClaim[0]) {
+            IdempotencyCheckResult postClaimCheck = idempotencyService.checkOrThrow(scope, idempotencyKey, requestHash);
+            return resolveCachedOrInFlight(customerId, scope, idempotencyKey, requestHash, postClaimCheck);
+        }
 
         // --- Risk HTTP call — no DB transaction, no wallet locks ---
-        RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReqHolder[0]);
+        // Step 1: if Risk is unavailable, leave PENDING, return 202.
+        RiskEvaluationResponse riskDecision;
+        try {
+            riskDecision = riskEvaluationClient.evaluate(riskReqHolder[0]);
+        } catch (RiskUnavailableException ex) {
+            log.warn("[Step1] Risk unavailable for txnId={}: {}. Transaction stays PENDING, funds held.",
+                    txnIdHolder[0], ex.getMessage());
+            TransactionEntity pending = transactionRepository.findById(txnIdHolder[0])
+                    .orElseThrow(() -> new ResourceNotFoundException("Transaction not found after TX-1: " + txnIdHolder[0]));
+            return toPendingResponse(pending);
+        }
 
         // --- TX-2: apply decision atomically ---
         return writeTx.execute(status -> {
@@ -268,8 +318,16 @@ public class TransactionServiceImpl implements TransactionService {
 
     // =========================================================================
     // TRANSFER — split into TX-1 (hold) → Risk HTTP → TX-2 (decision)
+    // Step 3: senderBalanceBefore captured from the locked wallet and persisted in TransferEntity.
+    // Step 4: G1 fix — balance read and overdraft check use the LOCKED wallet returned
+    //         by findByIdForUpdate (via walletService.holdFunds → loadForUpdate), not the
+    //         stale entity from the initial getWalletEntityByCustomerId SELECT.
+    //         We acquire locks in deterministic UUID order, then re-read balances from the
+    //         locked entities.
+    // Step 1: RiskUnavailableException → leave PENDING, return 202.
     // =========================================================================
-    private TransactionResponse executeTransfer(TransactionCreateRequest request, String idempotencyKey, String clientIp) {
+    private TransactionResponse executeTransfer(TransactionCreateRequest request, String idempotencyKey,
+                                                String clientIp, String scope, String requestHash) {
         UUID senderCustomerId = request.getCustomerId();
         BigDecimal amount = request.getAmount();
 
@@ -280,10 +338,21 @@ public class TransactionServiceImpl implements TransactionService {
 
         final RiskEvaluationRequest[] riskReqHolder = new RiskEvaluationRequest[1];
         final UUID[] txnIdHolder = new UUID[1];
+        final boolean[] wonClaim = {true};
 
-        // --- TX-1: deterministic lock order, hold, persist ---
+        // --- TX-1: claim idempotency key, deterministic lock order, hold, persist ---
         writeTx.execute(status -> {
-            WalletEntity senderWallet = walletService.getWalletEntityByCustomerId(senderCustomerId);
+            if (idempotencyKey != null && !idempotencyKey.isBlank() && scope != null && requestHash != null) {
+                if (!idempotencyService.claimKey(scope, idempotencyKey, requestHash)) {
+                    wonClaim[0] = false;
+                    return null;
+                }
+            }
+
+            // Step 4 / G1: use the entity returned by the FOR UPDATE query so the
+            // balance we read is the freshly locked row, not a stale snapshot.
+            WalletEntity senderWallet = walletRepository.findByCustomerIdForUpdate(senderCustomerId)
+                    .orElseGet(() -> walletService.getWalletEntityByCustomerId(senderCustomerId));
             if (senderWallet.isCardFrozen()) {
                 throw new InvalidOperationException("Your Vigilia virtual card is frozen. Unfreeze it in My Wallet to send transfers.");
             }
@@ -301,11 +370,26 @@ public class TransactionServiceImpl implements TransactionService {
                     ? senderWallet.getId() : recipientWallet.getId();
             UUID secondLockId = senderWallet.getId().compareTo(recipientWallet.getId()) < 0
                     ? recipientWallet.getId() : senderWallet.getId();
-            walletRepository.findByIdForUpdate(firstLockId);
-            walletRepository.findByIdForUpdate(secondLockId);
 
-            // G1 fix: capture balance BEFORE the hold
-            BigDecimal senderBalanceBefore = senderWallet.getAvailableBalance();
+            // Step 4 / G1: acquire locks in deterministic order and refresh the sender
+            // entity from the locked DB row so the overdraft check is concurrent-safe.
+            WalletEntity lockedFirst  = walletRepository.findByIdForUpdate(firstLockId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for lock: " + firstLockId));
+            WalletEntity lockedSecond = walletRepository.findByIdForUpdate(secondLockId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for lock: " + secondLockId));
+
+            WalletEntity lockedSender = lockedFirst.getId().equals(senderWallet.getId()) ? lockedFirst : lockedSecond;
+            if (entityManager != null && entityManager.contains(lockedSender)) {
+                entityManager.refresh(lockedSender);
+            }
+
+            // Step 3: capture sender balance BEFORE hold from the locked row.
+            BigDecimal senderBalanceBefore = lockedSender.getAvailableBalance();
+
+            // Overdraft check on the freshly-locked balance (G1 fix).
+            if (senderBalanceBefore.compareTo(amount) < 0) {
+                throw new com.vigilia.transaction.exception.InsufficientFundsException(senderBalanceBefore, amount);
+            }
 
             // A1 partial fix: save transaction FIRST to get a real UUID, then hold with that ID
             TransactionEntity txn = new TransactionEntity(
@@ -317,11 +401,13 @@ public class TransactionServiceImpl implements TransactionService {
             txnIdHolder[0] = savedTxn.getId();
 
             // Hold now carries the real transactionId
-            walletService.holdFunds(senderWallet.getId(), savedTxn.getId(), amount);
+            walletService.holdFunds(lockedSender.getId(), savedTxn.getId(), amount);
 
             TransferEntity transfer = new TransferEntity(
-                    savedTxn.getId(), senderWallet.getId(), recipientWallet.getId(),
+                    savedTxn.getId(), lockedSender.getId(), recipientWallet.getId(),
                     recipientWallet.getCustomerId(), request.getTransferReference());
+            // Step 3: persist the pre-hold balance snapshot for the reconciler.
+            transfer.setSenderBalanceBefore(senderBalanceBefore);
             transferRepository.save(transfer);
 
             recordStatusHistory(savedTxn.getId(), null, "PENDING",
@@ -332,14 +418,29 @@ public class TransactionServiceImpl implements TransactionService {
                     amount, request.getCurrency(), Instant.now());
             riskReq.setRecipientId(recipientWallet.getCustomerId() != null
                     ? recipientWallet.getCustomerId().toString() : null);
-            // G1 fix: send the PRE-HOLD balance to Risk, converted to double for the ML feature
-            riskReq.setSenderBalance(senderBalanceBefore != null ? senderBalanceBefore.doubleValue() : null);
+            // G1 fix: send the PRE-HOLD balance to Risk, converted to double for the ML feature.
+            riskReq.setSenderBalance(senderBalanceBefore.doubleValue());
             riskReqHolder[0] = riskReq;
             return null;
         }); // TX-1 COMMITTED — all wallet locks released here
 
+        if (!wonClaim[0]) {
+            IdempotencyCheckResult postClaimCheck = idempotencyService.checkOrThrow(scope, idempotencyKey, requestHash);
+            return resolveCachedOrInFlight(senderCustomerId, scope, idempotencyKey, requestHash, postClaimCheck);
+        }
+
         // --- Risk HTTP call — no DB transaction, no wallet locks held ---
-        RiskEvaluationResponse riskDecision = riskEvaluationClient.evaluate(riskReqHolder[0]);
+        // Step 1: if Risk is unavailable, leave PENDING, return 202.
+        RiskEvaluationResponse riskDecision;
+        try {
+            riskDecision = riskEvaluationClient.evaluate(riskReqHolder[0]);
+        } catch (RiskUnavailableException ex) {
+            log.warn("[Step1] Risk unavailable for txnId={}: {}. Transaction stays PENDING, funds held.",
+                    txnIdHolder[0], ex.getMessage());
+            TransactionEntity pending = transactionRepository.findById(txnIdHolder[0])
+                    .orElseThrow(() -> new ResourceNotFoundException("Transaction not found after TX-1: " + txnIdHolder[0]));
+            return toPendingResponse(pending);
+        }
 
         // --- TX-2: apply decision atomically ---
         return writeTx.execute(status -> {
@@ -362,8 +463,8 @@ public class TransactionServiceImpl implements TransactionService {
      * (via {@code findByIdForUpdate}). This method additionally verifies the transition is legal
      * — only a PENDING transaction may be acted on — preventing double-capture/release.
      */
-    private void applyDecision(TransactionEntity txn, UUID senderWalletId, UUID recipientWalletId,
-                               BigDecimal amount, RiskEvaluationResponse riskDecision) {
+    void applyDecision(TransactionEntity txn, UUID senderWalletId, UUID recipientWalletId,
+                       BigDecimal amount, RiskEvaluationResponse riskDecision) {
         // B1 fix: guard against double-apply (concurrent decision or relay replay)
         if (!"PENDING".equalsIgnoreCase(txn.getStatus())) {
             log.warn("[B1] Transaction {} is not in PENDING state (actual: {}); skipping risk decision to prevent double-apply",
@@ -405,6 +506,9 @@ public class TransactionServiceImpl implements TransactionService {
                 transactionOutboxService.publishTransactionPendingReview(txn, reason, null);
                 log.warn("Transaction suspendue en attente d'analyse humaine [id={}, type={}]",
                         txn.getId(), txn.getTransactionType());
+            }
+            case PENDING -> {
+                log.debug("Transaction {} remains PENDING (no final risk decision yet)", txn.getId());
             }
         }
     }
@@ -572,6 +676,20 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private TransactionResponse toResponse(TransactionEntity entity) { return toResponse(entity, null); }
+
+    /**
+     * Step 1: builds a 202-compatible PENDING response when Risk is unavailable.
+     * Funds remain held; the reconciler will apply the real decision later.
+     */
+    private TransactionResponse toPendingResponse(TransactionEntity entity) {
+        TransactionType typeEnum;
+        try { typeEnum = TransactionType.valueOf(entity.getTransactionType()); }
+        catch (Exception e) { typeEnum = TransactionType.PURCHASE; }
+        return new TransactionResponse(
+                entity.getId(), entity.getCustomerId(), typeEnum, entity.getAmount(),
+                entity.getCurrency(), RiskStatus.PENDING, null,
+                "Your transaction is being processed", entity.getCreatedAt());
+    }
 
     private TransactionResponse toResponse(TransactionEntity entity, RiskEvaluationResponse risk) {
         RiskStatus statusEnum;

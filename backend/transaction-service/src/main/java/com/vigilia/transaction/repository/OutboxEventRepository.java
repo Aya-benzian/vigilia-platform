@@ -18,11 +18,12 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEventEntity, 
     long countByStatus(String status);
 
     /**
-     * H4 fix: FOR UPDATE SKIP LOCKED prevents multiple relay instances from picking up the
-     * same event row simultaneously, eliminating duplicate downstream delivery.
+     * Step 6: FOR UPDATE SKIP LOCKED inside a short claim transaction selects PENDING events
+     * ready for delivery AND expired IN_PROGRESS leases (locked_until <= :now).
      */
     @Query(value = "SELECT * FROM transaction.outbox_events " +
-                   "WHERE status = 'PENDING' AND next_attempt_at <= :now " +
+                   "WHERE (status = 'PENDING' AND next_attempt_at <= :now) " +
+                   "   OR (status = 'IN_PROGRESS' AND locked_until <= :now) " +
                    "ORDER BY created_at ASC " +
                    "LIMIT 50 " +
                    "FOR UPDATE SKIP LOCKED",

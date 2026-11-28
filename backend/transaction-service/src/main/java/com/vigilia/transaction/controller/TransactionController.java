@@ -77,7 +77,10 @@ public class TransactionController {
         String clientIp = resolveClientIp(request);
         TransactionResponse response = transactionService.createTransaction(requestDto, idempotencyKey, clientIp);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        HttpStatus status = (response.getStatus() == RiskStatus.PENDING)
+                ? HttpStatus.ACCEPTED
+                : HttpStatus.CREATED;
+        return ResponseEntity.status(status).body(response);
     }
 
     @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")

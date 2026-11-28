@@ -13,10 +13,14 @@ import com.vigilia.transaction.repository.TransactionRepository;
 import com.vigilia.transaction.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,16 +58,41 @@ public class InternalTransactionController {
     private final TransactionService transactionService;
     private final ProcessedEventRepository processedEventRepository;
     private final TransactionRepository transactionRepository;
+    private final Environment environment;
 
     public InternalTransactionController(
             TransactionService transactionService,
             ProcessedEventRepository processedEventRepository,
             TransactionRepository transactionRepository,
-            @org.springframework.beans.factory.annotation.Value("${vigilia.internal.service-token:}") String expectedServiceToken) {
+            String expectedServiceToken) {
+        this(transactionService, processedEventRepository, transactionRepository, expectedServiceToken, null);
+    }
+
+    @Autowired
+    public InternalTransactionController(
+            TransactionService transactionService,
+            ProcessedEventRepository processedEventRepository,
+            TransactionRepository transactionRepository,
+            @org.springframework.beans.factory.annotation.Value("${vigilia.internal.service-token:}") String expectedServiceToken,
+            @Autowired(required = false) Environment environment) {
         this.transactionService = transactionService;
         this.processedEventRepository = processedEventRepository;
         this.transactionRepository = transactionRepository;
         this.expectedServiceToken = expectedServiceToken;
+        this.environment = environment;
+    }
+
+    @PostConstruct
+    void validateTokenConfiguration() {
+        if ((expectedServiceToken == null || expectedServiceToken.isBlank()) && !isDevOrTestProfile()) {
+            throw new IllegalStateException(
+                    "vigilia.internal.service-token (VIGILIA_INTERNAL_SERVICE_TOKEN) must be configured when active profile is not dev/test");
+        }
+    }
+
+    private boolean isDevOrTestProfile() {
+        // When environment is null (e.g. plain Mockito unit test without Spring), allow test execution
+        return environment == null || environment.acceptsProfiles(Profiles.of("dev", "test"));
     }
 
     /**
@@ -78,9 +107,13 @@ public class InternalTransactionController {
             @RequestHeader(value = SERVICE_TOKEN_HEADER, required = false) String serviceToken,
             HttpServletRequest httpRequest) {
 
-        // K1 fix: reject callers that do not present the shared internal service token
-        if (expectedServiceToken != null && !expectedServiceToken.isBlank()
-                && !expectedServiceToken.equals(serviceToken)) {
+        // Step 7: fail closed when token is blank outside dev/test, or when token mismatches
+        boolean tokenConfigured = expectedServiceToken != null && !expectedServiceToken.isBlank();
+        if (!tokenConfigured && !isDevOrTestProfile()) {
+            log.warn("[SECURITY] Rejected call to /internal/transactions/events: internal service token not configured");
+            throw new ForbiddenException("Internal service token is not configured");
+        }
+        if (tokenConfigured && !expectedServiceToken.equals(serviceToken)) {
             log.warn("[SECURITY] Rejected unauthenticated call to /internal/transactions/events from {}",
                     httpRequest != null ? httpRequest.getRemoteAddr() : "unknown");
             throw new ForbiddenException("Accès non autorisé à l'API interne");

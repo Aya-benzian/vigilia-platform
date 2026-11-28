@@ -7,9 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vigilia.notification.dto.*;
 import com.vigilia.notification.entity.NotificationEntity;
 import com.vigilia.notification.entity.NotificationPreferenceEntity;
+import com.vigilia.notification.entity.ProcessedEventEntity;
 import com.vigilia.notification.exception.ResourceNotFoundException;
 import com.vigilia.notification.repository.NotificationPreferenceRepository;
 import com.vigilia.notification.repository.NotificationRepository;
+import com.vigilia.notification.repository.ProcessedEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,17 +30,28 @@ public class NotificationService {
     private final NotificationPreferenceRepository preferenceRepository;
     private final ObjectMapper objectMapper;
     private final BrevoEmailService brevoEmailService;
+    private final ProcessedEventRepository processedEventRepository;
+
+    public NotificationService(
+            NotificationRepository notificationRepository,
+            NotificationPreferenceRepository preferenceRepository,
+            ObjectMapper objectMapper,
+            BrevoEmailService brevoEmailService) {
+        this(notificationRepository, preferenceRepository, objectMapper, brevoEmailService, null);
+    }
 
     @org.springframework.beans.factory.annotation.Autowired
     public NotificationService(
             NotificationRepository notificationRepository,
             NotificationPreferenceRepository preferenceRepository,
             ObjectMapper objectMapper,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) BrevoEmailService brevoEmailService) {
+            @org.springframework.beans.factory.annotation.Autowired(required = false) BrevoEmailService brevoEmailService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ProcessedEventRepository processedEventRepository) {
         this.notificationRepository = notificationRepository;
         this.preferenceRepository = preferenceRepository;
         this.objectMapper = objectMapper;
         this.brevoEmailService = brevoEmailService;
+        this.processedEventRepository = processedEventRepository;
     }
 
     @Transactional(readOnly = true)
@@ -127,6 +140,11 @@ public class NotificationService {
     @Transactional
     public NotificationResponse createFromEvent(NotificationCreateRequest request) {
         if (request.eventId() != null) {
+            if (processedEventRepository != null && processedEventRepository.existsById(request.eventId())) {
+                return notificationRepository.findByEventId(request.eventId())
+                        .map(this::toResponse)
+                        .orElse(null);
+            }
             Optional<NotificationEntity> existing = notificationRepository.findByEventId(request.eventId());
             if (existing.isPresent()) {
                 return toResponse(existing.get());
@@ -141,6 +159,9 @@ public class NotificationService {
         if (!shouldDeliverInApp(category, severity, prefs)) {
             log.info("Notification skipped due to user preferences [userId={}, category={}]",
                     request.customerId(), category);
+            if (processedEventRepository != null && request.eventId() != null) {
+                processedEventRepository.save(new ProcessedEventEntity(request.eventId(), eventType));
+            }
             return null;
         }
 
@@ -162,6 +183,9 @@ public class NotificationService {
         entity.setCreatedAt(request.timestamp() != null ? request.timestamp() : Instant.now());
 
         NotificationEntity saved = notificationRepository.save(entity);
+        if (processedEventRepository != null && request.eventId() != null) {
+            processedEventRepository.save(new ProcessedEventEntity(entity.getEventId(), eventType));
+        }
         log.info("Notification persisted [id={}, userId={}, eventType={}, category={}]",
                 saved.getId(), saved.getUserId(), saved.getEventType(), saved.getCategory());
 
@@ -214,6 +238,18 @@ public class NotificationService {
         String formattedAmount = amount != null ? amount + " " + currency : "";
 
         switch (eventType.toUpperCase()) {
+            case "TRANSFER_REVIEW_REQUIRED" -> {
+                title = "Transfer Under Review";
+                message = "Your transfer" + (formattedAmount.isEmpty() ? "" : " of " + formattedAmount)
+                        + " is under review by our security team."
+                        + (reason.isBlank() ? "" : " Reason: " + reason);
+            }
+            case "PAYMENT_REVIEW_REQUIRED" -> {
+                title = "Payment Under Review";
+                message = "Your payment" + (formattedAmount.isEmpty() ? "" : " of " + formattedAmount)
+                        + " is under review by our security team."
+                        + (reason.isBlank() ? "" : " Reason: " + reason);
+            }
             case "TRANSACTION_PENDING_REVIEW", "TRANSACTION_SUSPENDED_REVIEW" -> {
                 title = "Transfer Under Review";
                 message = "Your " + txType.toLowerCase() + (formattedAmount.isEmpty() ? "" : " of " + formattedAmount)

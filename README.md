@@ -53,6 +53,7 @@ All platform infrastructure (8 application microservices, PostgreSQL, Prometheus
 > ```bash
 > cp .env.example .env
 > ```
+> Ensure `VIGILIA_INTERNAL_SERVICE_TOKEN` is set to a shared secret in `.env` (used by `risk-management-service` and `transaction-service`; `transaction-service` refuses to start in non-dev/test profiles if blank).
 
 Once `.env` is created, run:
 

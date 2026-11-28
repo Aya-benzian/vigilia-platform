@@ -165,6 +165,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
       RISK_SERVICE_URL: "http://risk-management-service:8084"
       TRANSACTION_OUTBOX_RELAY_DOWNSTREAM_URL: "http://notification-service:8085/api/v1/notifications"
+      VIGILIA_INTERNAL_SERVICE_TOKEN: ${VIGILIA_INTERNAL_SERVICE_TOKEN:-change_me_internal_token}
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8083/actuator/health || curl -sf http://localhost:8083/actuator/health || exit 1"]
       interval: 30s
@@ -185,6 +186,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=risk
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
+      VIGILIA_INTERNAL_SERVICE_TOKEN: ${VIGILIA_INTERNAL_SERVICE_TOKEN:-change_me_internal_token}
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8084/actuator/health || curl -sf http://localhost:8084/actuator/health || exit 1"]
       interval: 30s

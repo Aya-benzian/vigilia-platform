@@ -433,6 +433,10 @@ class TransactionServiceImplTest {
 
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
         when(walletRepository.findByAccountNumber(recipientIban)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
 
         UUID txnId = UUID.randomUUID();
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(invocation -> {
@@ -500,6 +504,10 @@ class TransactionServiceImplTest {
 
         when(walletService.getWalletEntityByCustomerId(customerId)).thenReturn(customerWallet);
         when(walletRepository.findByAccountNumber(recipientIban)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
+        when(walletRepository.findByIdForUpdate(walletId)).thenReturn(Optional.of(customerWallet));
+        when(walletRepository.findByIdForUpdate(recipientWalletId)).thenReturn(Optional.of(recipientWallet));
 
         UUID txnId = UUID.randomUUID();
         when(transactionRepository.save(any(TransactionEntity.class))).thenAnswer(invocation -> {
