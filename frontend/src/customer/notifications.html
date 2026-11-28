@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vigilia — Notifications</title>
   <link rel="icon" type="image/png" href="../favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,128 +19,224 @@
     <div class="app-main-wrapper">
       <customer-navbar></customer-navbar>
       <main class="main-stage">
-        <div class="pg-content-wrap">
+        <div class="pg-content-wrap notif-page-wrap">
 
-          <div class="pg-header">
+          <!-- Page Header -->
+          <div class="pg-header notif-header">
             <div class="pg-header-left">
-              <div class="pg-breadcrumb"><a href="overview.html">Overview</a><span>›</span><span>Notifications</span></div>
-              <h1 class="pg-title">Notifications</h1>
-              <p class="pg-subtitle">Your alerts, security events, and transaction updates</p>
+              <h1 class="pg-title notif-page-title">Notifications</h1>
+              <p class="pg-subtitle">Real-time alerts, security events, and transaction updates</p>
             </div>
             <div class="pg-header-actions">
-              <button class="btn btn-outline" id="markAllReadBtn">Mark all as read</button>
+              <button type="button" class="btn btn-outline" id="clearReadBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                </svg>
+                Clear read
+              </button>
+              <button type="button" class="btn btn-primary notif-cta-btn" id="markAllReadBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Mark all as read
+              </button>
             </div>
           </div>
 
-          <!-- Two-col: Notification list + Settings panel -->
+          <!-- Compact KPI Strip -->
+          <div class="notif-kpi-strip">
+            <div class="notif-kpi-card">
+              <div class="notif-kpi-icon coral">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+              </div>
+              <div class="notif-kpi-body">
+                <span class="notif-kpi-label">Unread Alerts</span>
+                <div class="notif-kpi-val font-mono" id="kpiUnreadCount">0</div>
+                <span class="notif-kpi-sub" id="kpiUnreadSub">All caught up</span>
+              </div>
+              <svg class="notif-kpi-spark" viewBox="0 0 72 34" aria-hidden="true">
+                <path d="M2 26 L16 22 L30 24 L44 14 L58 16 L70 8" fill="none" stroke="#ea6c3a" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="notif-kpi-card">
+              <div class="notif-kpi-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <div class="notif-kpi-body">
+                <span class="notif-kpi-label">Transaction Updates</span>
+                <div class="notif-kpi-val font-mono" id="kpiTxCount">0</div>
+                <span class="notif-kpi-sub">Approvals &amp; declines</span>
+              </div>
+              <svg class="notif-kpi-spark" viewBox="0 0 72 34" aria-hidden="true">
+                <path d="M2 28 L16 24 L28 25 L42 16 L56 18 L70 6" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="notif-kpi-card">
+              <div class="notif-kpi-icon amber">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <div class="notif-kpi-body">
+                <span class="notif-kpi-label">Transfer Reviews</span>
+                <div class="notif-kpi-val font-mono" id="kpiReviewCount">0</div>
+                <span class="notif-kpi-sub">Verification &amp; holds</span>
+              </div>
+              <svg class="notif-kpi-spark" viewBox="0 0 72 34" aria-hidden="true">
+                <path d="M2 24 L18 20 L32 22 L46 15 L58 17 L70 10" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="notif-kpi-card">
+              <div class="notif-kpi-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <div class="notif-kpi-body">
+                <span class="notif-kpi-label">Security Events</span>
+                <div class="notif-kpi-val font-mono" id="kpiSecurityCount">0</div>
+                <span class="notif-kpi-sub">Logins &amp; account safety</span>
+              </div>
+              <svg class="notif-kpi-spark" viewBox="0 0 72 34" aria-hidden="true">
+                <path d="M2 27 L16 23 L30 19 L44 21 L58 12 L70 7" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Two-Column Workspace -->
           <div class="notif-layout">
 
-            <!-- Notifications Feed -->
-            <div class="notif-feed">
+            <!-- Left Column: Toolbar + Feed -->
+            <div class="notif-main-col">
 
-              <p class="pg-section-label">Today</p>
-
-              <div class="pg-card notif-group">
-                <div class="notif-item unread" data-id="1">
-                  <div class="notif-icon ok">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <div class="notif-content">
-                    <strong class="notif-title">Transaction Approved</strong>
-                    <p class="notif-body">Payment to <strong>Netflix</strong> · $12.99 was approved successfully.</p>
-                    <span class="notif-time">2 hours ago</span>
-                  </div>
-                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+              <!-- Filter & Search Toolbar -->
+              <div class="pg-card notif-toolbar-card">
+                <div class="notif-filter-tabs" role="tablist" aria-label="Filter notifications">
+                  <button type="button" class="notif-tab active" data-filter="ALL">
+                    All <span class="notif-tab-count" id="tabCountALL">0</span>
+                  </button>
+                  <button type="button" class="notif-tab" data-filter="UNREAD">
+                    Unread <span class="notif-tab-count" id="tabCountUNREAD">0</span>
+                  </button>
+                  <button type="button" class="notif-tab" data-filter="TRANSACTION">
+                    Transactions <span class="notif-tab-count" id="tabCountTRANSACTION">0</span>
+                  </button>
+                  <button type="button" class="notif-tab" data-filter="REVIEW">
+                    Reviews <span class="notif-tab-count" id="tabCountREVIEW">0</span>
+                  </button>
+                  <button type="button" class="notif-tab" data-filter="SECURITY">
+                    Security <span class="notif-tab-count" id="tabCountSECURITY">0</span>
+                  </button>
                 </div>
 
-                <div class="notif-item unread" data-id="2">
-                  <div class="notif-icon warn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div class="notif-toolbar-right">
+                  <div class="notif-search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" id="notifSearchInput" placeholder="Search alerts, amounts, or details..." />
                   </div>
-                  <div class="notif-content">
-                    <strong class="notif-title">Transfer Under Review</strong>
-                    <p class="notif-body">Transfer of <strong>$250.00</strong> to John Doe is under review by our security team.</p>
-                    <span class="notif-time">5 hours ago</span>
-                  </div>
-                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+                  <button type="button" class="notif-refresh-btn" id="notifRefreshBtn" title="Refresh notifications" aria-label="Refresh notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <p class="pg-section-label" style="margin-top:20px">Yesterday</p>
-
-              <div class="pg-card notif-group">
-                <div class="notif-item" data-id="3">
-                  <div class="notif-icon info">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  </div>
-                  <div class="notif-content">
-                    <strong class="notif-title">New Login Detected</strong>
-                    <p class="notif-body">A new login was detected from <strong>Casablanca, Morocco</strong>. If this wasn't you, secure your account immediately.</p>
-                    <span class="notif-time">1 day ago</span>
-                  </div>
-                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
+              <!-- Notifications Feed -->
+              <div class="notif-feed" id="notifFeedContainer">
+                <div class="pg-card notif-loading-state">
+                  <div class="notif-spinner"></div>
+                  <span>Loading your notifications...</span>
                 </div>
+              </div>
 
-                <div class="notif-item" data-id="4">
-                  <div class="notif-icon ok">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <div class="notif-content">
-                    <strong class="notif-title">Transaction Approved</strong>
-                    <p class="notif-body">Payment to <strong>Amazon</strong> · $89.90 was approved successfully.</p>
-                    <span class="notif-time">1 day ago</span>
-                  </div>
-                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
-                </div>
-
-                <div class="notif-item" data-id="5">
-                  <div class="notif-icon ok">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <div class="notif-content">
-                    <strong class="notif-title">Transfer Completed</strong>
-                    <p class="notif-body">Transfer of <strong>$120.00</strong> to Sarah Smith was sent successfully.</p>
-                    <span class="notif-time">2 days ago</span>
-                  </div>
-                  <button class="notif-dismiss" aria-label="Dismiss">✕</button>
-                </div>
+              <!-- Pagination -->
+              <div class="notif-pagination" id="notifPagination" hidden>
+                <button type="button" class="btn btn-outline btn-sm" id="prevPageBtn">← Previous</button>
+                <span class="notif-page-info font-mono" id="pageInfoText">Page 1 of 1</span>
+                <button type="button" class="btn btn-outline btn-sm" id="nextPageBtn">Next →</button>
               </div>
 
             </div>
 
-            <!-- Notification Settings Panel -->
+            <!-- Right Column: Preferences & Policy -->
             <div class="notif-settings-col">
-              <div class="pg-card">
-                <h3 class="notif-settings-title">Notification Preferences</h3>
-                <p class="notif-settings-sub">Choose what alerts you receive</p>
+              <div class="pg-card notif-prefs-card">
+                <div class="notif-prefs-header">
+                  <div>
+                    <h3 class="notif-settings-title">Notification Preferences</h3>
+                    <p class="notif-settings-sub">Choose what alerts you receive</p>
+                  </div>
+                  <span class="notif-prefs-badge" id="prefsStatusBadge">Synced</span>
+                </div>
+
+                <div class="notif-prefs-section-label">Alert Categories</div>
 
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
                     <div class="pg-toggle-title">Transaction updates</div>
                     <div class="pg-toggle-desc">Approvals, declines, and receipts</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><input type="checkbox" data-pref="transactionUpdates" checked /><span class="pg-switch-track"></span></label>
                 </div>
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
                     <div class="pg-toggle-title">Security alerts</div>
-                    <div class="pg-toggle-desc">Logins, password changes</div>
+                    <div class="pg-toggle-desc">Logins, password changes, risk flags</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><input type="checkbox" data-pref="securityAlerts" checked /><span class="pg-switch-track"></span></label>
                 </div>
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
                     <div class="pg-toggle-title">Transfer reviews</div>
                     <div class="pg-toggle-desc">When a transfer is under review</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" checked /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><input type="checkbox" data-pref="transferReviews" checked /><span class="pg-switch-track"></span></label>
+                </div>
+
+                <div class="notif-prefs-section-label" style="margin-top:16px;">Delivery Channels</div>
+
+                <div class="pg-toggle-row">
+                  <div class="pg-toggle-info">
+                    <div class="pg-toggle-title">In-App notifications</div>
+                    <div class="pg-toggle-desc">Portal feed &amp; bell badge</div>
+                  </div>
+                  <label class="pg-switch"><input type="checkbox" data-pref="inAppNotifications" checked /><span class="pg-switch-track"></span></label>
                 </div>
                 <div class="pg-toggle-row">
                   <div class="pg-toggle-info">
-                    <div class="pg-toggle-title">Promotional updates</div>
-                    <div class="pg-toggle-desc">Features and product news</div>
+                    <div class="pg-toggle-title">Email notifications</div>
+                    <div class="pg-toggle-desc">Critical alerts &amp; receipts via email</div>
                   </div>
-                  <label class="pg-switch"><input type="checkbox" /><span class="pg-switch-track"></span></label>
+                  <label class="pg-switch"><input type="checkbox" data-pref="emailNotifications" checked /><span class="pg-switch-track"></span></label>
+                </div>
+              </div>
+
+              <div class="pg-card notif-policy-card">
+                <div class="notif-policy-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <polyline points="9 12 11 14 15 10"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong class="notif-policy-title">Always-On Fraud Protection</strong>
+                  <p class="notif-policy-text">Critical security alerts and declined high-risk transactions are always logged in your audit history to keep your account protected.</p>
                 </div>
               </div>
             </div>
@@ -150,7 +247,29 @@
       </main>
     </div>
   </div>
+
+  <!-- Notification Detail Modal -->
+  <div class="notif-modal-backdrop" id="notifDetailModal" hidden>
+    <div class="notif-modal" role="dialog" aria-modal="true" aria-labelledby="modalNotifTitle">
+      <div class="notif-modal-header">
+        <div class="notif-modal-badges" id="modalNotifBadges"></div>
+        <button type="button" class="notif-modal-close" id="closeModalBtn" aria-label="Close">✕</button>
+      </div>
+      <h2 class="notif-modal-title" id="modalNotifTitle">Notification</h2>
+      <p class="notif-modal-time" id="modalNotifTime"></p>
+      <p class="notif-modal-body" id="modalNotifBody"></p>
+      <div class="notif-modal-meta" id="modalNotifMeta" hidden></div>
+      <div class="notif-modal-actions">
+        <a href="transactions.html" class="btn btn-primary" id="modalViewTxBtn" hidden>View Transaction →</a>
+        <button type="button" class="btn btn-outline" id="modalToggleReadBtn">Mark as unread</button>
+        <button type="button" class="btn btn-danger" id="modalDismissBtn">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="notif-toast" id="notifToast" hidden></div>
+
   <script type="module" src="js/notifications.js"></script>
 </body>
 </html>
-

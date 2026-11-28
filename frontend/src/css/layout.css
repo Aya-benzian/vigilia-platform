@@ -617,6 +617,11 @@ customer-navbar {
   color: #d97236;
 }
 
+.notif-unread-tag.caught-up {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
 .notif-clear-btn {
   background: none;
   border: none;
@@ -680,6 +685,41 @@ customer-navbar {
 .notif-icon-box.warn {
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
+}
+
+.notif-icon-box.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.notif-dropdown-item {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.notif-unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c25e2e;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notif-dropdown-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .notif-content {

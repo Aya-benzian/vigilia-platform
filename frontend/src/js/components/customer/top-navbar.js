@@ -1,22 +1,20 @@
 import { VigiliaAuth } from '../../auth.js';
+import { notificationStore, escapeHtml, formatRelativeTime } from '../../notification-store.js';
 
 /**
  * Vigilia Platform — Customer Portal Top Navbar (<customer-navbar>)
- * Matches the design and interactive functionality of the Monitor Top Navbar:
  * - Sidebar collapse / drawer toggle button
  * - Global search bar with ⌘K shortcut
- * - Notification bell with unread badge and dropdown panel
+ * - Live Notification bell with unread badge and backend-wired dropdown panel
  * - User profile menu with avatar, name, role badge, and dropdown actions
  */
 class CustomerNavbar extends HTMLElement {
   connectedCallback() {
     const placeholder = this.getAttribute('search-placeholder') || 'Search transactions, recipients, or merchants...';
-    const notificationCount = this.getAttribute('notifications') || '2';
 
-    // Retrieve active customer info from auth helper or session
-    let displayName = 'Aya Belk';
+    let displayName = 'Customer';
     let displayRole = 'Customer';
-    let initials = 'AB';
+    let initials = 'VG';
 
     if (typeof window !== 'undefined' && window.VigiliaAuth) {
       const user = window.VigiliaAuth.getUser();
@@ -71,7 +69,7 @@ class CustomerNavbar extends HTMLElement {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
               </svg>
-              <span class="notification-badge" id="notificationBadge">${notificationCount}</span>
+              <span class="notification-badge" id="notificationBadge" style="display:none;">0</span>
             </button>
 
             <!-- Notifications Dropdown Panel -->
@@ -79,41 +77,13 @@ class CustomerNavbar extends HTMLElement {
               <div class="notification-panel-header">
                 <div class="notif-title-row">
                   <span class="notif-panel-title">Notifications</span>
-                  <span class="notif-unread-tag" id="notifUnreadTag">${notificationCount} New</span>
+                  <span class="notif-unread-tag" id="notifUnreadTag">0 New</span>
                 </div>
                 <button type="button" class="notif-clear-btn" id="notifClearBtn">Mark all as read</button>
               </div>
 
               <div class="notification-items-list" id="notificationItemsList">
-                <div class="notif-item unread">
-                  <div class="notif-icon-box ok">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  </div>
-                  <div class="notif-content">
-                    <p class="notif-text"><strong>Transaction Approved:</strong> Payment to Netflix · $12.99</p>
-                    <span class="notif-time">2 mins ago</span>
-                  </div>
-                </div>
-
-                <div class="notif-item unread">
-                  <div class="notif-icon-box info">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                  </div>
-                  <div class="notif-content">
-                    <p class="notif-text"><strong>Transfer Under Review:</strong> Transfer to John Doe · $250.00</p>
-                    <span class="notif-time">5 hours ago</span>
-                  </div>
-                </div>
-
-                <div class="notif-item unread">
-                  <div class="notif-icon-box ok">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                  </div>
-                  <div class="notif-content">
-                    <p class="notif-text"><strong>Security Alert:</strong> New login detected from Casablanca, Morocco</p>
-                    <span class="notif-time">1 day ago</span>
-                  </div>
-                </div>
+                <div class="notif-dropdown-empty">Loading notifications...</div>
               </div>
 
               <div class="notification-panel-footer">
@@ -164,7 +134,7 @@ class CustomerNavbar extends HTMLElement {
       </header>
     `;
 
-    // 1. Sidebar toggle logic (desktop collapse & mobile drawer)
+    // 1. Sidebar toggle logic
     const toggleBtn = this.querySelector('#sidebarToggleBtn');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
@@ -179,12 +149,10 @@ class CustomerNavbar extends HTMLElement {
       });
     }
 
-    // 2. Notification dropdown toggle
+    // 2. Notification dropdown toggle & live backend wiring
     const notifBtn = this.querySelector('#notificationBtn');
     const notifPanel = this.querySelector('#notificationPanel');
     const notifClearBtn = this.querySelector('#notifClearBtn');
-    const notifBadge = this.querySelector('#notificationBadge');
-    const notifUnreadTag = this.querySelector('#notifUnreadTag');
 
     if (notifBtn && notifPanel) {
       notifBtn.addEventListener('click', (e) => {
@@ -193,17 +161,21 @@ class CustomerNavbar extends HTMLElement {
         notifBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         const userDropdown = this.querySelector('#userDropdownPanel');
         if (userDropdown) userDropdown.classList.remove('open');
+        if (isOpen && VigiliaAuth.isAuthenticated()) {
+          this.refreshNotifications();
+        }
       });
 
       if (notifClearBtn) {
-        notifClearBtn.addEventListener('click', (e) => {
+        notifClearBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          this.querySelectorAll('.notif-item').forEach(item => item.classList.remove('unread'));
-          if (notifBadge) notifBadge.style.display = 'none';
-          if (notifUnreadTag) {
-            notifUnreadTag.textContent = 'All caught up';
-            notifUnreadTag.style.background = 'rgba(16, 185, 129, 0.12)';
-            notifUnreadTag.style.color = '#10b981';
+          notifClearBtn.disabled = true;
+          try {
+            await notificationStore.markAllAsRead();
+          } catch (err) {
+            console.warn('[CustomerNavbar] Failed to mark all read:', err);
+          } finally {
+            notifClearBtn.disabled = false;
           }
         });
       }
@@ -214,6 +186,18 @@ class CustomerNavbar extends HTMLElement {
           notifBtn.setAttribute('aria-expanded', 'false');
         }
       });
+    }
+
+    this._onNotifUpdate = (e) => this.renderNotifications(e.detail);
+    window.addEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
+
+    if (VigiliaAuth.isAuthenticated()) {
+      this.refreshNotifications();
+      this._pollTimer = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          notificationStore.fetchUnreadCount();
+        }
+      }, 30000);
     }
 
     // 3. User profile dropdown toggle
@@ -238,13 +222,7 @@ class CustomerNavbar extends HTMLElement {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        if (typeof window !== 'undefined' && window.VigiliaAuth) {
-          window.VigiliaAuth.logout();
-        } else {
-          localStorage.clear();
-          sessionStorage.clear();
-          window.location.replace('/login.html');
-        }
+        VigiliaAuth.logout();
       });
     }
 
@@ -256,6 +234,143 @@ class CustomerNavbar extends HTMLElement {
         if (searchInput) searchInput.focus();
       }
     });
+  }
+
+  disconnectedCallback() {
+    if (this._onNotifUpdate) {
+      window.removeEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
+    }
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+    }
+  }
+
+  async refreshNotifications() {
+    try {
+      await notificationStore.fetchList({ size: 6 });
+    } catch (err) {
+      const listEl = this.querySelector('#notificationItemsList');
+      if (listEl && !notificationStore.getState().loaded) {
+        listEl.innerHTML = `<div class="notif-dropdown-empty">Unable to load notifications</div>`;
+      }
+    }
+  }
+
+  renderNotifications(detail) {
+    const state = detail || notificationStore.getState();
+    const unread = Number(state.unreadCount || 0);
+    const items = Array.isArray(state.items) ? state.items.slice(0, 6) : [];
+
+    const notifBadge = this.querySelector('#notificationBadge');
+    const notifUnreadTag = this.querySelector('#notifUnreadTag');
+    const notifClearBtn = this.querySelector('#notifClearBtn');
+    const listEl = this.querySelector('#notificationItemsList');
+
+    if (notifBadge) {
+      if (unread > 0) {
+        notifBadge.textContent = unread > 99 ? '99+' : String(unread);
+        notifBadge.style.display = 'flex';
+      } else {
+        notifBadge.style.display = 'none';
+      }
+    }
+
+    if (notifUnreadTag) {
+      if (unread > 0) {
+        notifUnreadTag.textContent = `${unread} New`;
+        notifUnreadTag.classList.remove('caught-up');
+      } else {
+        notifUnreadTag.textContent = 'All caught up';
+        notifUnreadTag.classList.add('caught-up');
+      }
+    }
+
+    if (notifClearBtn) {
+      notifClearBtn.style.display = unread > 0 ? 'inline-block' : 'none';
+    }
+
+    if (!listEl) return;
+
+    if (items.length === 0) {
+      listEl.innerHTML = `
+        <div class="notif-dropdown-empty">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <span>No notifications yet</span>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = items.map((n) => {
+      const iconMeta = this.getSeverityIcon(n.severity, n.category);
+      const unreadClass = n.read ? '' : 'unread';
+      return `
+        <button type="button" class="notif-item notif-dropdown-item ${unreadClass}" data-id="${escapeHtml(n.id)}" data-tx="${escapeHtml(n.transactionId || '')}">
+          <div class="notif-icon-box ${iconMeta.cls}">${iconMeta.svg}</div>
+          <div class="notif-content">
+            <p class="notif-text"><strong>${escapeHtml(n.title)}:</strong> ${escapeHtml(n.message)}</p>
+            <span class="notif-time">${escapeHtml(formatRelativeTime(n.createdAt))}</span>
+          </div>
+          ${n.read ? '' : '<span class="notif-unread-dot" aria-hidden="true"></span>'}
+        </button>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.notif-dropdown-item').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        try {
+          if (btn.classList.contains('unread')) {
+            await notificationStore.markAsRead(id);
+          }
+        } catch (err) {
+          console.warn('[CustomerNavbar] Mark read failed:', err);
+        }
+        const panel = this.querySelector('#notificationPanel');
+        if (panel) panel.classList.remove('open');
+        if (!window.location.pathname.endsWith('notifications.html')) {
+          window.location.href = `notifications.html?id=${encodeURIComponent(id)}`;
+        } else {
+          window.dispatchEvent(new CustomEvent('vigilia:notification-selected', { detail: { id } }));
+        }
+      });
+    });
+  }
+
+  getSeverityIcon(severity, category) {
+    const sev = (severity || '').toUpperCase();
+    const cat = (category || '').toUpperCase();
+    if (sev === 'CRITICAL') {
+      return {
+        cls: 'danger',
+        svg: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
+      };
+    }
+    if (sev === 'WARNING' || cat === 'REVIEW') {
+      return {
+        cls: 'warn',
+        svg: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+      };
+    }
+    if (cat === 'SECURITY') {
+      return {
+        cls: 'info',
+        svg: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+      };
+    }
+    if (sev === 'SUCCESS') {
+      return {
+        cls: 'ok',
+        svg: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+      };
+    }
+    return {
+      cls: 'info',
+      svg: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
+    };
   }
 
   updateUser(name, initials) {

@@ -1,4 +1,5 @@
 import logoUrl from '../../../assets/vigilia-logo-mark.png';
+import { notificationStore } from '../../notification-store.js';
 
 /**
  * Vigilia Platform — Customer Workspace Sidebar (<customer-sidebar>)
@@ -68,7 +69,7 @@ class CustomerSidebar extends HTMLElement {
         id: 'notifications',
         title: 'Notifications',
         href: 'notifications.html',
-        badge: '2',
+        dynamicBadge: true,
         icon: `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -90,7 +91,9 @@ class CustomerSidebar extends HTMLElement {
     const renderNav = (items) => items.map(item => {
       const isActive = item.id === activeRoute;
       const activeClass = isActive ? 'nav-item active' : 'nav-item';
-      const badgeHtml = item.badge ? `<span class="nav-item-badge">${item.badge}</span>` : '';
+      const badgeHtml = item.dynamicBadge
+        ? `<span class="nav-item-badge" id="sidebarNotifBadge" style="display:none;">0</span>`
+        : (item.badge ? `<span class="nav-item-badge">${item.badge}</span>` : '');
       return `
         <a href="${item.href}" class="${activeClass}" title="${item.title}" data-page="${item.title}">
           <span class="nav-item-icon-wrap">${item.icon}</span>
@@ -195,6 +198,29 @@ class CustomerSidebar extends HTMLElement {
         shell?.classList.remove('sidebar-mobile-open');
       }
     });
+
+    // Live notification badge sync
+    const syncBadge = (unreadCount) => {
+      const badge = this.querySelector('#sidebarNotifBadge');
+      if (!badge) return;
+      const count = Number(unreadCount || 0);
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    };
+
+    syncBadge(notificationStore.getState().unreadCount);
+    this._onNotifUpdate = (e) => syncBadge(e.detail?.unreadCount);
+    window.addEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
+  }
+
+  disconnectedCallback() {
+    if (this._onNotifUpdate) {
+      window.removeEventListener(notificationStore.EVENT_NAME, this._onNotifUpdate);
+    }
   }
 }
 

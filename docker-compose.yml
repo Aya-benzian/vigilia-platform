@@ -97,6 +97,8 @@ services:
       CUSTOMER_SERVICE_URL: "http://customer-service:8082"
       TRANSACTION_SERVICE_URL: "http://transaction-service:8083"
       RISK_SERVICE_URL: "http://risk-management-service:8084"
+      TRANSACTION_OUTBOX_RELAY_DOWNSTREAM_URL: "http://notification-service:8085/api/v1/notifications"
+      NOTIFICATION_SERVICE_URL: "http://notification-service:8085"
       AUTH_JWKS_URL: "http://auth-service:8081/.well-known/jwks.json"
       CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8087,http://127.0.0.1:8087"
     healthcheck:
@@ -120,6 +122,7 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
       JWT_SECRET: ${JWT_SECRET:-change_me_with_a_long_random_base64_string}
+      NOTIFICATION_SERVICE_URL: "http://notification-service:8085"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || curl -sf http://localhost:8081/actuator/health || exit 1"]
       interval: 30s
@@ -161,6 +164,7 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-vigilia}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
       RISK_SERVICE_URL: "http://risk-management-service:8084"
+      TRANSACTION_OUTBOX_RELAY_DOWNSTREAM_URL: "http://notification-service:8085/api/v1/notifications"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8083/actuator/health || curl -sf http://localhost:8083/actuator/health || exit 1"]
       interval: 30s
@@ -196,12 +200,25 @@ services:
       context: ./backend/notification-service
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-8085}:8085"
+    environment:
+      SERVER_PORT: "8085"
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vigilia}?currentSchema=notification
+      DB_USERNAME: ${POSTGRES_USER:-vigilia}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-vigilia_secret}
+      CUSTOMER_SERVICE_URL: "http://customer-service:8082"
+      BREVO_ENABLED: ${BREVO_ENABLED:-false}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Vigilia Security}
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8085/actuator/health || curl -sf http://localhost:8085/actuator/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   audit-service:
     build:
